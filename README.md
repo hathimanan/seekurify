@@ -1,6 +1,6 @@
 # Securify Project
 
-Welcome! This is Securify - a secure password manager application with React frontend and Node.js/Express backend.
+Welcome! This is Securify - a secure password manager application with all the information related to security awareness is displayed and also to secure the users and also dashboard for password manager should be there to manage user passwords. The application should also include other security features like link checker(if a link is safe or suspicious) and file checker, malware checker. The application should also contain dashboard for System Information And Event logs for events occurring. The passwords stored by the password manager should be in hashes (Can also use random password generator,but it all depends on what user wants) It is built with the help of ReactJS as frontend and Node.js/Express as backend. 
 
 ## Getting started
 
