@@ -3,18 +3,22 @@ import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { X } from 'lucide-react';
 import { apiService } from '../services/api';
-
+import { Navigate } from 'react-router-dom';
+import { HomePageAfter } from '../screens/HomePageAfter/HomePageAfter';
 interface OTPFormProps {
   email: string;
   otpToken: string; // ✅ Add this line
   onBack: () => void;
   onSuccess?: () => void;
 }
-export const OTPForm: React.FC<OTPFormProps> = ({ email, onBack }) => {
+export const OTPForm: React.FC<OTPFormProps> = ({ email, otpToken, onBack, onSuccess }) => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const isOtpValid = otp.every((digit) => /^\d$/.test(digit));
+  const [goToHome, setGoToHome] = useState(false);
+  
 
   useEffect(() => {
     // Focus first input on mount
@@ -44,6 +48,7 @@ export const OTPForm: React.FC<OTPFormProps> = ({ email, onBack }) => {
       inputRefs.current[index - 1]?.focus();
     }
   };
+  
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
@@ -63,7 +68,8 @@ export const OTPForm: React.FC<OTPFormProps> = ({ email, onBack }) => {
 
  const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
-  const otpToken = localStorage.getItem('otpToken');
+  localStorage.setItem('otpToken', otpToken);
+
   if (!otpToken) {
     setError('Missing OTP token. Please log in again.');
     setIsLoading(false);
@@ -80,15 +86,30 @@ export const OTPForm: React.FC<OTPFormProps> = ({ email, onBack }) => {
   setIsLoading(true);
   setError('');
 
-  try {
-    await apiService.verifyOtp(email, otpString, otpToken);
-    onSuccess(); // ✅ Notify LoginForm
-  } catch (err: any) {
-    setError(err.message || 'Invalid OTP');
-  } finally {
-    setIsLoading(false);
+try {
+  const userData = await apiService.onverifyOtp(email, otpString, otpToken);
+
+  // Store user in context or state if not already
+    if (userData?.user?.pin === '0000') {
+        setGoToHome(true); // ✅ Trigger redirect via render
+      } else {
+        if (onSuccess) onSuccess(); // Show PINForm
+      }
+
+    } catch (err: any) {
+      const errorMessage = err?.message || (typeof err === 'string' ? err : 'Invalid OTP');
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ✅ Redirect by rendering the component directly
+  if (goToHome) {
+    return <HomePageAfter />;
   }
-};
+
+
 
 
   // const handleVerifyPIN = async (pin: string) => {
@@ -164,9 +185,9 @@ export const OTPForm: React.FC<OTPFormProps> = ({ email, onBack }) => {
                 </div>
 
                 <div className="flex justify-end">
-                  <Button
+                  <Button                  
                     type="submit"
-                    disabled={isLoading || otp.join('').length !== 6}
+                    disabled={isLoading || !isOtpValid}
                     className="bg-gray-700 hover:bg-gray-800 text-white px-8 py-2 rounded-md font-medium"
                   >
                     {isLoading ? 'Verifying...' : 'Submit'}
@@ -189,7 +210,3 @@ export const OTPForm: React.FC<OTPFormProps> = ({ email, onBack }) => {
     </div>
   );
 };
-
-function onSuccess() {
-  throw new Error('Function not implemented.');
-}

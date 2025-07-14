@@ -5,6 +5,7 @@ interface User {
   id: string;
   email: string;
   username?: string;
+  pin?: string; // Optional, only needed for PIN-based login
 }
 
 interface AuthContextType {
@@ -12,7 +13,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  verifyOtp: (email: string, otp: string) => Promise<void>;
+  verifyOtp: (email: string, otp: string,otpToken: string) => Promise<void>;
   verifyPin: (email: string, pin: string) => Promise<void>;
   signup: (email: string, username: string, password: string) => Promise<void>;
   logout: () => void;
@@ -58,9 +59,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const verifyOtp = async (email: string, otp: string) => {
+  const verifyOtp = async (email: string, otp: string,otpToken: string) => {
     try {
-      await apiService.verifyOtp(email, otp); // No token here either
+      await apiService.onverifyOtp(email, otp, otpToken); // No token here either
     } catch (error) {
       throw error;
     }

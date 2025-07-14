@@ -61,4 +61,5 @@ passwordSchema.pre('save', function(next) {
 
 // module.exports = mongoose.model('Password', passwordSchema);
 
-export default passwordSchema;
+const Password = mongoose.model('Password', passwordSchema);
+export default Password;

@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema({
   pin: {
     type: String,
     default: '0000',
-  },          // ✅ Added for password reset
+  }          // ✅ Added for password reset
 });
 
 // ✅ Auto-hash password before saving user

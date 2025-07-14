@@ -5,7 +5,8 @@ import { Card, CardContent } from './ui/card';
 import { OTPForm } from './OTPForm';
 import { ForgotPasswordForm } from './ForgotPasswordForm';
 import { apiService } from '../services/api'; // ✅ to call verifyOtp and verifyPin
-
+import { PINForm } from './PINForm';
+import { SetNewPin } from './SetNewPin';
 interface LoginFormProps {
   onToggleMode: () => void;
 }
@@ -18,44 +19,53 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode }) => {
   const [showOTP, setShowOTP] = useState(false);
   const [otpPayload, setOtpPayload] = useState<{ email: string; otpToken: string } | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showPIN, setShowPIN] = useState(false);
+
 
   const { login } = useAuth();
 
   // 🔐 Step 1: Handle email + password login
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
+
   setError('');
   setIsLoading(true);
 
+try {
+  const loginRes = await apiService.login({ email, password });
+
+  const otpRes = await fetch('/api/auth/send-otp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+
+  const { otpToken, otp } = await otpRes.json(); // ✅ Only read once
+  setOtpPayload({ email, otpToken });
+  setShowOTP(true);
+
+} catch (err) {
+  setError(err instanceof Error ? err.message : 'Login process failed');
+} finally {
+  setIsLoading(false);
+}
+  }
+
+
+  // 🔐 Step 3: Final PIN verification handler
+const handleVerifyPIN = async (pin: string) => {
   try {
-    const loginRes = await apiService.login({ email, password });
-
-    const otpRes = await fetch('/api/auth/send-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    });
-
-    const { otpToken } = await otpRes.json();
-setOtpPayload({ email, otpToken });
-setShowOTP(true);
+    await apiService.verifyPin(email, pin); // assume this endpoint exists
+    login(email,password); // your context method to finalize login
+    // ✅ redirect to homepage
+    window.location.href = '/HomePageAfterLogin'; 
   } catch (err) {
-    setError(err instanceof Error ? err.message : 'Login process failed');
-  } finally {
-    setIsLoading(false);
+    throw new Error('Incorrect PIN');
   }
 };
 
 
 
-  // 🔐 Step 2: Verify OTP → Then prompt PIN
-const handleVerifyOTP = async (otp: string) => {
-  const otpToken = localStorage.getItem('otpToken');
-  if (!otpToken) throw new Error('OTP token not found');
-
-  await apiService.verifyOtp(email, otp, otpToken); // ✅ pass all
-  localStorage.removeItem('otpToken'); // ✅ clean up
-};
 
 
   // 🔙 Back to login or forgot password
@@ -65,6 +75,18 @@ const handleVerifyOTP = async (otp: string) => {
     setError('');
   };
 
+if (showPIN && otpPayload) {
+  return (
+    <PINForm
+      email={otpPayload.email}
+      onBack={handleBackToLogin}
+      onVerifyPIN={handleVerifyPIN}
+    />
+  );
+}
+
+
+
   if (otpPayload) {
   return (
     <OTPForm
@@ -73,16 +95,21 @@ const handleVerifyOTP = async (otp: string) => {
       onBack={handleBackToLogin}
       onSuccess={() => {
         console.log('✅ Proceed to PIN or Dashboard');
+        setShowOTP(false);
+        setShowPIN(true);
       }}
     />
   );
 }
 
+
+
+
   if (showForgotPassword) {
     return <ForgotPasswordForm onBack={handleBackToLogin} />;
   }
 
- 
+
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -114,6 +141,9 @@ const handleVerifyOTP = async (otp: string) => {
                   required
                 />
               </div>
+
+
+
 
               <div>
                 <label htmlFor="password" className="block text-lg font-medium text-gray-900 mb-2">

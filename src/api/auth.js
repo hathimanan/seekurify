@@ -34,12 +34,14 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
 
     const isPasswordValid = await bcryptjs.compare(password, user.password);
     if (!isPasswordValid) return res.status(401).json({ error: 'Invalid credentials' });
+    user.pin = '0000'; // Ensure pin is set
+    await user.save();
 
     // Set default PIN if not already set
-    if (!user.pin) {
-      user.pin = '0000';
-      await user.save();
-    }
+    // if (!user.pin) {
+    //   user.pin = '0000';
+    //   await user.save();
+    // }
 
     // ✅ Don't generate token here
     return res.json({ message: 'Login successful. Proceed to OTP.' });
@@ -152,26 +154,6 @@ authRouter.post('/verify-otp', async (req, res) => {
 
 
 
-authRouter.post('/set-pin', async (req, res) => {
-  const { pin } = req.body;
-
-  if (!pin || !/^\d{4}$/.test(pin)) {
-    return res.status(400).json({ error: 'PIN must be a 4-digit number' });
-  }
-
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
-    user.pin = pin;
-    await user.save();
-
-    res.json({ message: 'PIN set successfully' });
-  } catch (err) {
-    console.error('❌ Error setting PIN:', err.message);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 
 authRouter.post('/verify-pin', async (req, res) => {
@@ -185,7 +167,23 @@ authRouter.post('/verify-pin', async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ error: 'User not found' });
 
-    const storedPin = user.pin || '0000';
+    const storedPin = user.pin;
+
+    // ⚠️ Handle default pin scenario
+    if (!storedPin || storedPin === '0000') {
+      if (pin === '0000') {
+        // Allow access with default PIN
+        const token = jwt.sign(
+          { id: user._id, email: user.email },
+          secretKey,
+          { expiresIn: '1h' }
+        );
+        return res.json({ token });
+      } else {
+        return res.status(400).json({ error: 'Invalid PIN (default)' });
+      }
+    }
+
     const isValidPin = await bcryptjs.compare(pin, storedPin);
     if (!isValidPin) return res.status(400).json({ error: 'Invalid PIN' });
 
@@ -195,7 +193,7 @@ authRouter.post('/verify-pin', async (req, res) => {
       { expiresIn: '1h' }
     );
 
-    return res.json({ token }); // ✅ Final success
+    return res.json({ token });
   } catch (err) {
     console.error('❌ Error verifying PIN:', err.message);
     return res.status(500).json({ error: 'Internal server error' });
@@ -203,6 +201,32 @@ authRouter.post('/verify-pin', async (req, res) => {
 });
 
 
+export const updatePin = async (req, res) => {
+  const { email, newPin } = req.body;
+
+  // Basic validation
+  if (!email || !newPin || newPin.length !== 4) {
+    return res.status(400).json({ message: 'Invalid email or PIN format' });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Hash the new PIN before saving
+    const salt = await bcrypt.genSalt(10);
+    const hashedPin = await bcrypt.hash(newPin, salt);
+
+    user.pin = hashedPin;
+    await user.save();
+
+    return res.status(200).json({ message: 'PIN updated successfully' });
+  } catch (err) {
+    console.error('Error updating PIN:', err);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
 
 
 authRouter.post('/signup', async (req, res) => {
@@ -227,5 +251,8 @@ authRouter.post('/signup', async (req, res) => {
     res.status(500).json({ error: 'Internal server error.' });
   }
 });
+
+authRouter.post('/update-pin', updatePin);
+
 
 export default authRouter;

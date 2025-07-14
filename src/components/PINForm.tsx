@@ -5,9 +5,13 @@ import { X } from 'lucide-react';
 
 interface PINFormProps {
   email: string;
-  onVerifyPIN: (pin: string) => Promise<void>;
   onBack: () => void;
+  onVerifyPIN: (pin: string) => void;
 }
+
+
+
+
 
 export const PINForm: React.FC<PINFormProps> = ({ email, onVerifyPIN, onBack }) => {
   const [pin, setPin] = useState(['', '', '', '']);
@@ -80,6 +84,9 @@ export const PINForm: React.FC<PINFormProps> = ({ email, onVerifyPIN, onBack }) 
       setIsLoading(false);
     }
   };
+
+
+
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">

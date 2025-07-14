@@ -49,7 +49,7 @@ async login(credentials: LoginCredentials) {
 
   return await response.json(); // returns { message: "Logged in. Proceed to OTP." }
 }
-async verifyOtp(email: string, otp: string, otpToken: string) {
+async onverifyOtp(email: string, otp: string, otpToken: string) {
   const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -114,18 +114,20 @@ async verifyPin(email: string, pin: string) {
     return response.json();
   }
 
-  async getPasswords() {
-    const response = await fetch(`${API_BASE_URL}/passwords`, {
-      headers: this.getAuthHeaders()
-    });
+async getPasswords() {
+  const response = await fetch(`${API_BASE_URL}/passwords`, {
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem('token')}`,
+    },
+  });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch passwords');
-    }
-
-    return response.json();
+  if (!response.ok) {
+    throw new Error('Failed to fetch passwords');
   }
+
+  const data = await response.json(); // ✅ returns an array
+  return data;
+}
 
   async addPassword(passwordData: PasswordEntry) {
     const response = await fetch(`${API_BASE_URL}/passwords`, {

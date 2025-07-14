@@ -1,15 +1,47 @@
-import React from "react";
+// HomePageAfter.tsx
+
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { SetNewPin } from "../../components/SetNewPin";
 
 export const HomePageAfter = (): JSX.Element => {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  // ✅ Hook must be declared here, inside the component
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinUpdateRequired, setPinUpdateRequired] = useState(false);
+
+  useEffect(() => {
+    if (user?.pin === "0000") {
+      setShowPinModal(true);
+    }
+  }, [user]);
 
   const handleLogout = () => {
     logout();
-    navigate('/');
+    navigate("/");
   };
+
+  const handleCloseModal = () => {
+    setShowPinModal(false);
+  };
+
+  const handleChangePin = () => {
+    handleCloseModal();
+    setPinUpdateRequired(true); // ✅ Trigger render of <SetNewPin />
+  };
+
+  // ✅ Show set-pin form instead of dashboard
+  if (pinUpdateRequired) {
+    return (
+      <SetNewPin
+        email={user?.email || ""}
+        onPinSetSuccess={() => setPinUpdateRequired(false)}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -23,6 +55,32 @@ export const HomePageAfter = (): JSX.Element => {
           Logout
         </button>
       </div>
+
+      {/* PIN Modal */}
+      {showPinModal && (
+        <div className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg text-center">
+            <h2 className="text-xl font-bold mb-4 text-gray-900">Set a New PIN</h2>
+            <p className="text-gray-700 mb-6">
+              You are using the default PIN. For your security, please change it.
+            </p>
+            <div className="flex justify-center gap-4">
+              <button
+                onClick={handleChangePin}
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              >
+                Change PIN
+              </button>
+              <button
+                onClick={handleCloseModal}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                Later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-1">
         {/* Sidebar */}
