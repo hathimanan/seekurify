@@ -20,7 +20,7 @@ import dashboardRoutes from './src/api/dashboard.js';
 import passwordRoutes from './src/api/passwords.js';
 import homepageBeforeloginRoutes from './src/api/homepageBeforelogin.js';
 import homepageAfterLoginRoutes from './src/api/homepageAfterLogin.js';
-
+import userdetailsRoutes from './src/models/User.js'; // Import user details route
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -36,7 +36,7 @@ app.use('/api/login', loginRoutes);
 app.use('/api/homepageAfterlogin', homepageAfterLoginRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/passwords', passwordRoutes);
-
+app.use('/api/user/details', userdetailsRoutes);
 // Serve static files from the React/Vite build directory
 app.use(express.static(path.join(__dirname, 'dist')));
 

@@ -4,20 +4,38 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { SetNewPin } from "../../components/SetNewPin";
+import { apiService } from "../../services/api"; // ✅ assume this has `getUserDetails`
 
 export const HomePageAfter = (): JSX.Element => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  // ✅ Hook must be declared here, inside the component
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinUpdateRequired, setPinUpdateRequired] = useState(false);
+  const [loading, setLoading] = useState(true); // ✅ wait for PIN check
+  const [pinChecked, setPinChecked] = useState(false); // prevents double-fetch
 
-  useEffect(() => {
-    if (user?.pin === "0000") {
-      setShowPinModal(true);
+useEffect(() => {
+  const checkUserPin = async () => {
+    try {
+      if (user?.email && !pinChecked) {
+        setPinChecked(true);
+        const userData = await apiService.getUserDetails(user.email); // ✅ fetch user details with pin
+        console.log("Fetched userData:", userData); // ✅ Check if pin is included
+        if (userData.pin === "0000") {
+          setShowPinModal(true);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch user PIN:", err);
+    } finally {
+      setLoading(false);
     }
-  }, [user]);
+  };
+
+  checkUserPin();
+}, [user, pinChecked]);
+
 
   const handleLogout = () => {
     logout();
@@ -30,10 +48,19 @@ export const HomePageAfter = (): JSX.Element => {
 
   const handleChangePin = () => {
     handleCloseModal();
-    setPinUpdateRequired(true); // ✅ Trigger render of <SetNewPin />
+    setPinUpdateRequired(true); // Show <SetNewPin />
   };
 
-  // ✅ Show set-pin form instead of dashboard
+  // ✅ Block screen until PIN is verified
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-xl font-semibold">
+        Loading...
+      </div>
+    );
+  }
+
+  // 🔁 Change PIN screen
   if (pinUpdateRequired) {
     return (
       <SetNewPin

@@ -1,12 +1,15 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
-import { HomePageBefore } from "./screens/HomePageBefore";
+import AppRoutes from "./AppRoutes.tsx"; // Contains your <Routes>
 
 createRoot(document.getElementById("app") as HTMLElement).render(
   <StrictMode>
-    <AuthProvider>
-      <HomePageBefore />
-    </AuthProvider>
-  </StrictMode>,
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrowserRouter>
+  </StrictMode>
 );

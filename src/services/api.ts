@@ -101,6 +101,12 @@ async verifyPin(email: string, pin: string) {
     return response.json();
   }
 
+    async getUserDetails(pin: string) {
+    const res = await fetch(`/api/user/details?pin=${pin}`);
+    if (!res.ok) throw new Error("User fetch failed");
+    return res.json();
+  }
+
   async getDashboard() {
     const response = await fetch(`${API_BASE_URL}/dashboard`, {
       headers: this.getAuthHeaders()
@@ -113,6 +119,9 @@ async verifyPin(email: string, pin: string) {
 
     return response.json();
   }
+
+
+
 
 async getPasswords() {
   const response = await fetch(`${API_BASE_URL}/passwords`, {

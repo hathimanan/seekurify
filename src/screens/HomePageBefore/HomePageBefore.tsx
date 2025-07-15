@@ -6,6 +6,7 @@ import { SignupForm } from "../../components/SignupForm";
 import { Dashboard } from "../../components/Dashboard";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent } from "../../components/ui/card";
+import { HomePageAfter } from "../HomePageAfter/HomePageAfter";
 
 export const HomePageBefore = (): JSX.Element => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -24,7 +25,7 @@ export const HomePageBefore = (): JSX.Element => {
   }
 
   if (isAuthenticated) {
-    return <Dashboard />;
+    return <HomePageAfter />;
   }
 
   const handleToggleMode = () => {

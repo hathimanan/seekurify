@@ -6,6 +6,11 @@ import { OTPForm } from './OTPForm';
 import { ForgotPasswordForm } from './ForgotPasswordForm';
 import { apiService } from '../services/api'; // ✅ to call verifyOtp and verifyPin
 import { PINForm } from './PINForm';
+import { GoogleSignInButton } from './GoogleSigninButton';
+import { Navigate } from 'react-router-dom';
+import { HomePageAfter } from '../screens/HomePageAfter/HomePageAfter';
+import { HomePageBefore } from '../screens/HomePageBefore/HomePageBefore';
+import { useNavigate } from 'react-router-dom';
 import { SetNewPin } from './SetNewPin';
 interface LoginFormProps {
   onToggleMode: () => void;
@@ -20,6 +25,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode }) => {
   const [otpPayload, setOtpPayload] = useState<{ email: string; otpToken: string } | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showPIN, setShowPIN] = useState(false);
+  const [step, setStep] = useState<'login' | 'otp' | 'pin' | 'home'>('login');
 
 
   const { login } = useAuth();
@@ -58,13 +64,25 @@ const handleVerifyPIN = async (pin: string) => {
     await apiService.verifyPin(email, pin); // assume this endpoint exists
     login(email,password); // your context method to finalize login
     // ✅ redirect to homepage
-    window.location.href = '/HomePageAfterLogin'; 
+    window.location.href = '/'; 
   } catch (err) {
     throw new Error('Incorrect PIN');
   }
 };
 
 
+
+const LoginPage = () => {
+  return (
+    <div className="space-y-4">
+      {/* Your normal login inputs */}
+      <GoogleSignInButton
+      onSuccess={() => {
+        setStep(step); // or `navigateToDashboard()`, etc.
+}} />
+    </div>
+  );
+};
 
 
 
@@ -178,10 +196,12 @@ if (showPIN && otpPayload) {
             </form>
 
             <div className="mt-6 space-y-3">
-              <Button type="button" className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 py-3 px-4 rounded-md font-medium flex items-center justify-center space-x-2">
-                <span>Sign In with Google</span>
-                <span className="text-xl">G</span>
-              </Button>
+                <GoogleSignInButton
+                onSuccess={() => {
+                  // Redirect or update state after successful Google login
+                  window.location.href = '/homepageAfterLogin';
+                }}
+                />
 
               <Button type="button" className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 py-3 px-4 rounded-md font-medium flex items-center justify-center space-x-2">
                 <span>Sign In with Microsoft</span>

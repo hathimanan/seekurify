@@ -229,6 +229,31 @@ export const updatePin = async (req, res) => {
 };
 
 
+authRouter.get('/api/user/details', async (req, res) => {
+  const { pin } = req.query;
+
+  if (!pin) {
+    return res.status(400).json({ error: 'PIN is required' });
+  }
+
+  try {
+    const user = await User.findOne({ pin });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found for provided PIN' });
+    }
+
+    return res.status(200).json({
+      id: user._id,
+      email: user.email,
+      pin: user.pin, // You can omit this if it’s sensitive
+    });
+  } catch (err) {
+    console.error('Error in /api/user/details:', err);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 authRouter.post('/signup', async (req, res) => {
   const { email, username, password } = req.body;
 
