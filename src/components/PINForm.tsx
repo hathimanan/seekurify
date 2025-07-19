@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { X } from 'lucide-react';
-
+import { useNavigate } from 'react-router-dom';
 interface PINFormProps {
   email: string;
   onBack: () => void;
@@ -18,7 +18,7 @@ export const PINForm: React.FC<PINFormProps> = ({ email, onVerifyPIN, onBack }) 
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-
+  const navigate = useNavigate();
   useEffect(() => {
     // Focus first input on mount
     if (inputRefs.current[0]) {
@@ -64,26 +64,37 @@ export const PINForm: React.FC<PINFormProps> = ({ email, onVerifyPIN, onBack }) 
     inputRefs.current[nextIndex]?.focus();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const pinString = pin.join('');
-    
-    if (pinString.length !== 4) {
-      setError('Please enter all 4 digits');
-      return;
-    }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
+  const fullPin = pin.join('');
+
+  try {
     setIsLoading(true);
-    setError('');
 
-    try {
-      await onVerifyPIN(pinString);
-    } catch (err) {
-      setError('Invalid PIN! Please try again.');
-    } finally {
-      setIsLoading(false);
+    const response = await fetch('/api/auth/verify-pin', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+body: JSON.stringify({ email, pin: fullPin }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      navigate('/homepageAfterLogin'); // ✅ Navigate on success
+    } else {
+      setError(data.message || 'Invalid PIN');
     }
-  };
+  } catch (error) {
+    console.error('Error verifying PIN:', error);
+    setError('Something went wrong!');
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
 
 

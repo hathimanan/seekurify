@@ -101,8 +101,8 @@ async verifyPin(email: string, pin: string) {
     return response.json();
   }
 
-    async getUserDetails(pin: string) {
-    const res = await fetch(`/api/user/details?pin=${pin}`);
+    async getUserDetails(email: string) {
+    const res = await fetch(`/api/user/?email=${email}`);
     if (!res.ok) throw new Error("User fetch failed");
     return res.json();
   }

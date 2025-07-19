@@ -9,8 +9,10 @@ import crypto from 'crypto';
 import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
 import { google } from 'googleapis';
+
 import dotenv from 'dotenv';
 dotenv.config();
+const OAuth2 = google.auth.OAuth2;
 
 const authRouter = express.Router();
 const secretKey = process.env.secretKey ?? 'default_secret_key';
@@ -29,12 +31,17 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email });
-    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    console.log('Login attempt 1 for email:', email);
 
+    const user = await User.findOne({ email });
+        console.log('Login attempt 2 for email:', email);
+
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
     const isPasswordValid = await bcryptjs.compare(password, user.password);
     if (!isPasswordValid) return res.status(401).json({ error: 'Invalid credentials' });
-    user.pin = '0000'; // Ensure pin is set
+    // Ensure pin is set
     await user.save();
 
     // Set default PIN if not already set
@@ -44,7 +51,7 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
     // }
 
     // ✅ Don't generate token here
-    return res.json({ message: 'Login successful. Proceed to OTP.' });
+return res.json({ message: 'Login successful. Proceed to OTP.', email: user.email });
   } catch (err) {
     console.error('Error during login:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -85,8 +92,12 @@ authRouter.post('/send-otp', async (req, res) => {
     );
 
     // ✅ Send OTP via email
-    const { token: accessToken } = await oAuth2Client.getAccessToken();
-    if (!accessToken) return res.status(500).json({ error: 'Failed to get access token' });
+    const accessTokenResponse = await oAuth2Client.getAccessToken();
+const accessToken = accessTokenResponse?.token;
+
+if (!accessToken) {
+  return res.status(500).json({ error: 'Failed to get access token' });
+}
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -169,20 +180,6 @@ authRouter.post('/verify-pin', async (req, res) => {
 
     const storedPin = user.pin;
 
-    // ⚠️ Handle default pin scenario
-    if (!storedPin || storedPin === '0000') {
-      if (pin === '0000') {
-        // Allow access with default PIN
-        const token = jwt.sign(
-          { id: user._id, email: user.email },
-          secretKey,
-          { expiresIn: '1h' }
-        );
-        return res.json({ token });
-      } else {
-        return res.status(400).json({ error: 'Invalid PIN (default)' });
-      }
-    }
 
     const isValidPin = await bcryptjs.compare(pin, storedPin);
     if (!isValidPin) return res.status(400).json({ error: 'Invalid PIN' });
@@ -229,7 +226,7 @@ export const updatePin = async (req, res) => {
 };
 
 
-authRouter.get('/api/user/details', async (req, res) => {
+authRouter.get('/user', async (req, res) => {
   const { pin } = req.query;
 
   if (!pin) {
@@ -249,7 +246,7 @@ authRouter.get('/api/user/details', async (req, res) => {
       pin: user.pin, // You can omit this if it’s sensitive
     });
   } catch (err) {
-    console.error('Error in /api/user/details:', err);
+    console.error('Error in /api/user/:', err);
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -257,27 +254,116 @@ authRouter.get('/api/user/details', async (req, res) => {
 authRouter.post('/signup', async (req, res) => {
   const { email, username, password } = req.body;
 
-  if (!email || !username || !password) return res.status(400).json({ error: 'All fields are required.' });
+  if (!email || !username || !password)
+    return res.status(400).json({ error: 'All fields are required.' });
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) return res.status(400).json({ error: 'Invalid email format.' });
+  if (!emailRegex.test(email))
+    return res.status(400).json({ error: 'Invalid email format.' });
 
   try {
     const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ error: 'Email is already in use.' });
+    if (existingUser)
+      return res.status(400).json({ error: 'Email is already in use.' });
 
     const hashedPassword = await bcryptjs.hash(password, 10);
-    const newUser = new User({ email, username, password: hashedPassword, pin: '0000' });
+
+    const newUser = new User({
+      email,
+      username,
+      password,
+      // pin:user.pin
+    });
     await newUser.save();
 
-    res.status(201).json({ message: 'User created successfully!' });
+    // 🔐 Generate email verification token
+    const emailToken = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: '15m' });
+    const verifyLink = `${process.env.FRONTEND_BASE_URL}/set-new-pin?token=${emailToken}`;
+
+    // ⚙️ Set up OAuth2
+    const oauth2Client = new OAuth2(
+      process.env.GMAIL_CLIENT_ID,
+      process.env.GMAIL_CLIENT_SECRET,
+      "https://developers.google.com/oauthplayground" // redirect URL
+    );
+
+    oauth2Client.setCredentials({
+      refresh_token: process.env.GMAIL_REFRESH_TOKEN,
+    });
+const accessTokenResponse = await oauth2Client.getAccessToken();
+const accessToken = accessTokenResponse?.token;
+
+if (!accessToken) {
+  console.error('Failed to retrieve access token.');
+  return res.status(500).json({ error: 'Email service unavailable.' });
+}
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    type: "OAuth2",
+    user: process.env.GMAIL_USER,
+    clientId: process.env.GMAIL_CLIENT_ID,
+    clientSecret: process.env.GMAIL_CLIENT_SECRET,
+    refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+    accessToken: accessToken,
+  },
+});
+    await transporter.sendMail({
+      from: `"Securify" <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: 'Verify Your Email & Set Your PIN - Securify',
+      html: `
+        <h2>Welcome to Securify, ${username}!</h2>
+        <p>Click the button below to verify your email and set your secure 4-digit PIN:</p>
+        <a href="${verifyLink}" style="background-color:#007bff;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">Set Your PIN</a>
+        <p>This link is valid for 15 minutes.</p>
+      `,
+    });
+
+    return res.status(201).json({
+      message: 'User created successfully! Check your email to verify and set your PIN.',
+    });
+
   } catch (err) {
     console.error('Error during signup:', err.message);
-    res.status(500).json({ error: 'Internal server error.' });
+    return res.status(500).json({ error: 'Internal server error.' });
   }
 });
 
-authRouter.post('/update-pin', updatePin);
 
+
+authRouter.post('/update-pin', async (req, res) => {
+  const { email, newPin } = req.body;
+
+  // Basic input validation
+  if (!email || !newPin) {
+    return res.status(400).json({ error: 'Email and new PIN are required' });
+  }
+
+  if (newPin.length !== 4) {
+    return res.status(400).json({ error: 'PIN must be exactly 4 digits' });
+  }
+
+  try {
+    // Find the user by email
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update the pin field
+    user.pin = newPin;
+
+    // Save the updated user
+    await user.save();
+
+    return res.status(200).json({ message: 'PIN updated successfully' });
+  } catch (error) {
+    console.error('Error in /update-pin:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 export default authRouter;

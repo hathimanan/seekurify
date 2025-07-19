@@ -11,18 +11,25 @@ const userSchema = new mongoose.Schema({
   otp: { type: String },
   otpEpiry: { type: Date },  
   pin: {
-    type: String,
-    default: '0000',
-  }          // ✅ Added for password reset
+    type: String
+    }          // ✅ Added for password reset
 });
 
 // ✅ Auto-hash password before saving user
 userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-
   try {
-    const salt = await bcryptjs.genSalt(10);
-    this.password = await bcryptjs.hash(this.password, salt);
+    // Hash password if modified
+    if (this.isModified('password')) {
+      const salt = await bcryptjs.genSalt(10);
+      this.password = await bcryptjs.hash(this.password, salt);
+    }
+
+    // Hash pin if modified
+    if (this.isModified('pin')) {
+      const salt = await bcryptjs.genSalt(10);
+      this.pin = await bcryptjs.hash(this.pin, salt);
+    }
+
     next();
   } catch (error) {
     next(error);

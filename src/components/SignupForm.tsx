@@ -1,21 +1,20 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 
-interface SignupFormProps {
-  onToggleMode: () => void;
-  onSignupSuccess: () => void;
-}
-
-export const SignupForm: React.FC<SignupFormProps> = ({ onToggleMode, onSignupSuccess }) => {
+export const SignupForm: React.FC = () => {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
   const { signup } = useAuth();
+  const navigate = useNavigate();
+const [successMessage, setSuccessMessage] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,14 +32,20 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onToggleMode, onSignupSu
 
     setIsLoading(true);
 
-    try {
-      await signup(email, username, password);
-      onSignupSuccess();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Signup failed');
-    } finally {
-      setIsLoading(false);
-    }
+try {
+  await signup(email, username, password);
+  setSuccessMessage(`A verification email has been sent to ${email}`);
+  // navigate('/set-new-pin', { state: { email } });
+} catch (err) {
+  setError(err instanceof Error ? err.message : 'Signup failed');
+}
+
+// Inside the return JSX, just below the <Button>:
+{successMessage && (
+  <p className="text-green-600 text-sm mt-4 text-center">{successMessage}</p>
+)}      
+ setIsLoading(false);
+
   };
 
   return (
@@ -49,7 +54,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onToggleMode, onSignupSu
         <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">
           Create Account
         </h2>
-        
+
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
             {error}
@@ -113,9 +118,9 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onToggleMode, onSignupSu
             />
           </div>
 
-          <Button
-            type="submit"
-            disabled={isLoading}
+<Button
+  type="submit"
+  disabled={isLoading}
             className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md transition-colors"
           >
             {isLoading ? 'Creating Account...' : 'Sign Up'}
@@ -126,7 +131,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onToggleMode, onSignupSu
           <p className="text-sm text-gray-600">
             Already have an account?{' '}
             <button
-              onClick={onToggleMode}
+              onClick={() => navigate('/login')}
               className="text-blue-600 hover:text-blue-800 font-medium"
             >
               Login

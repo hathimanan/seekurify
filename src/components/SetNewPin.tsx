@@ -1,22 +1,46 @@
-import React, { useState, useRef } from 'react';
-import { Button } from '../components/ui/button';
-import { Card, CardContent } from '../components/ui/card';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
 
-interface SetNewPinProps {
+
+interface DecodedToken {
   email: string;
-  onPinSetSuccess: () => void;
+  exp: number;
+  iat: number;
 }
 
-
-
-export const SetNewPin: React.FC<SetNewPinProps> = ({ email, onPinSetSuccess }) => {
+export const SetNewPin: React.FC = () => {
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [success, setSuccess] = useState('');
 
+  const navigate = useNavigate();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const token = queryParams.get('token');
+
+  useEffect(() => {
+    if (!token) {
+      setError('Token not found. Please check your email link.');
+      return;
+    }
+
+    try {
+      const decoded = jwtDecode<DecodedToken>(token); // ✅ Provide type
+      const decodedEmail = decoded?.email;
+
+      if (decodedEmail) {
+        setEmail(decodedEmail);
+      } else {
+        setError('Email not found in token. Please sign up again.');
+      }
+    } catch (err) {
+      setError('Invalid or expired token.');
+    }
+  }, [token]);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -44,7 +68,8 @@ export const SetNewPin: React.FC<SetNewPinProps> = ({ email, onPinSetSuccess }) 
         throw new Error(data.error || 'Failed to update PIN');
       }
 
-      onPinSetSuccess(); // back to dashboard or reload
+      // ✅ Redirect to login after setting PIN
+      navigate('/login');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -54,8 +79,19 @@ export const SetNewPin: React.FC<SetNewPinProps> = ({ email, onPinSetSuccess }) 
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Set New PIN</h2>
+
+
+    <div>
+      {/* <h2>Set Your New PIN</h2>
+      <p>Token: {token}</p> */}
+
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white p-8 rounded shadow-md w-full max-w-md"
+      >
+        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">
+          Set New PIN
+        </h2>
 
         {error && <div className="text-red-600 mb-4">{error}</div>}
 
@@ -66,6 +102,7 @@ export const SetNewPin: React.FC<SetNewPinProps> = ({ email, onPinSetSuccess }) 
           className="w-full border p-2 rounded mb-4"
           value={newPin}
           onChange={(e) => setNewPin(e.target.value)}
+          disabled={isLoading}
         />
         <input
           type="password"
@@ -74,15 +111,17 @@ export const SetNewPin: React.FC<SetNewPinProps> = ({ email, onPinSetSuccess }) 
           className="w-full border p-2 rounded mb-4"
           value={confirmPin}
           onChange={(e) => setConfirmPin(e.target.value)}
+          disabled={isLoading}
         />
+
         <button
           type="submit"
           className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-          disabled={isLoading}
+          disabled={isLoading || !email}
         >
           {isLoading ? 'Updating...' : 'Set PIN'}
         </button>
       </form>
     </div>
-  );
-};
+    </div>        
+  )}

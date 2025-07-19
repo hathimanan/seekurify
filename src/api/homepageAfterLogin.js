@@ -19,7 +19,7 @@ const authenticateToken = (req, res, next) => {
 };
 
 // GET /api/homepageAfterLogin
-router.get('/api/homepageAfterLogin', authenticateToken, async (req, res) => {
+router.get('/homepageAfterLogin', authenticateToken, async (req, res) => {
   try {
     const userEmail = req.user.email;
     const userId = req.user.id;
@@ -41,7 +41,7 @@ router.get('/api/homepageAfterLogin', authenticateToken, async (req, res) => {
         email: user.email,
         id: user._id
       },
-      forcePinChange: user.pin === '0000', // ✅ Your modal trigger
+ // ✅ Your modal trigger
       alerts: [
         { type: 'malware-scan', status: 'All clear', timestamp: new Date() },
         { type: 'system-health', status: 'Optimal', timestamp: new Date() }

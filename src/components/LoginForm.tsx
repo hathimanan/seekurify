@@ -4,14 +4,11 @@ import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { OTPForm } from './OTPForm';
 import { ForgotPasswordForm } from './ForgotPasswordForm';
-import { apiService } from '../services/api'; // ✅ to call verifyOtp and verifyPin
+import { apiService } from '../services/api';
 import { PINForm } from './PINForm';
-import { GoogleSignInButton } from './GoogleSigninButton';
-import { Navigate } from 'react-router-dom';
-import { HomePageAfter } from '../screens/HomePageAfter/HomePageAfter';
-import { HomePageBefore } from '../screens/HomePageBefore/HomePageBefore';
+import { GoogleSignInButton } from './GoogleSignInButton';
 import { useNavigate } from 'react-router-dom';
-import { SetNewPin } from './SetNewPin';
+
 interface LoginFormProps {
   onToggleMode: () => void;
 }
@@ -21,114 +18,101 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showOTP, setShowOTP] = useState(false);
   const [otpPayload, setOtpPayload] = useState<{ email: string; otpToken: string } | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showPIN, setShowPIN] = useState(false);
-  const [step, setStep] = useState<'login' | 'otp' | 'pin' | 'home'>('login');
-
 
   const { login } = useAuth();
+  const navigate = useNavigate();
 
-  // 🔐 Step 1: Handle email + password login
+  // Step 1: Handle Login
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
 
-  setError('');
-  setIsLoading(true);
+    try {
+      const loginRes = await apiService.login({ email, password });
+      localStorage.setItem('token', loginRes.token);
 
-try {
-  const loginRes = await apiService.login({ email, password });
+      const otpRes = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
 
-  const otpRes = await fetch('/api/auth/send-otp', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email }),
-  });
+      const { otpToken } = await otpRes.json();
+      setOtpPayload({ email, otpToken });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login process failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const { otpToken, otp } = await otpRes.json(); // ✅ Only read once
-  setOtpPayload({ email, otpToken });
-  setShowOTP(true);
+  // Step 3: Handle PIN Verification
+  const handleVerifyPIN = async (pin: string) => {
+    try {
+await apiService.verifyPin(otpPayload?.email ?? '', pin);
+      login(email, password);
 
-} catch (err) {
-  setError(err instanceof Error ? err.message : 'Login process failed');
-} finally {
-  setIsLoading(false);
-}
-  }
+      const res = await fetch('/homepageAfterLogin', {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
 
+      // const data = await res.json();
 
-  // 🔐 Step 3: Final PIN verification handler
-const handleVerifyPIN = async (pin: string) => {
-  try {
-    await apiService.verifyPin(email, pin); // assume this endpoint exists
-    login(email,password); // your context method to finalize login
-    // ✅ redirect to homepage
-    window.location.href = '/'; 
-  } catch (err) {
-    throw new Error('Incorrect PIN');
-  }
-};
+      // if (data.forcePinChange) {
+      //   navigate('/set-new-pin', { state: { email } });
+      // } else {
+      //   navigate('/homepageAfterLogin');
+      // }
+    } catch (err) {
+      setError('Incorrect PIN');
+    }
+  };
 
-
-
-const LoginPage = () => {
-  return (
-    <div className="space-y-4">
-      {/* Your normal login inputs */}
-      <GoogleSignInButton
-      onSuccess={() => {
-        setStep(step); // or `navigateToDashboard()`, etc.
-}} />
-    </div>
-  );
-};
-
-
-
-  // 🔙 Back to login or forgot password
   const handleBackToLogin = () => {
-    setShowOTP(false);
+    setOtpPayload(null);
+    setShowPIN(false);
     setShowForgotPassword(false);
     setError('');
   };
 
-if (showPIN && otpPayload) {
-  return (
-    <PINForm
-      email={otpPayload.email}
-      onBack={handleBackToLogin}
-      onVerifyPIN={handleVerifyPIN}
-    />
-  );
-}
+  // OTP screen
+  if (otpPayload && !showPIN) {
+    return (
+      <OTPForm
+        email={otpPayload.email}
+        otpToken={otpPayload.otpToken}
+        onBack={handleBackToLogin}
+        onSuccess={() => {
+          setShowPIN(true);
+        }}
+      />
+    );
+  }
 
+  // PIN screen
+  if (showPIN && otpPayload) {
+    return (
+      <PINForm
+        email={otpPayload.email}
+        onBack={handleBackToLogin}
+        onVerifyPIN={handleVerifyPIN}
+        
+      />
+    );
+  }
 
-
-  if (otpPayload) {
-  return (
-    <OTPForm
-      email={otpPayload.email}
-      otpToken={otpPayload.otpToken}
-      onBack={handleBackToLogin}
-      onSuccess={() => {
-        console.log('✅ Proceed to PIN or Dashboard');
-        setShowOTP(false);
-        setShowPIN(true);
-      }}
-    />
-  );
-}
-
-
-
-
+  // Forgot Password
   if (showForgotPassword) {
     return <ForgotPasswordForm onBack={handleBackToLogin} />;
   }
 
-
-
+  // Main Login Form
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -159,9 +143,6 @@ if (showPIN && otpPayload) {
                   required
                 />
               </div>
-
-
-
 
               <div>
                 <label htmlFor="password" className="block text-lg font-medium text-gray-900 mb-2">
@@ -196,14 +177,16 @@ if (showPIN && otpPayload) {
             </form>
 
             <div className="mt-6 space-y-3">
-                <GoogleSignInButton
+              <GoogleSignInButton
                 onSuccess={() => {
-                  // Redirect or update state after successful Google login
-                  window.location.href = '/homepageAfterLogin';
+                  navigate('/homepageAfterLogin');
                 }}
-                />
+              />
 
-              <Button type="button" className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 py-3 px-4 rounded-md font-medium flex items-center justify-center space-x-2">
+              <Button
+                type="button"
+                className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 py-3 px-4 rounded-md font-medium flex items-center justify-center space-x-2"
+              >
                 <span>Sign In with Microsoft</span>
                 <span className="text-xl">⊞</span>
               </Button>

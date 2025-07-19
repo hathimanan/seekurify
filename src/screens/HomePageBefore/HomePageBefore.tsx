@@ -1,17 +1,11 @@
 import React from "react";
-import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { LoginForm } from "../../components/LoginForm";
-import { SignupForm } from "../../components/SignupForm";
-import { Dashboard } from "../../components/Dashboard";
-import { Button } from "../../components/ui/button";
-import { Card, CardContent } from "../../components/ui/card";
+import { useNavigate } from "react-router-dom";
 import { HomePageAfter } from "../HomePageAfter/HomePageAfter";
 
 export const HomePageBefore = (): JSX.Element => {
   const { isAuthenticated, isLoading } = useAuth();
-  const [isLoginMode, setIsLoginMode] = useState(true);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const navigate = useNavigate();
 
   if (isLoading) {
     return (
@@ -28,29 +22,27 @@ export const HomePageBefore = (): JSX.Element => {
     return <HomePageAfter />;
   }
 
-  const handleToggleMode = () => {
-    setIsLoginMode(!isLoginMode);
-    setShowSuccessMessage(false);
-  };
-
-  const handleSignupSuccess = () => {
-    setShowSuccessMessage(true);
-    setIsLoginMode(true);
-  };
-
   return (
-    <div className="min-h-screen bg-gray-100">
-      {showSuccessMessage && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 mx-4 mt-4">
-          Account created successfully! Please log in.
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-blue-700 mb-6">Welcome to Securify</h1>
+        <p className="text-gray-700 mb-8">Please sign in or create an account to continue.</p>
+
+        <div className="flex gap-6 justify-center">
+          <button
+            onClick={() => navigate("/login")}
+            className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 transition"
+          >
+            Login
+          </button>
+          <button
+            onClick={() => navigate("/signup")}
+            className="bg-gray-300 text-gray-800 px-6 py-3 rounded-md hover:bg-gray-400 transition"
+          >
+            Signup
+          </button>
         </div>
-      )}
-      
-      {isLoginMode ? (
-        <LoginForm onToggleMode={handleToggleMode} />
-      ) : (
-        <SignupForm onToggleMode={handleToggleMode} onSignupSuccess={handleSignupSuccess} />
-      )}
+      </div>
     </div>
   );
 };
