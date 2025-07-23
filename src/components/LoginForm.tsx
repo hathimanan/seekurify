@@ -17,6 +17,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [otpPayload, setOtpPayload] = useState<{ email: string; otpToken: string } | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -27,28 +29,69 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode }) => {
 
   // Step 1: Handle Login
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
+  e.preventDefault();
+  setError('');
+  setEmailError('');
+  setPasswordError('');
 
-    try {
-      const loginRes = await apiService.login({ email, password });
-      localStorage.setItem('token', loginRes.token);
+  // Frontend validations
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email) {
+    setEmailError('Email is required');
+    return;
+  }
 
-      const otpRes = await fetch('/api/auth/send-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
+  
+  if (!emailRegex.test(email)) {
+    setEmailError('Invalid email format');
+    return;
+  }
 
-      const { otpToken } = await otpRes.json();
-      setOtpPayload({ email, otpToken });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login process failed');
-    } finally {
-      setIsLoading(false);
+  if (!password) {
+    setPasswordError('Password is required');
+    return;
+  }
+
+  if (password.length < 6) {
+    setPasswordError('Password length is too small');
+    return;
+  }
+
+  if (password.length > 18) {
+    setPasswordError('Password length is too large');
+    return;
+  }
+
+  setIsLoading(true);
+
+  try {
+    const loginRes = await apiService.login({ email, password });
+    localStorage.setItem('token', loginRes.token);
+
+    const otpRes = await fetch('/api/auth/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+
+    const { otpToken } = await otpRes.json();
+    setOtpPayload({ email, otpToken });
+  } catch (err: any) {
+    // Handle backend errors like "Incorrect email" or "Invalid credentials"
+    const message = err?.response?.data?.error || err.message;
+
+    if (message.toLowerCase().includes('email')) {
+      setEmailError(message);
+    } else if (message.toLowerCase().includes('password')) {
+      setPasswordError(message);
+    } else {
+      setError(message);
     }
-  };
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   // Step 3: Handle PIN Verification
   const handleVerifyPIN = async (pin: string) => {
@@ -140,8 +183,11 @@ await apiService.verifyPin(otpPayload?.email ?? '', pin);
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-4 py-3 bg-gray-200 border-0 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  
                   required
                 />
+                {emailError && <p className="text-red-600 text-sm mt-1">{emailError}</p>}
+
               </div>
 
               <div>
@@ -165,6 +211,8 @@ await apiService.verifyPin(otpPayload?.email ?? '', pin);
                     Forgot Password
                   </button>
                 </div>
+                {passwordError && <p className="text-red-600 text-sm mt-1">{passwordError}</p>}
+
               </div>
 
               <Button

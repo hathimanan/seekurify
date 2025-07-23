@@ -16,37 +16,39 @@ export const SignupForm: React.FC = () => {
   const navigate = useNavigate();
 const [successMessage, setSuccessMessage] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError('');
+  setSuccessMessage('');
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
+  if (password !== confirmPassword) {
+    setError('Passwords do not match');
+    return;
+  }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      return;
-    }
+  if (password.length < 6) {
+    setError('Password must be at least 6 characters long');
+    return;
+  }
 
-    setIsLoading(true);
+  setIsLoading(true);
 
-try {
-  await signup(email, username, password);
-  setSuccessMessage(`A verification email has been sent to ${email}`);
-  // navigate('/set-new-pin', { state: { email } });
-} catch (err) {
-  setError(err instanceof Error ? err.message : 'Signup failed');
-}
+  try {
+    await signup(email, username, password);
 
-// Inside the return JSX, just below the <Button>:
-{successMessage && (
-  <p className="text-green-600 text-sm mt-4 text-center">{successMessage}</p>
-)}      
- setIsLoading(false);
+    setSuccessMessage(`A verification email has been sent to ${email}`);
 
-  };
+    // 🚨 Close the tab after 3 seconds
+    setTimeout(() => {
+      window.close();
+    }, 3000);
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Signup failed');
+  }
+
+  setIsLoading(false);
+};
+
 
   return (
     <Card className="w-full max-w-md mx-auto bg-white shadow-lg">

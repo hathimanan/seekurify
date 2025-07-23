@@ -124,18 +124,34 @@ async verifyPin(email: string, pin: string) {
 
 
 async getPasswords() {
-  const response = await fetch(`${API_BASE_URL}/passwords`, {
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem('token')}`,
-    },
-  });
+  const token = localStorage.getItem('token');
 
-  if (!response.ok) {
-    throw new Error('Failed to fetch passwords');
+  if (!token) {
+    console.error("❌ No token found in localStorage");
+    return;
   }
 
-  const data = await response.json(); // ✅ returns an array
-  return data;
+  try {
+    const response = await fetch(`${API_BASE_URL}/passwords`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'  // optional but good practice
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error(`❌ Error: ${response.status}`, errorData);
+      return;
+    }
+
+    const passwords = await response.json();
+    return passwords;
+
+  } catch (err) {
+    console.error("❌ Fetch error:", err);
+  }
 }
 
   async addPassword(passwordData: PasswordEntry) {

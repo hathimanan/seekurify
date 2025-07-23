@@ -4,6 +4,8 @@ import { SignupForm } from "./components/SignupForm";
 import { HomePageBefore } from "./screens/HomePageBefore";
 import { HomePageAfter } from "./screens/HomePageAfter/HomePageAfter";
 import { SetNewPin } from "./components/SetNewPin";
+import { Dashboard } from "./components/Dashboard";
+import { MalwareAnalyzer } from "./components/MalwareAnalyzer";
 const AppRoutes = () => {
   const navigate = useNavigate();
 
@@ -38,6 +40,12 @@ const AppRoutes = () => {
 
       {/* (Optional) fallback route for unmatched paths */}
       <Route path="/homepageBefore" element={<HomePageBefore />} />
+
+        <Route path="/dashboard" element={<Dashboard />} />
+
+
+        <Route path="/malware-analysis" element={<MalwareAnalyzer />} />
+
     </Routes>
   );
 };

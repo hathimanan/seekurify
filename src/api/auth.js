@@ -9,6 +9,7 @@ import crypto from 'crypto';
 import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
 import { google } from 'googleapis';
+import validator from 'validator'; // npm install validator
 
 import dotenv from 'dotenv';
 dotenv.config();
@@ -23,40 +24,58 @@ if (!secretKey || !secretKeyOTP) {
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 7,
   message: 'Too many login attempts. Please try again later.',
 });
+
+
 
 authRouter.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
 
+  // === Validation block ===
+  if (!email || !password) {
+    return res.status(400).json({ field: 'email', error: 'Email and password are required' });
+  }
+
+  if (!validator.isEmail(email)) {
+    return res.status(400).json({ field: 'email', error: 'Invalid email format' });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ field: 'email', error: 'Password length is too small' });
+  }
+
+  if (password.length > 18) {
+    return res.status(400).json({ field: 'email', error: 'Password length is too large' });
+  }
+
+  // === Proceed to DB check ===
   try {
     console.log('Login attempt 1 for email:', email);
 
     const user = await User.findOne({ email });
-        console.log('Login attempt 2 for email:', email);
+    console.log('Login attempt 2 for email:', email);
 
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ field: 'email', error: 'Incorrect email' });
     }
+
     const isPasswordValid = await bcryptjs.compare(password, user.password);
-    if (!isPasswordValid) return res.status(401).json({ error: 'Invalid credentials' });
-    // Ensure pin is set
+    if (!isPasswordValid) {
+      return res.status(401).json({ field: 'email', error: 'Invalid credentials' }); // You can choose a more specific message if needed
+    }
+
+    // Save user or update last login, etc., if needed
     await user.save();
 
-    // Set default PIN if not already set
-    // if (!user.pin) {
-    //   user.pin = '0000';
-    //   await user.save();
-    // }
-
-    // ✅ Don't generate token here
-return res.json({ message: 'Login successful. Proceed to OTP.', email: user.email });
+    return res.json({ message: 'Login successful. Proceed to OTP.', email: user.email });
   } catch (err) {
     console.error('Error during login:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 const {
@@ -92,12 +111,11 @@ authRouter.post('/send-otp', async (req, res) => {
     );
 
     // ✅ Send OTP via email
-    const accessTokenResponse = await oAuth2Client.getAccessToken();
-const accessToken = accessTokenResponse?.token;
+// const accessToken = accessTokenResponse?.token;
 
-if (!accessToken) {
-  return res.status(500).json({ error: 'Failed to get access token' });
-}
+// if (!accessToken) {
+//   return res.status(500).json({ error: 'Failed to get access token' });
+// }
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -107,8 +125,7 @@ if (!accessToken) {
         clientId: process.env.GMAIL_CLIENT_ID,
         clientSecret: process.env.GMAIL_CLIENT_SECRET,
         refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-        accessToken
-      }
+        accessToken: process.env.GMAIL_ACCESS_TOKEN       }
     });
 
     const mailOptions = {

@@ -12,7 +12,7 @@ passwordRouter.post('/', async (req, res) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.secretKey);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.id;
 
     const { website, username, password } = req.body;
@@ -31,13 +31,17 @@ passwordRouter.post('/', async (req, res) => {
 
 // Retrieve passwords for the user
 passwordRouter.get('/', async (req, res) => {
-  const token = req.headers.authorization?.split(' ')[1];
+  const authHeader = req.headers.authorization;
+if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+}
+const token = authHeader.split(' ')[1];
   if (!token) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.secretKey);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.id;
 
     const passwords = await Password.find({ userId });
@@ -48,12 +52,12 @@ passwordRouter.get('/', async (req, res) => {
   }
 });
 
-passwordRouter.put('/api/passwords/', async (req, res) => {
-  const token = req.headers.authorization?.split(' ')[1];
+passwordRouter.put('/:id', async (req, res) => {
+    const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ error: "Unauthorized" });
 
   try {
-    const decoded = jwt.verify(token, process.env.secretKey);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.id;
     const { website, username, password, currentPassword } = req.body;
 

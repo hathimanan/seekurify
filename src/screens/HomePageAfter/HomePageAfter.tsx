@@ -96,39 +96,77 @@ export const HomePageAfter = (): JSX.Element => {
       <div className="flex flex-1">
         {/* Sidebar */}
         <div className="bg-gray-600 text-white w-64 p-6 space-y-4 font-semibold text-lg">
-          <div className="hover:text-yellow-300 cursor-pointer">Home Page</div>
-          <div className="hover:text-yellow-300 cursor-pointer">About Securify</div>
-          <div className="hover:text-yellow-300 cursor-pointer">Analyze Malware</div>
-          <div className="hover:text-yellow-300 cursor-pointer">Password Manager</div>
-          <div className="hover:text-yellow-300 cursor-pointer">SIEM Dashboard</div>
+          {/* <div className="hover:text-yellow-300 cursor-pointer">Home Page</div>
+          <div className="hover:text-yellow-300 cursor-pointer">About Securify</div> */}
+          <div className="hover:text-yellow-300 cursor-pointer" onClick={() => navigate("/malware-analysis")}>Analyze Malware </div>
+          <div className="hover:text-yellow-300 cursor-pointer"onClick={() => navigate("/dashboard")}>Password Manager</div>
+          <div className="hover:text-yellow-300 cursor-pointer" onClick={() => navigate("/siem-dashboard")}>SIEM Dashboard</div>
           <div className="hover:text-yellow-300 cursor-pointer">Security Awareness</div>
           <div className="hover:text-yellow-300 cursor-pointer">Contact Us</div>
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 p-8 bg-white">
-          <div className="bg-gray-200 text-center py-4 rounded text-xl font-semibold mb-6">
-            About Securify
-          </div>
+      <div className="flex-1 p-8 bg-white">
+  {/* Heading */}
+  <div className="bg-blue-100 text-center py-4 rounded-xl text-2xl font-bold text-blue-800 mb-6 shadow">
+    About Securify
+  </div>
 
-          <div className="bg-gray-300 h-64 rounded border border-blue-500 mb-6"></div>
+  {/* About Section */}
+<section className="bg-white py-16 px-6 md:px-20">
+  <div className="max-w-5xl mx-auto text-center">
+    {/* Artistic shape (like PIBOCO's triangle or blob) */}
+    <div className="w-10 h-10 bg-yellow-400 rotate-45 mx-auto mb-6"></div>
 
-          <div className="flex gap-6 justify-center">
-            <button
-              className="bg-red-600 text-white py-3 px-6 rounded hover:bg-red-700 transition"
-              onClick={() => navigate("/malware-analysis")}
-            >
-              Analyze Malware
-            </button>
-            <button
-              className="bg-red-600 text-white py-3 px-6 rounded hover:bg-red-700 transition"
-              onClick={() => navigate("/siem-dashboard")}
-            >
-              SIEM DASHBOARD
-            </button>
+    <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+      We believe in security awareness, protection,<br />
+      and user control — all in one place.
+    </h2>
+
+    {/* Floating shape effect */}
+    <div className="w-24 h-8 bg-blue-200 mx-auto mb-8 rounded-full -rotate-2"></div>
+{/* <div className="bg-white rounded-xl border border-blue-300 p-6 shadow-lg"> */}
+    <p className="text-gray-700 text-justify leading-relaxed space-y-4 text-base">
+      <strong>Securify</strong> is an all-in-one cybersecurity platform built to empower users with advanced tools and essential knowledge to stay secure in the digital world. The core mission of Securify is twofold: to enhance user security through robust features and to promote cybersecurity awareness through accessible information and insights.
+      <br /><br />
+      At the heart of the platform is a secure password manager, enabling users to store, manage, and organize their passwords within an encrypted environment. All passwords are securely stored using hashing techniques to ensure maximum protection. Users also have the flexibility to generate strong, random passwords tailored to their preferences, promoting better password hygiene.
+      <br /><br />
+      Securify goes beyond password protection by integrating multiple real-time security utilities, including:
+      <ul className="list-disc list-inside mt-2 text-gray-800">
+        <li><strong>Link Checker:</strong> Quickly determine if a URL is safe or potentially malicious before clicking.</li>
+        <li><strong>File & Malware Scanner:</strong> Upload and scan files to detect viruses or malware using reliable detection APIs.</li>
+        <li><strong>System Information & Event Log Dashboard:</strong> Monitor system activities, track events, and gain insights into potential threats through a well-organized dashboard.</li>
+      </ul>
+      <br />
+      In addition to these features, the platform includes educational content and real-time alerts to keep users informed about the latest threats, scams, and best practices in cybersecurity.
+      <br /><br />
+      Whether you're an individual looking to improve your digital safety or a developer interested in integrating secure practices, Securify offers a modern, user-centric approach to personal and professional cybersecurity—all from a single, intuitive interface.
+    </p>
+  
+    <br></br>
+
+    <div className="flex justify-center flex-wrap gap-4">
+      <button
+        className="bg-red-600 text-white py-3 px-6 rounded-xl hover:bg-red-700 transition"
+        onClick={() => navigate("/malware-analysis")}
+      >
+        Analyze Malware
+      </button>
+      <button
+        className="bg-indigo-600 text-white py-3 px-6 rounded-xl hover:bg-indigo-700 transition"
+        onClick={() => navigate("/siem-dashboard")}
+      >
+        Explore SIEM Dashboard
+      </button>
+    </div>
+  </div>
+</section>
+
+
+  {/* Description Box */}
+
           </div>
         </div>
       </div>
-    </div>
   );
 };

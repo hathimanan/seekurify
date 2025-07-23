@@ -137,7 +137,7 @@ body: JSON.stringify({ email, pin: fullPin }),
                     <input
                       key={index}
                       ref={(el) => (inputRefs.current[index] = el)}
-                      type="text"
+                      type="password"
                       value={digit}
                       onChange={(e) => handleInputChange(index, e.target.value)}
                       onKeyDown={(e) => handleKeyDown(index, e)}
