@@ -6,6 +6,7 @@ import { HomePageAfter } from "./screens/HomePageAfter/HomePageAfter";
 import { SetNewPin } from "./components/SetNewPin";
 import { Dashboard } from "./components/Dashboard";
 import { MalwareAnalyzer } from "./components/MalwareAnalyzer";
+import { SecurityAwareness } from "./components/securityAwareness";
 const AppRoutes = () => {
   const navigate = useNavigate();
 
@@ -45,6 +46,9 @@ const AppRoutes = () => {
 
 
         <Route path="/malware-analysis" element={<MalwareAnalyzer />} />
+
+
+        <Route path="/securityAwareness" element={<SecurityAwareness />}/>
 
     </Routes>
   );

@@ -22,6 +22,7 @@ import homepageBeforeloginRoutes from './src/api/homepageBeforelogin.js';
 import homepageAfterLoginRoutes from './src/api/homepageAfterLogin.js';
 import userdetailsRoutes from './src/models/User.js'; // Import user details route
 import malwareAnalyzerRouter from './src/api/malwareanalyzer.js'; // Import malware analyzer routes
+import securityAwarenessRouter from './src/api/securityAwareness.js'; // Import security awareness routes
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -40,6 +41,7 @@ app.use('/api/passwords', passwordRoutes);
 // app.use('/api/malware-analysis/url', MalwareAnalyzer);
 // app.use('/api/malware-analysis/file',MalwareAnalyzer);
 app.use('/api/malware-analysis/', malwareAnalyzerRouter);
+app.use('/api/securityAwareness', securityAwarenessRouter);
 
 // Serve static files from the React/Vite build directory
 app.use(express.static(path.join(__dirname, 'dist')));

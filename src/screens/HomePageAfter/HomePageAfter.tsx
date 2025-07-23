@@ -101,7 +101,7 @@ export const HomePageAfter = (): JSX.Element => {
           <div className="hover:text-yellow-300 cursor-pointer" onClick={() => navigate("/malware-analysis")}>Analyze Malware </div>
           <div className="hover:text-yellow-300 cursor-pointer"onClick={() => navigate("/dashboard")}>Password Manager</div>
           <div className="hover:text-yellow-300 cursor-pointer" onClick={() => navigate("/siem-dashboard")}>SIEM Dashboard</div>
-          <div className="hover:text-yellow-300 cursor-pointer">Security Awareness</div>
+          <div className="hover:text-yellow-300 cursor-pointer" onClick={() => navigate("/securityAwareness")}>Security Awareness</div>
           <div className="hover:text-yellow-300 cursor-pointer">Contact Us</div>
         </div>
 
