@@ -15,13 +15,17 @@ export const HomePageAfter = (): JSX.Element => {
     const checkUserPin = async () => {
       try {
         if (user?.email && !pinChecked) {
-          setPinChecked(true);
           const userData = await apiService.getUserDetails(user.email);
           console.log("Fetched userData:", userData);
           if (userData.pin === "0000") {
             setShowPinModal(true);
           }
+          setPinChecked(true); // ✅ Only after fetch
         }
+
+
+
+        
       } catch (err) {
         console.error("Failed to fetch user PIN:", err);
       } finally {
@@ -102,7 +106,7 @@ export const HomePageAfter = (): JSX.Element => {
           <div className="hover:text-yellow-300 cursor-pointer"onClick={() => navigate("/dashboard")}>Password Manager</div>
           <div className="hover:text-yellow-300 cursor-pointer" onClick={() => navigate("/siem-dashboard")}>SIEM Dashboard</div>
           <div className="hover:text-yellow-300 cursor-pointer" onClick={() => navigate("/securityAwareness")}>Security Awareness</div>
-          <div className="hover:text-yellow-300 cursor-pointer">Contact Us</div>
+          <div className="hover:text-yellow-300 cursor-pointer" onClick={() => navigate("/contact")}>Contact Us</div>
         </div>
 
         {/* Main Content */}

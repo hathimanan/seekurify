@@ -16,9 +16,8 @@ dotenv.config();
 const OAuth2 = google.auth.OAuth2;
 
 const authRouter = express.Router();
-const secretKey = process.env.secretKey ?? 'default_secret_key';
 const secretKeyOTP = process.env.secretKeyOTP ?? 'otp_secret_key';
-if (!secretKey || !secretKeyOTP) {
+if (!process.env.JWT_SECRET || !secretKeyOTP) {
   throw new Error("JWT secret keys are not properly defined in environment variables.");
 }
 
@@ -185,6 +184,7 @@ authRouter.post('/verify-otp', async (req, res) => {
 
 
 authRouter.post('/verify-pin', async (req, res) => {
+
   const { email, pin } = req.body;
 
   if (!email || !pin || typeof pin !== 'string' || pin.length !== 4) {
@@ -203,7 +203,7 @@ authRouter.post('/verify-pin', async (req, res) => {
 
     const token = jwt.sign(
       { id: user._id, email: user.email },
-      secretKey,
+      process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
 
@@ -382,5 +382,7 @@ authRouter.post('/update-pin', async (req, res) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 
 export default authRouter;

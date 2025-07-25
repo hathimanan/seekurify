@@ -1,3 +1,5 @@
+import { get } from "http";
+
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
   ? '/api' 
   : 'http://localhost:5000/api';
@@ -24,13 +26,19 @@ interface PasswordEntry {
 }
 
 class ApiService {
-  private getAuthHeaders() {
-    const token = localStorage.getItem('token');
-    return {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` })
-    };
-  }
+private getAuthHeaders() {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('Missing token');
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+}
+
+
+
+
+
 
 async login(credentials: LoginCredentials) {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -127,46 +135,36 @@ async getPasswords() {
   const token = localStorage.getItem('token');
 
   if (!token) {
-    console.error("❌ No token found in localStorage");
-    return;
+    throw new Error('User not authenticated. Token missing.');
   }
 
-  try {
-    const response = await fetch(`${API_BASE_URL}/passwords`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'  // optional but good practice
-      }
-    });
+  const response = await fetch(`${API_BASE_URL}/passwords`, {
+    method: 'GET',
+    headers: this.getAuthHeaders(),
+  });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error(`❌ Error: ${response.status}`, errorData);
-      return;
-    }
-
-    const passwords = await response.json();
-    return passwords;
-
-  } catch (err) {
-    console.error("❌ Fetch error:", err);
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to fetch passwords');
   }
+
+  return await response.json();
 }
 
+
   async addPassword(passwordData: PasswordEntry) {
-    const response = await fetch(`${API_BASE_URL}/passwords`, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify(passwordData)
-    });
+const response = await fetch(`${API_BASE_URL}/passwords`, {
+    method: 'POST',
+    headers: this.getAuthHeaders(),
+    body: JSON.stringify(passwordData)
+  });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to add password');
-    }
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to add password');
+  }
 
-    return response.json();
+  return response.json();
   }
 
   async updatePassword(id: string, passwordData: PasswordEntry & { currentPassword: string }) {
@@ -183,6 +181,46 @@ async getPasswords() {
 
     return response.json();
   }
+
+async deletePassword(id: string) {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    console.error("❌ No token found in localStorage");
+    throw new Error('Authentication token missing');
+  }
+
+  const resp = await fetch(`${API_BASE_URL}/passwords/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  // If the server returns an error status, try to parse its JSON message
+  if (!resp.ok) {
+    let errorMsg = 'Failed to delete password';
+    try {
+      const errData = await resp.json();
+      errorMsg = errData.error || errorMsg;
+    } catch {
+      // fall back if no JSON body
+    }
+    throw new Error(errorMsg);
+  }
+
+  // On success, might be 204 No Content or JSON
+  const contentType = resp.headers.get('content-type') || '';
+  if (resp.status === 204 || !contentType.includes('application/json')) {
+    // nothing more to do
+    return;
+  }
+
+  // otherwise parse and return JSON
+  return resp.json();
+}
+
+
 
   logout() {
     localStorage.removeItem('token');

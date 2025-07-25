@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit, Trash2 } from 'lucide-react';
 
 interface PasswordEntry {
@@ -36,6 +37,9 @@ const getWebsiteColor = (website: string) => {
   return 'bg-gray-600';
 };
 
+
+
+
 export const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const [passwords, setPasswords] = useState<PasswordEntry[]>([]);
@@ -44,7 +48,8 @@ export const Dashboard: React.FC = () => {
   const [error, setError] = useState('');
   const [editingPassword, setEditingPassword] = useState<PasswordEntry | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
-
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const navigate = useNavigate();
   // Form state
   const [formData, setFormData] = useState({
     website: '',
@@ -70,10 +75,27 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  const getAuthHeaders = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    console.error("❌ No token found in localStorage");
+    return {
+      'Content-Type': 'application/json'
+    };
+  }
+
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  };
+}
+
   const handleAddPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await apiService.addPassword(formData);
+
+      
       setFormData({ website: '', username: '', password: '', category: 'General', notes: '' });
       setShowAddForm(false);
       loadPasswords();
@@ -112,16 +134,28 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const handleDeletePassword = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this password?')) return;
-    
-    try {
-      // For now, just remove from local state since delete endpoint isn't implemented
-      setPasswords(prev => prev.filter(pw => pw._id !== id));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete password');
-    }
-  };
+const handleDeletePassword = async (id: string) => {
+  // 1️⃣ Confirm deletion
+  const confirmed = window.confirm('Are you sure you want to delete this password?');
+  if (!confirmed) return;
+
+  try {
+    // 2️⃣ Mark this ID as “deleting” so you can disable its button/spinner
+    setIsDeleting(id);
+
+    // 3️⃣ Call your API
+    await apiService.deletePassword(id);
+
+    // 4️⃣ Optimistically update local state
+    setPasswords(current => current.filter(pw => pw._id !== id));
+  } catch (err) {
+    console.error('Error deleting password:', err);
+    setError(err instanceof Error ? err.message : 'Failed to delete password');
+  } finally {
+    // 5️⃣ Clear the loading flag
+    setIsDeleting(null);
+  }
+};
 
   const generatePassword = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
@@ -133,12 +167,21 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-green-400 p-4">
+
+            <div className="p-0">
+
+    <div className="min-h-screen bg-blue-400 p-4">
+            <button
+        onClick={() => navigate(-1)}
+        className="bg-red-500 text-white px-1 py-1 rounded mb-4"
+      >
+        ⬅️ Back
+      </button>
       {/* Header */}
       <div className="flex items-center mb-6">
-        <div className="bg-red-600 p-3 rounded-lg mr-4">
+        {/* <div className="bg-red-600 p-3 rounded-lg mr-4">
           <ArrowLeft className="w-6 h-6 text-white" />
-        </div>
+        </div> */}
         <div>
           <h1 className="text-xl font-bold text-black">
             Welcome to Password Manager dashboard, {user?.email}!
@@ -152,28 +195,29 @@ export const Dashboard: React.FC = () => {
           <h2 className="text-xl font-bold text-black">Saved Passwords</h2>
           <Button
             onClick={() => setShowAddForm(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md"
           >
             Add New
           </Button>
         </div>
 
-        {/* Password Grid */}
-        {isLoading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto"></div>
-            <p className="mt-2 text-black">Loading passwords...</p>
-          </div>
-        ) : passwords.length === 0 ? (
-          <div className="bg-gray-100 p-8 rounded-lg text-center">
-            <p className="text-gray-600">No passwords saved yet. Add your first password to get started!</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {passwords.map((password) => (
-              <div
-                key={password._id}
-                className="bg-blue-500 p-4 rounded-lg text-white relative group"
+
+
+{isLoading ? (
+  <div className="text-center py-8">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto"></div>
+    <p className="mt-2 text-black">Loading passwords...</p>
+  </div>
+) : !passwords || passwords.length === 0 ? (
+  <div className="bg-gray-100 p-8 rounded-lg text-center">
+    <p className="text-gray-600">No passwords saved yet. Add your first password to get started!</p>
+  </div>
+) : (
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {passwords.map((password) => (
+      <div
+        key={password._id}
+        className="bg-blue-500 p-4 rounded-lg text-white relative group"
               >
                 {/* Website Icon */}
                 <div className="flex items-center justify-between mb-3">
@@ -264,6 +308,38 @@ export const Dashboard: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
+                    <Button
+      type="button"
+      onClick={generatePassword}
+      className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md"
+    >
+      Generate
+    </Button>
+
+                <div>
+  <label className="block text-sm font-medium text-black mb-1">
+    Category
+  </label>
+  <input
+    type="text"
+    value={formData.category}
+    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+  />
+</div>
+
+<div>
+  <label className="block text-sm font-medium text-black mb-1">
+    Notes
+  </label>
+  <textarea
+    value={formData.notes}
+    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+    rows={3}
+  />
+</div>
+
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
@@ -322,26 +398,55 @@ export const Dashboard: React.FC = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-black mb-1">
-                  Password
-                </label>
-                <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                  <Button
-                    type="button"
-                    onClick={generatePassword}
-                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md"
-                  >
-                    Generate
-                  </Button>
+  <label className="block text-sm font-medium text-black mb-1">
+    Password
+  </label>
+  <div className="flex space-x-2">
+    <input
+      type="text"
+      value={formData.password}
+      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+      required
+    />
+    <Button
+      type="button"
+      onClick={generatePassword}
+      className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md"
+    >
+      Generate
+    </Button>
+  </div>
+</div>
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <div>
+    <label className="block text-sm font-medium text-black mb-1">
+      Category
+    </label>
+    <input
+      type="text"
+      value={formData.category}
+      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+    />
+  </div>
+
+  <div>
+    <label className="block text-sm font-medium text-black mb-1">
+      Notes
+    </label>
+    <textarea
+      value={formData.notes}
+      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+      rows={3}
+    />
+
                 </div>
               </div>
+
+              
 
               <div className="flex justify-end gap-2 pt-4">
                 <Button
@@ -374,6 +479,7 @@ export const Dashboard: React.FC = () => {
           </button>
         </div>
       )}
+    </div>
     </div>
   );
 };

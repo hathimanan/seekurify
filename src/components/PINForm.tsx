@@ -66,34 +66,34 @@ export const PINForm: React.FC<PINFormProps> = ({ email, onVerifyPIN, onBack }) 
 
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
-
   const fullPin = pin.join('');
 
   try {
     setIsLoading(true);
-
     const response = await fetch('/api/auth/verify-pin', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-body: JSON.stringify({ email, pin: fullPin }),
+      body: JSON.stringify({ email, pin: fullPin }),
     });
 
     const data = await response.json();
 
     if (response.ok) {
-      navigate('/homepageAfterLogin'); // ✅ Navigate on success
+      localStorage.setItem('token', data.token);
+      navigate('/homepageAfterLogin');
     } else {
       setError(data.message || 'Invalid PIN');
     }
-  } catch (error) {
-    console.error('Error verifying PIN:', error);
-    setError('Something went wrong!');
+  } catch (err) {
+    console.error('Error verifying PIN:', err);
+    setError('Failed to verify PIN. Please try again.');
   } finally {
     setIsLoading(false);
   }
 };
+
 
 
 

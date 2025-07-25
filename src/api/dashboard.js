@@ -4,20 +4,21 @@ import jwt from 'jsonwebtoken';
 const dashboardRouter = express.Router();
 
 // Middleware to verify JWT
+// Middleware to verify JWT
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
-
   if (!authHeader) {
+    console.error("❌ No Authorization header");
     return res.status(401).json({ error: 'Authorization header missing' });
   }
 
-  const token = authHeader.split(' ')[1]; // Expected format: "Bearer <token>"
-
+  const token = authHeader.split(' ')[1];
   if (!token) {
+    console.error("❌ Token not found in header");
     return res.status(401).json({ error: 'Token missing in Authorization header' });
   }
 
-  const secret = process.env.JWT_SECRET || process.env.secretKey; // fallback
+  const secret = process.env.JWT_SECRET || process.env.secretKey;
 
   jwt.verify(token, secret, (err, user) => {
     if (err) {
@@ -25,14 +26,81 @@ function authenticateToken(req, res, next) {
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
 
-    req.user = user; // decoded payload
+    req.user = user;
     next();
   });
 }
+
 
 // GET /dashboard - Protected route
 dashboardRouter.get('/dashboard', authenticateToken, (req, res) => {
   res.json({ message: `Welcome to your dashboard, ${req.user.email}!` });
 });
+
+// GET /passwords - Get all passwords for the authenticated user
+dashboardRouter.get('/passwords', authenticateToken, (req, res) => {
+  const userEmail = req.user.email;
+  const passwords = userPasswords[userEmail] || [];
+  res.json(passwords);
+});
+
+// POST /passwords - Add a new password
+dashboardRouter.post('/passwords', authenticateToken, (req, res) => {
+  const userEmail = req.user.email;
+  const { site, password } = req.body;
+
+  if (!site || !password) {
+    return res.status(400).json({ error: 'Site and password are required' });
+  }
+
+  const newPassword = {
+    id: Date.now().toString(),
+    site,
+    password
+  };
+
+  if (!userPasswords[userEmail]) {
+    userPasswords[userEmail] = [];
+  }
+
+  userPasswords[userEmail].push(newPassword);
+  res.status(201).json(newPassword);
+});
+
+// PUT /passwords/:id - Update a password by ID
+dashboardRouter.put('/passwords/:id', authenticateToken, (req, res) => {
+  const userEmail = req.user.email;
+  const { id } = req.params;
+  const { site, password } = req.body;
+
+  const passwords = userPasswords[userEmail] || [];
+  const passwordEntry = passwords.find((p) => p.id === id);
+
+  if (!passwordEntry) {
+    return res.status(404).json({ error: 'Password not found' });
+  }
+
+  if (site) passwordEntry.site = site;
+  if (password) passwordEntry.password = password;
+
+  res.json(passwordEntry);
+});
+
+// DELETE /passwords/:id - Delete a password by ID
+dashboardRouter.delete('/passwords/:id', authenticateToken, (req, res) => {
+  const userEmail = req.user.email;
+  const { id } = req.params;
+
+  const passwords = userPasswords[userEmail] || [];
+  const index = passwords.findIndex((p) => p.id === id);
+
+  if (index === -1) {
+    return res.status(404).json({ error: 'Password not found' });
+  }
+
+  passwords.splice(index, 1);
+  res.json({ message: 'Password deleted successfully' });
+});
+
 
 export default dashboardRouter;

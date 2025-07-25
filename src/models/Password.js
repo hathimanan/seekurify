@@ -1,65 +1,76 @@
+// models/Password.js
 import mongoose from 'mongoose';
-import bcryptjs from 'bcryptjs';
+import crypto from 'crypto';
+import dotenv from 'dotenv';
 
-const passwordSchema = new mongoose.Schema({
-  website: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  username: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  password: {
-    type: String,
-    required: true
-  },
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
-  },
-  category: {
-    type: String,
-    default: 'General'
-  },
-  notes: {
-    type: String,
-    default: ''
+dotenv.config(); // Load .env variables
+
+// Ensure encryption key is provided
+const SECRET_HEX = process.env.PASSWORD_ENCRYPTION_KEY;
+if (!SECRET_HEX) {
+  throw new Error('Missing PASSWORD_ENCRYPTION_KEY in environment');
+}
+const SECRET_KEY = Buffer.from(SECRET_HEX, 'hex'); // 32-byte key
+
+// Encrypt plaintext using AES-256-CBC
+function encrypt(text) {
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv('aes-256-cbc', SECRET_KEY, iv);
+  const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+  // Combine IV and ciphertext
+  return iv.toString('hex') + ':' + encrypted.toString('hex');
+}
+
+// Decrypt ciphertext back to plaintext
+function decrypt(data) {
+  if (typeof data !== 'string' || data.indexOf(':') === -1) {
+    // Nothing to decrypt or invalid format
+    return data;
   }
+  const [ivHex, encryptedHex] = data.split(':');
+  const iv = Buffer.from(ivHex, 'hex');
+  const encrypted = Buffer.from(encryptedHex, 'hex');
+  const decipher = crypto.createDecipheriv('aes-256-cbc', SECRET_KEY, iv);
+  return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+}
+
+// Define the schema
+const passwordSchema = new mongoose.Schema({
+  website: { type: String, required: true, trim: true },
+  username: { type: String, required: true, trim: true },
+  password: { type: String, required: true },  // holds encrypted data
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+  category: { type: String, default: 'General' },
+  notes: { type: String, default: '' }
 });
 
-// Hash password before saving
-passwordSchema.pre('save', async function(next) {
+// Encrypt password before saving
+passwordSchema.pre('save', function(next) {
   if (!this.isModified('password')) return next();
-  
   try {
-    const salt = await bcryptjs.genSalt(10);
-    this.password = await bcryptjs.hash(this.password, salt);
+    this.password = encrypt(this.password);
     this.updatedAt = new Date();
     next();
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    next(err);
   }
 });
 
-// Update the updatedAt field before saving
-passwordSchema.pre('save', function(next) {
-  this.updatedAt = new Date();
-  next();
+// Transform to JSON: decrypt password field
+passwordSchema.set('toJSON', {
+  transform(doc, ret) {
+    try {
+      ret.password = decrypt(ret.password);
+    } catch (err) {
+      console.error('Error decrypting password:', err);
+      ret.password = '';
+    }
+    // remove internal fields if needed
+    delete ret.__v;
+    return ret;
+  }
 });
 
-// module.exports = mongoose.model('Password', passwordSchema);
-
-const Password = mongoose.model('Password', passwordSchema);
-export default Password;
+export default mongoose.model('Password', passwordSchema);

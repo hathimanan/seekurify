@@ -7,6 +7,8 @@ import { SetNewPin } from "./components/SetNewPin";
 import { Dashboard } from "./components/Dashboard";
 import { MalwareAnalyzer } from "./components/MalwareAnalyzer";
 import { SecurityAwareness } from "./components/securityAwareness";
+import ContactForm from "./components/ContactForm";
+import SIEMDashboard from "./components/SIEMDashboard";
 const AppRoutes = () => {
   const navigate = useNavigate();
 
@@ -49,6 +51,10 @@ const AppRoutes = () => {
 
 
         <Route path="/securityAwareness" element={<SecurityAwareness />}/>
+
+        <Route path="/contact" element={<ContactForm />} />
+
+        <Route path="/siem-dashboard" element={<SIEMDashboard />} />
 
     </Routes>
   );
