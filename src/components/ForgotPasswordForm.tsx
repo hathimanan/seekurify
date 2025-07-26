@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { ArrowLeft, Mail } from 'lucide-react';
-
+import { useNavigate } from 'react-router-dom';
 interface ForgotPasswordFormProps {
-  onBack: () => void;
+  // onBack: () => void;
 }
 
-export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onBack }) => {
+export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -15,7 +15,11 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onBack }
   const [resetToken, setResetToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const navigate = useNavigate();
 
+    const handleBack = () => {
+    navigate('/login');
+  };
   const handleSendResetEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -76,7 +80,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onBack }
       const data = await response.json(); 
       alert(data.message); 
       // Password reset successful, redirect to login
-      onBack();
+      handleBack();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reset password');
     } finally {
@@ -157,7 +161,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onBack }
                 </button>
                 <br />
                 <button
-                  onClick={onBack}
+                  onClick={handleBack}
                   className="text-gray-600 hover:text-gray-800"
                 >
                   ← Back to login
@@ -229,7 +233,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onBack }
 
               <div className="mt-6 text-center">
                 <button
-                  onClick={onBack}
+                  onClick={handleBack}
                   className="text-gray-600 hover:text-gray-800"
                 >
                   ← Back to login
@@ -243,6 +247,13 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onBack }
   }
 
   return (
+    <div className='p-4'>
+          <button
+        onClick={() => navigate(-1)}
+        className="bg-red-500 text-white px-4 py-2 rounded mb-4"
+      >
+        ⬅️ Back
+      </button>
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
@@ -285,7 +296,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onBack }
 
             <div className="mt-6 text-center">
               <button
-                onClick={onBack}
+                onClick={handleBack}
                 className="text-blue-600 hover:text-blue-800 font-medium flex items-center justify-center space-x-2"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -295,6 +306,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onBack }
           </CardContent>
         </Card>
       </div>
+    </div>
     </div>
   );
 };

@@ -52,15 +52,16 @@ export const SecurityAwareness: React.FC = () => {
   }, []);
 
   return (
-        <div className="p-4">
-      <button
+        // <div className="p-4">
+
+
+    <div className="min-h-screen bg-gray-100 p-6">
+            <button
         onClick={() => navigate(-1)}
         className="bg-red-500 text-white px-4 py-2 rounded mb-4"
       >
         ⬅️ Back
       </button>
-
-    <div className="min-h-screen bg-gray-100 p-6">
       <header className="text-center mb-10">
         <h1 className="text-3xl font-bold text-blue-800">Stay Safe Online</h1>
         <p className="text-gray-600">Simple steps to protect your digital life</p>
@@ -94,6 +95,5 @@ export const SecurityAwareness: React.FC = () => {
         </div>
       </section>
     </div>
-          </div>
   );
 };

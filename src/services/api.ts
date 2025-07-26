@@ -1,4 +1,5 @@
 import { get } from "http";
+import { authService } from './authService';
 
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
   ? '/api' 
@@ -28,7 +29,10 @@ interface PasswordEntry {
 class ApiService {
 private getAuthHeaders() {
   const token = localStorage.getItem('token');
-  if (!token) throw new Error('Missing token');
+  if (!token)  {
+     authService.logout(); // 🔒 Token missing = logout
+    throw new Error('User not authenticated. Token missing.');
+  };
   return {
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json',
@@ -110,7 +114,13 @@ async verifyPin(email: string, pin: string) {
   }
 
     async getUserDetails(email: string) {
-    const res = await fetch(`/api/user/?email=${email}`);
+        const token = localStorage.getItem('token');
+    const res = await fetch(`/api/user/?email=${email}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+      }
+    );
     if (!res.ok) throw new Error("User fetch failed");
     return res.json();
   }
@@ -135,8 +145,9 @@ async getPasswords() {
   const token = localStorage.getItem('token');
 
   if (!token) {
+ authService.logout(); // 🔒 Token missing = logout
     throw new Error('User not authenticated. Token missing.');
-  }
+    }
 
   const response = await fetch(`${API_BASE_URL}/passwords`, {
     method: 'GET',
@@ -167,26 +178,38 @@ const response = await fetch(`${API_BASE_URL}/passwords`, {
   return response.json();
   }
 
-  async updatePassword(id: string, passwordData: PasswordEntry & { currentPassword: string }) {
-    const response = await fetch(`${API_BASE_URL}/passwords/${id}`, {
-      method: 'PUT',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify(passwordData)
-    });
+async updatePassword(id: string, passwordData: PasswordEntry & { currentPassword: string }) {
+  const token = localStorage.getItem('token');
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to update password');
-    }
-
-    return response.json();
+  if (!token) {
+    authService.logout(); // no token = force logout
+    throw new Error('User not authenticated.');
   }
+
+  const response = await fetch(`${API_BASE_URL}/passwords/${id}`, {
+    method: 'PUT',
+    headers: this.getAuthHeaders(),
+    body: JSON.stringify(passwordData)
+  });
+
+  if (response.status === 401 || response.status === 403) {
+    authService.logout(); // invalid or expired token = logout
+    throw new Error('Session expired or unauthorized. Logging out.');
+  }
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to update password');
+  }
+
+  return response.json();
+}
 
 async deletePassword(id: string) {
   const token = localStorage.getItem('token');
   if (!token) {
-    console.error("❌ No token found in localStorage");
-    throw new Error('Authentication token missing');
+    authService.logout(); // 🔒 Token missing = logout
+    throw new Error('User not authenticated. Token missing.')
   }
 
   const resp = await fetch(`${API_BASE_URL}/passwords/${id}`, {

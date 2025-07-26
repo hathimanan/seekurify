@@ -23,8 +23,9 @@ import homepageBeforeloginRoutes from './src/api/homepageBeforelogin.js';
 import homepageAfterLoginRoutes from './src/api/homepageAfterLogin.js';
 import userdetailsRoutes from './src/models/User.js'; // Import user details route
 import malwareAnalyzerRouter from './src/api/malwareanalyzer.js'; // Import malware analyzer routes
-import ContactForm from './src/models/Contact.js';
+import contactRouter from './src/api/contactForm.js'; // Import contact form routes
 import siemDashboard from './src/api/siemDashboard.js'; // Import SIEM dashboard routes
+import profileRoute from './src/api/profile.js'; // Import profile route
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -54,8 +55,10 @@ app.use('/api/homepageAfterlogin', homepageAfterLoginRoutes);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/passwords', passwordRoutes);
 app.use('/api/malware-analysis/', malwareAnalyzerRouter);
-app.use('/api/contact', ContactForm);
+app.use('/api', contactRouter);
 app.use('/api/siem-dashboard', siemDashboard);
+app.use('/api/profile', profileRoute);
+app.use('/api/user', userdetailsRoutes); // User details route  
 
 // Serve static files from the React/Vite build directory
 app.use(express.static(path.join(__dirname, 'dist')));

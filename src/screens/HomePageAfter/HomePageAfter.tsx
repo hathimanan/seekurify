@@ -3,15 +3,32 @@ import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { apiService } from "../../services/api";
 
+import defaultProfileIcon from "../../../src/assets/default-profile.png"; // fallback image
+
 export const HomePageAfter = (): JSX.Element => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-
+ const [profileIconUrl, setProfileIconUrl] = useState<string>("");
   const [showPinModal, setShowPinModal] = useState(false);
-  const [loading, setLoading] = useState(true); // wait for PIN check
+  const [loading, setLoading] = useState(false); // wait for PIN check
   const [pinChecked, setPinChecked] = useState(false);
-
+const [showDropdown, setShowDropdown] = useState(false);
   useEffect(() => {
+
+    const fetchProfileIcon = async () => {
+      try {
+        if (user?.id) {
+          setProfileIconUrl(`/api/profile/profile-icon/${user.id}`);
+        }
+      } catch (error) {
+        console.error("Error fetching profile icon:", error);
+      }
+    };
+
+
+
+
+
     const checkUserPin = async () => {
       try {
         if (user?.email && !pinChecked) {
@@ -32,7 +49,7 @@ export const HomePageAfter = (): JSX.Element => {
         setLoading(false);
       }
     };
-
+    fetchProfileIcon();
     checkUserPin();
   }, [user, pinChecked]);
 
@@ -57,19 +74,57 @@ export const HomePageAfter = (): JSX.Element => {
       </div>
     );
   }
+return (
+  <div className="min-h-screen flex flex-col">
+    {/* Top Navbar */}
+    <div className="bg-blue-600 text-white flex justify-between items-center px-6 py-4">
+      <h1 className="text-2xl font-bold">Securify</h1>
 
-  return (
-    <div className="min-h-screen flex flex-col">
-      {/* Top Navbar */}
-      <div className="bg-blue-600 text-white flex justify-between items-center px-6 py-4">
-        <h1 className="text-2xl font-bold">Securify</h1>
-        <button
+      {/* Profile Icon + Dropdown */}
+      <div className="flex items-center space-x-4">
+        <img
+          src={profileIconUrl || defaultProfileIcon}
+          alt="Profile"
+          onClick={() => setShowDropdown(!showDropdown)}
+          onError={(e) => {
+            e.currentTarget.src = defaultProfileIcon;
+            e.currentTarget.onerror = null;
+          }}
+          className="w-10 h-10 rounded-full border-2 border-white object-cover cursor-pointer"
+        />
+
+        {/* Dropdown */}
+        {showDropdown && (
+          <div className="absolute right-0 top-12 w-48 bg-white text-gray-800 shadow-md rounded-lg z-50">
+            <button
+              className="w-full text-left px-4 py-2 hover:bg-gray-100"
+              onClick={() => navigate("/profile")}
+            >
+              Profile
+            </button>
+            <button
+              className="w-full text-left px-4 py-2 hover:bg-gray-100"
+              onClick={() => navigate("/change-password")}
+            >
+              Change Password
+            </button>
+            <button
+              className="w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100"
+              onClick={handleLogout}
+            >
+              Logout
+            </button>
+          </div>
+        )}
+
+        {/* <button
           onClick={handleLogout}
           className="bg-white text-blue-600 font-medium py-2 px-4 rounded hover:bg-gray-100"
         >
           Logout
-        </button>
+        </button> */}
       </div>
+            </div>
 
       {/* PIN Modal */}
       {showPinModal && (

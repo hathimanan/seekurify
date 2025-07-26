@@ -48,6 +48,15 @@ router.get('/homepageAfterLogin', authenticateToken, async (req, res) => {
       ]
     };
 
+    router.get('/profile-icon/:userId', async (req, res) => {
+  const user = await User.findById(req.params.userId);
+  if (user?.profileIcon) {
+    res.sendFile(path.resolve(user.profileIcon));
+  } else {
+    res.status(404).json({ error: 'Profile icon not found' });
+  }
+});
+
     res.status(200).json(dashboardInfo);
   } catch (error) {
     console.error('Error in /homepageAfterLogin:', error.message);

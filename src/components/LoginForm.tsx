@@ -152,7 +152,7 @@ await apiService.verifyPin(otpPayload?.email ?? '', pin);
 
   // Forgot Password
   if (showForgotPassword) {
-    return <ForgotPasswordForm onBack={handleBackToLogin} />;
+    return <ForgotPasswordForm />;
   }
 
   // Main Login Form

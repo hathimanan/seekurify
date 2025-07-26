@@ -52,12 +52,12 @@ const SIEMDashboard = () => {
     <div className="min-h-screen bg-black text-white p-6">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <button
-          onClick={() => navigate(-1)}
-          className="bg-red-600 hover:bg-red-700 text-white text-2xl font-bold px-4 py-2 rounded"
-        >
-          ←
-        </button>
+      <button
+        onClick={() => navigate(-1)}
+        className="bg-red-500 text-white px-4 py-2 rounded mb-4"
+      >
+        ⬅️ Back
+      </button>
         <h1 className="text-xl md:text-2xl font-semibold">
           System Event Management
         </h1>

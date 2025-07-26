@@ -383,6 +383,36 @@ authRouter.post('/update-pin', async (req, res) => {
   }
 });
 
+authRouter.get('/profile', async (req, res) => {
+  try {
+    const userId = req.user.id; 
+    const user = await User.findById(userId).select('-password'); // exclude password
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    res.json(user);
+  } catch (err) {
+    console.error('Profile fetch error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
+authRouter.post('/change-password', async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const user = await User.findById(req.user.id);
+
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  const isMatch = await bcrypt.compare(currentPassword, user.password);
+  if (!isMatch) return res.status(400).json({ error: 'Current password is incorrect' });
+
+  const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+  user.password = hashedNewPassword;
+  await user.save();
+
+  res.status(200).json({ message: 'Password changed successfully' });
+});
 
 
 export default authRouter;

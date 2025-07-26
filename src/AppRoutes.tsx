@@ -9,6 +9,9 @@ import { MalwareAnalyzer } from "./components/MalwareAnalyzer";
 import { SecurityAwareness } from "./components/securityAwareness";
 import ContactForm from "./components/ContactForm";
 import SIEMDashboard from "./components/SIEMDashboard";
+import { ForgotPasswordForm } from "./components/ForgotPasswordForm"; 
+import Profile from "./components/Profile";
+import ChangePasswordForm from "./components/ChangePasswordForm";
 const AppRoutes = () => {
   const navigate = useNavigate();
 
@@ -55,6 +58,12 @@ const AppRoutes = () => {
         <Route path="/contact" element={<ContactForm />} />
 
         <Route path="/siem-dashboard" element={<SIEMDashboard />} />
+
+        <Route path="/forgot-password" element={<ForgotPasswordForm/>} />
+
+        <Route path="/profile" element={<Profile />} />
+
+        <Route path="/change-password" element={<ChangePasswordForm />} />
 
     </Routes>
   );

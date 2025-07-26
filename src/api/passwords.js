@@ -69,6 +69,7 @@ passwordRouter.get('/', authenticateToken, async (req, res) => {
 
   try {
     const passwords = await Password.find({ userId });
+    res.set('Cache-Control', 'private, max-age=300'); // Cache for 5 minutes for the specific user
     res.json(passwords);
   } catch (error) {
     console.error("Error retrieving passwords:", error);
@@ -77,12 +78,18 @@ passwordRouter.get('/', authenticateToken, async (req, res) => {
 });
 
 // 🔐 Update a password
+// Assuming Express and middleware (like auth) are already in place
 passwordRouter.put('/:id', authenticateToken, async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.user?.id; // Set via auth middleware
   const { website, username, password, currentPassword } = req.body;
+
+  if (!currentPassword) {
+    return res.status(400).json({ error: "Current password is required." });
+  }
 
   try {
     const entry = await Password.findOne({ _id: req.params.id, userId });
+
     if (!entry) {
       return res.status(404).json({ error: "Password entry not found." });
     }
@@ -93,18 +100,25 @@ passwordRouter.put('/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: "Current password does not match." });
     }
 
-    // Just assign the new values – encryption happens automatically in pre('save')
-    entry.website = website;
-    entry.username = username;
-    entry.password = password;
+    // ✅ Update fields — encryption assumed in pre('save') middleware
+    entry.website = website ?? entry.website;
+    entry.username = username ?? entry.username;
+    entry.password = password ?? entry.password;
 
     await entry.save();
-    res.json(entry.toJSON()); // Ensures password is decrypted in response
+
+    const updatedEntry = {
+      ...entry.toObject(),
+      password: decrypt(entry.password), // Decrypt before sending
+    };
+
+    res.json(updatedEntry);
   } catch (error) {
     console.error("Error updating password:", error);
     res.status(500).json({ error: "Server error, please try again." });
   }
 });
+
 
 
 passwordRouter.delete('/:id', authenticateToken, async (req, res) => {
