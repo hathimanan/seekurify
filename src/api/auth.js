@@ -10,29 +10,53 @@ import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
 import { google } from 'googleapis';
 import validator from 'validator'; // npm install validator
-
+import LoginEvent from '../models/LoginEvent.model.js';
 import dotenv from 'dotenv';
+import bcrypt from 'bcrypt';
+import PasswordChangeEvent from '../models/PasswordChangeEvent.model.js';
+
+import sendResetEmail from '../emailService.js' ;
 dotenv.config();
 const OAuth2 = google.auth.OAuth2;
 
 const authRouter = express.Router();
+// const userPasswords = new Map();
 const secretKeyOTP = process.env.secretKeyOTP ?? 'otp_secret_key';
 if (!process.env.JWT_SECRET || !secretKeyOTP) {
   throw new Error("JWT secret keys are not properly defined in environment variables.");
 }
 
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: 15 * 60 * 1000, // 15 minutes
   max: 7,
-  message: 'Too many login attempts. Please try again later.',
+  statusCode: 429,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again later.' },
 });
 
+
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader) return res.status(401).json({ error: 'Missing auth header' });
+
+  const token = authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Token missing' });
+
+  jwt.verify(token, process.env.JWT_SECRET || 'defaultsecret', (err, user) => {
+    if (err) return res.status(403).json({ error: 'Invalid or expired token' });
+    req.user = user;
+    next();
+  });
+}
 
 
 authRouter.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
 
-  // === Validation block ===
+  const ipAddress = req.ip || req.connection.remoteAddress;
+  const userAgent = req.get('User-Agent');
+
   if (!email || !password) {
     return res.status(400).json({ field: 'email', error: 'Email and password are required' });
   }
@@ -49,31 +73,62 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
     return res.status(400).json({ field: 'email', error: 'Password length is too large' });
   }
 
-  // === Proceed to DB check ===
   try {
-    console.log('Login attempt 1 for email:', email);
-
     const user = await User.findOne({ email });
-    console.log('Login attempt 2 for email:', email);
 
     if (!user) {
+      // Log failed attempt: user not found
+      await LoginEvent.create({
+        userId: null,
+        success: false,
+        ipAddress,
+        userAgent,
+        timestamp: new Date(),
+      });
+
       return res.status(401).json({ field: 'email', error: 'Incorrect email' });
     }
 
     const isPasswordValid = await bcryptjs.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(401).json({ field: 'email', error: 'Invalid credentials' }); // You can choose a more specific message if needed
+      // Log failed attempt: wrong password
+      await LoginEvent.create({
+        userId: user._id,
+        success: false,
+        ipAddress,
+        userAgent,
+        timestamp: new Date(),
+      });
+
+      return res.status(401).json({ field: 'email', error: 'Invalid credentials' });
     }
 
-    // Save user or update last login, etc., if needed
-    await user.save();
+    // ✅ Log successful login
+    await LoginEvent.create({
+      userId: user._id,
+      success: true,
+      ipAddress,
+      userAgent,
+      timestamp: new Date(),
+    });
 
-    return res.json({ message: 'Login successful. Proceed to OTP.', email: user.email });
+    const payload = {
+      id: user._id,
+      email: user.email,
+      pin: user.pin,
+    };
+user.passwordStrength = getPasswordStrength(req.body.password);
+    await user.save(); // optional if not updating anything
+
+    return res.json({ message: 'Login successful. Proceed to OTP.', user: payload });
+
   } catch (err) {
     console.error('Error during login:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 
 
 
@@ -90,6 +145,68 @@ const oAuth2Client = new google.auth.OAuth2(
   "https://developers.google.com/oauthplayground"
 );
 oAuth2Client.setCredentials({ refresh_token: GMAIL_REFRESH_TOKEN });
+
+
+const resetTokens = new Map();
+
+function generateResetCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit numeric code
+}
+
+authRouter.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+
+  try {
+    const resetCode = generateResetCode();
+    resetTokens.set(email, resetCode); // store in memory for now
+
+    await sendResetEmail(email, resetCode);
+
+    res.status(200).json({ message: 'Reset code sent to your email' });
+  } catch (err) {
+    console.error('Failed to send reset email:', err);
+    res.status(500).json({ error: 'Failed to send reset email' });
+  }
+});
+
+authRouter.post('/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: 'Reset token and new password are required' });
+  }
+
+  // Find email by matching code
+  const emailEntry = [...resetTokens.entries()].find(([email, code]) => code === token);
+
+  if (!emailEntry) {
+    return res.status(400).json({ error: 'Invalid or expired reset token' });
+  }
+
+  const [email] = emailEntry;
+
+  // Example password validation
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+
+  // Save new password (you should hash this in real apps)
+const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+await User.updateOne(
+  { email },
+  { $set: { password: hashedPassword } }
+);
+  // Clear reset token after use
+  resetTokens.delete(email);
+
+  console.log(`✅ Password reset for ${email}. New password: ${newPassword}`);
+
+  return res.status(200).json({ message: 'Password has been reset successfully' });
+
+});
 
 
 authRouter.post('/send-otp', async (req, res) => {
@@ -241,6 +358,16 @@ export const updatePin = async (req, res) => {
     return res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+authRouter.get('/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const count = await LoginEvent.countDocuments({ userId });
+    res.json({ count });
+  } catch (error) {
+    res.status(500).json({ error: 'Error fetching login events' });
+  }
+});
 
 
 authRouter.get('/user', async (req, res) => {
@@ -397,10 +524,10 @@ authRouter.get('/profile', async (req, res) => {
   }
 });
 
-
-authRouter.post('/change-password', async (req, res) => {
+authRouter.post('/change-password', authenticateToken, async (req, res) => {
+  user.passwordStrength = getPasswordStrength(req.body.password);
   const { currentPassword, newPassword } = req.body;
-  const user = await User.findById(req.user.id);
+  const user = await User.findById(req.user.id); // now safe
 
   if (!user) return res.status(404).json({ error: 'User not found' });
 
@@ -409,10 +536,13 @@ authRouter.post('/change-password', async (req, res) => {
 
   const hashedNewPassword = await bcrypt.hash(newPassword, 10);
   user.password = hashedNewPassword;
+  
   await user.save();
+
+  // Log password change event
+  await PasswordChangeEvent.create({ userId: user._id });
 
   res.status(200).json({ message: 'Password changed successfully' });
 });
-
 
 export default authRouter;

@@ -9,6 +9,12 @@ interface DecodedToken {
   iat: number;
 }
 
+interface UserProfile {
+  name: string;
+  email: string;
+  username: string;
+}
+
 export const SetNewPin: React.FC = () => {
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
@@ -16,17 +22,34 @@ export const SetNewPin: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [success, setSuccess] = useState('');
+  const [user, setUser] = useState<UserProfile | null>(null);
 
   const navigate = useNavigate();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const token = queryParams.get('token');
 
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+
   useEffect(() => {
-    if (!token) {
+        if (token) {
+        const decoded = jwtDecode<DecodedToken>(token);
+        if (decoded?.email) {
+          setShowPinModal(true);
+          setEmail(decoded.email);
+        } else {
+          setError('Invalid token. Please try again.');
+          return;
+        }
+      }
+    else if (!token) {
       setError('Token not found. Please check your email link.');
       return;
     }
+
+
 
     try {
       const decoded = jwtDecode<DecodedToken>(token); // ✅ Provide type
@@ -56,6 +79,9 @@ export const SetNewPin: React.FC = () => {
     }
 
     try {
+
+
+      
       setIsLoading(true);
       const res = await fetch('/api/auth/update-pin', {
         method: 'POST',
@@ -77,51 +103,112 @@ export const SetNewPin: React.FC = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-
-
-    <div>
-      {/* <h2>Set Your New PIN</h2>
-      <p>Token: {token}</p> */}
-
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-8 rounded shadow-md w-full max-w-md"
+ return (
+  <div className="p-0">
+    <div className="min-h-screen bg-gray-100 p-2 relative">
+      <button
+        onClick={() => navigate(-1)}
+        className="bg-red-500 text-white px-4 py-2 rounded mb-4"
       >
-        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">
-          Set New PIN
-        </h2>
+        ⬅️ Back
+      </button>
 
-        {error && <div className="text-red-600 mb-4">{error}</div>}
-
-        <input
-          type="password"
-          maxLength={4}
-          placeholder="New PIN"
-          className="w-full border p-2 rounded mb-4"
-          value={newPin}
-          onChange={(e) => setNewPin(e.target.value)}
-          disabled={isLoading}
-        />
-        <input
-          type="password"
-          maxLength={4}
-          placeholder="Confirm New PIN"
-          className="w-full border p-2 rounded mb-4"
-          value={confirmPin}
-          onChange={(e) => setConfirmPin(e.target.value)}
-          disabled={isLoading}
-        />
-
-        <button
-          type="submit"
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-          disabled={isLoading || !email}
+      {/* 🔧 FIXED CLASSNAME HERE */}
+      <div className="flex items-center justify-center">
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white p-8 rounded shadow-md w-full max-w-md"
         >
-          {isLoading ? 'Updating...' : 'Set PIN'}
-        </button>
-      </form>
+          <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">
+            Set New PIN
+          </h2>
+
+          {error && <div className="text-red-600 mb-4">{error}</div>}
+
+          {/* Modal to verify PIN */}
+          {showPinModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm">
+                <h2 className="text-lg font-semibold mb-4">Verify PIN</h2>
+                <input
+                  type="password"
+                  placeholder="Enter your PIN"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+
+                <div className="mt-4 flex justify-end space-x-2">
+                  <button
+                    onClick={async () => {
+                      setIsVerifying(true);
+                      setError('');
+                      try {
+                        const token = localStorage.getItem('token');
+                        const res = await fetch('/api/auth/verify-pin', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`,
+                          },
+                          body: JSON.stringify({
+                            email,
+                            pin: pinInput,
+                          }),
+                        });
+
+                        const data = await res.json();
+                        if (data.token) {
+                          setShowPinModal(false);
+                          // navigate('/change-password'); ✅ If needed
+                        } else {
+                          setError('Incorrect PIN. Please try again.');
+                        }
+                      } catch (err) {
+                        setError('Error verifying PIN.');
+                      } finally {
+                        setIsVerifying(false);
+                      }
+                    }}
+                    disabled={isVerifying}
+                    className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                  >
+                    {isVerifying ? 'Verifying...' : 'Verify & Proceed'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <input
+            type="password"
+            maxLength={4}
+            placeholder="New PIN"
+            className="w-full border p-2 rounded mb-4"
+            value={newPin}
+            onChange={(e) => setNewPin(e.target.value)}
+            disabled={isLoading}
+          />
+          <input
+            type="password"
+            maxLength={4}
+            placeholder="Confirm New PIN"
+            className="w-full border p-2 rounded mb-4"
+            value={confirmPin}
+            onChange={(e) => setConfirmPin(e.target.value)}
+            disabled={isLoading}
+          />
+
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+            disabled={isLoading || !email}
+          >
+            {isLoading ? 'Updating...' : 'Set PIN'}
+          </button>
+        </form>
+      </div>
     </div>
-    </div>        
-  )}
+  </div>
+);}

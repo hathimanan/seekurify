@@ -3,9 +3,8 @@ import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { ArrowLeft, Mail } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-interface ForgotPasswordFormProps {
-  // onBack: () => void;
-}
+
+interface ForgotPasswordFormProps {}
 
 export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
   const [email, setEmail] = useState('');
@@ -17,9 +16,10 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const navigate = useNavigate();
 
-    const handleBack = () => {
+  const handleBack = () => {
     navigate('/login');
   };
+
   const handleSendResetEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -29,12 +29,12 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
       const response = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email }),
       });
 
+      const data = await response.json();
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to send reset email');
+        throw new Error(data.error || 'Failed to send reset email');
       }
 
       setStep('sent');
@@ -71,15 +71,12 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
         })
       });
 
+      const data = await response.json();
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to reset password');
+        throw new Error(data.error || 'Failed to reset password');
       }
 
-
-      const data = await response.json(); 
       alert(data.message); 
-      // Password reset successful, redirect to login
       handleBack();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reset password');
@@ -103,7 +100,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Check Your Email</h1>
-            <p className="text-gray-600">We've sent a password reset link to your email</p>
+            <p className="text-gray-600">We've sent a password reset code to your email</p>
           </div>
 
           <Card className="bg-white shadow-lg">
@@ -248,65 +245,66 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
 
   return (
     <div className='p-4'>
-          <button
+      <button
         onClick={() => navigate(-1)}
         className="bg-red-500 text-white px-4 py-2 rounded mb-4"
       >
         ⬅️ Back
       </button>
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Forgot Password</h1>
-          <p className="text-gray-600">Enter your email to reset your password</p>
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Forgot Password</h1>
+            <p className="text-gray-600">Enter your email to reset your password</p>
+          </div>
+
+          <Card className="bg-white shadow-lg">
+            <CardContent className="p-8">
+              {error && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleSendResetEmail} className="space-y-6">
+                <div>
+                  <label htmlFor="email" className="block text-lg font-medium text-gray-900 mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-100 border-0 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    placeholder="Enter your email address"
+                    required
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-md font-medium text-lg"
+                >
+                  {isLoading ? 'Sending...' : 'Send Reset Link'}
+                </Button>
+              </form>
+
+              <div className="mt-6 text-center">
+                <button
+                  onClick={handleBack}
+                  className="text-blue-600 hover:text-blue-800 font-medium flex items-center justify-center space-x-2"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back to login</span>
+                </button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-
-        <Card className="bg-white shadow-lg">
-          <CardContent className="p-8">
-            {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSendResetEmail} className="space-y-6">
-              <div>
-                <label htmlFor="email" className="block text-lg font-medium text-gray-900 mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-100 border-0 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                  placeholder="Enter your email address"
-                  required
-                />
-              </div>
-
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-md font-medium text-lg"
-              >
-                {isLoading ? 'Sending...' : 'Send Reset Link'}
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <button
-                onClick={handleBack}
-                className="text-blue-600 hover:text-blue-800 font-medium flex items-center justify-center space-x-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Back to login</span>
-              </button>
-            </div>
-          </CardContent>
-        </Card>
       </div>
-    </div>
     </div>
   );
 };
+export default ForgotPasswordForm;

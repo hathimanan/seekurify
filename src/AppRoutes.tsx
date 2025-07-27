@@ -61,6 +61,9 @@ const AppRoutes = () => {
 
         <Route path="/forgot-password" element={<ForgotPasswordForm/>} />
 
+          <Route path="/reset-password" element={<ForgotPasswordForm/>} />
+
+
         <Route path="/profile" element={<Profile />} />
 
         <Route path="/change-password" element={<ChangePasswordForm />} />

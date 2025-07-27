@@ -76,10 +76,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode }) => {
 
     const { otpToken } = await otpRes.json();
     setOtpPayload({ email, otpToken });
-  } catch (err: any) {
-    // Handle backend errors like "Incorrect email" or "Invalid credentials"
-    const message = err?.response?.data?.error || err.message;
-
+} catch (err: any) {
+  const message =
+    err?.response?.data?.error ||  // <-- Preferred (from backend message object)
+    err?.response?.data?.message || // fallback if plain string
+    err?.message ||                 // general fallback
+    'Login failed.';
     if (message.toLowerCase().includes('email')) {
       setEmailError(message);
     } else if (message.toLowerCase().includes('password')) {

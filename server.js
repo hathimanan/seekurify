@@ -24,7 +24,7 @@ import homepageAfterLoginRoutes from './src/api/homepageAfterLogin.js';
 import userdetailsRoutes from './src/models/User.js'; // Import user details route
 import malwareAnalyzerRouter from './src/api/malwareanalyzer.js'; // Import malware analyzer routes
 import contactRouter from './src/api/contactForm.js'; // Import contact form routes
-import siemDashboard from './src/api/siemDashboard.js'; // Import SIEM dashboard routes
+import SIEMDashboard from './src/api/siemDashboard.js'; // Import SIEM dashboard routes
 import profileRoute from './src/api/profile.js'; // Import profile route
 
 const app = express();
@@ -56,7 +56,7 @@ app.use('/api/dashboard', dashboardRouter);
 app.use('/api/passwords', passwordRoutes);
 app.use('/api/malware-analysis/', malwareAnalyzerRouter);
 app.use('/api', contactRouter);
-app.use('/api/siem-dashboard', siemDashboard);
+app.use('/api', SIEMDashboard);
 app.use('/api/profile', profileRoute);
 app.use('/api/user', userdetailsRoutes); // User details route  
 

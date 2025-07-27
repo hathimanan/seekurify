@@ -13,7 +13,11 @@ export const HomePageAfter = (): JSX.Element => {
   const [loading, setLoading] = useState(false); // wait for PIN check
   const [pinChecked, setPinChecked] = useState(false);
 const [showDropdown, setShowDropdown] = useState(false);
-  useEffect(() => {
+const token = localStorage.getItem('token');
+
+
+
+useEffect(() => {
 
     const fetchProfileIcon = async () => {
       try {
@@ -101,6 +105,12 @@ return (
               onClick={() => navigate("/profile")}
             >
               Profile
+            </button>
+            <button
+              className="w-full text-left px-4 py-2 hover:bg-gray-100"
+              onClick={() => navigate(`/set-new-pin?token=${token}`)}
+            >
+              Change PIN
             </button>
             <button
               className="w-full text-left px-4 py-2 hover:bg-gray-100"

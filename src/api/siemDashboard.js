@@ -1,53 +1,22 @@
+// 📁 backend/routes/SIEMDashboard.js
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 
-import db from './db.js'; // MongoDB connection
+import db from './db.js';
 import User from '../models/User.js';
-// Removed: import SIEMDashboard from '../components/SIEMDashboard.tsx';
+import LoginEvent from '../models/LoginEvent.model.js';
+import PasswordChangeEvent from '../models/PasswordChangeEvent.model.js';
 
 dotenv.config();
+const SIEMDashboard = express.Router();
 
-const app = express();
+SIEMDashboard.use(cors());
+SIEMDashboard.use(express.json());
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// 🔐 POST /login
-app.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    const user = await User.findOne({ email, password });
-
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
-
-    const payload = {
-      email: user.email,
-      role: user.role,
-      name: user.name,
-    };
-
-    const token = jwt.sign(payload, process.env.JWT_SECRET || 'defaultsecret', {
-      expiresIn: '1h',
-    });
-
-    res.json({
-      message: 'Login successful',
-      token,
-      user: payload,
-    });
-  } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// 🛡️ JWT Middleware
+// ✅ Auth Middleware
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   if (!authHeader) return res.status(401).json({ error: 'Missing auth header' });
@@ -62,21 +31,96 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// 📊 GET /api/dashboard
-app.get('/api/dashboard', authenticateToken, (req, res) => {
-  const { email, name, role } = req.user;
+// ✅ Dashboard Route
+SIEMDashboard.get('/siem-dashboard', authenticateToken, async (req, res) => {
+  console.log("✅ SIEM Dashboard hit by:", req.user?.email);
+  const { id: userId, email } = req.user;
 
-  res.json({
-    message: `Welcome back, ${name} (${role})`,
-    email,
-    role,
-    loginEvents: [2, 5, 3],
-    passwordChanges: [1, 5, 3],
-    suspiciousLogins: [2, 6, 4],
-    passwordHealth: [1, 4, 2],
-  });
+  try {
+    const loginData = await LoginEvent.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$timestamp' } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+      { $limit: 7 },
+    ]);
+
+    const loginCounts = loginData.map(entry => entry.count);
+
+    const passwordChangeData = await PasswordChangeEvent.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$timestamp' } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+      { $limit: 7 },
+    ]);
+
+    const passwordChangeCounts = passwordChangeData.map(entry => entry.count);
+
+    const suspiciousLoginAgg = await LoginEvent.aggregate([
+      {
+        $match: {
+          userId: new mongoose.Types.ObjectId(userId),
+          success: false,
+        },
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$timestamp' } },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $match: { count: { $gt: 8 } },
+      },
+      { $sort: { _id: 1 } },
+      { $limit: 7 },
+    ]);
+
+    const suspiciousLoginCounts = suspiciousLoginAgg.map(entry => entry.count);
+
+
+const users = await User.find({ userId }); // or all users if global dashboard
+
+let poor = 0, medium = 0, good = 0, strong = 0;
+
+users.forEach(user => {
+  const strength = user.passwordStrength;
+  if (strength === 'Poor') poor++;
+  else if (strength === 'Medium') medium++;
+  else if (strength === 'Good') good++;
+  else if (strength === 'Strong') strong++;
 });
 
-// Removed: app.listen(PORT)
+const passwordHealth = [
+  { category: 'Poor', count: poor },
+  { category: 'Medium', count: medium },
+  { category: 'Good', count: good },
+  { category: 'Strong', count: strong },
+];
 
-export default app;
+
+
+    res.json({
+      message: `Welcome back, ${email}`,
+      email,
+      loginEvents: loginCounts,
+      passwordChanges: passwordChangeCounts,
+      suspiciousLogins: suspiciousLoginCounts,
+      passwordHealth,
+    });
+  } catch (err) {
+    console.error('Dashboard fetch error:', err);
+    res.status(500).json({ error: 'Failed to load dashboard data' });
+  }
+});
+
+export default SIEMDashboard;

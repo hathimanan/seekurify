@@ -1,5 +1,6 @@
 import { get } from "http";
 import { authService } from './authService';
+import LoginEventSchema from '../models/LoginEvent.model.js';
 
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
   ? '/api' 
@@ -124,6 +125,10 @@ async verifyPin(email: string, pin: string) {
     if (!res.ok) throw new Error("User fetch failed");
     return res.json();
   }
+
+async  logLoginEvent(userId: string) {
+  await LoginEventSchema.create({ userId });
+}
 
   async getDashboard() {
     const response = await fetch(`${API_BASE_URL}/dashboard`, {

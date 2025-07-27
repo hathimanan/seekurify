@@ -174,12 +174,12 @@ const [isVerifying, setIsVerifying] = useState(false);
       {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
 
       <div className="mt-4 flex justify-end space-x-2">
-        <button
+        {/* <button
           onClick={() => setShowPinModal(false)}
           className="px-3 py-2 bg-gray-300 rounded hover:bg-gray-400 text-sm"
         >
           Cancel
-        </button>
+        </button> */}
         <button
           onClick={async () => {
             setIsVerifying(true);
