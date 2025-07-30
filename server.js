@@ -21,7 +21,7 @@ import dashboardRouter from './src/api/dashboard.js';
 import passwordRoutes from './src/api/passwords.js';
 import homepageBeforeloginRoutes from './src/api/homepageBeforelogin.js';
 import homepageAfterLoginRoutes from './src/api/homepageAfterLogin.js';
-import userdetailsRoutes from './src/models/User.js'; // Import user details route
+import userSchema from './src/models/User.ts'; // Import user details route
 import malwareAnalyzerRouter from './src/api/malwareanalyzer.js'; // Import malware analyzer routes
 import contactRouter from './src/api/contactForm.js'; // Import contact form routes
 import SIEMDashboard from './src/api/siemDashboard.js'; // Import SIEM dashboard routes
@@ -58,7 +58,7 @@ app.use('/api/malware-analysis/', malwareAnalyzerRouter);
 app.use('/api', contactRouter);
 app.use('/api', SIEMDashboard);
 app.use('/api/profile', profileRoute);
-app.use('/api/user', userdetailsRoutes); // User details route  
+app.use('/api/user', userSchema); // User details route  
 
 // Serve static files from the React/Vite build directory
 app.use(express.static(path.join(__dirname, 'dist')));
@@ -71,3 +71,23 @@ app.get(/^\/(?!api).*/, (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
 });
+
+
+// Graceful shutdown
+const shutdown = () => {
+  console.log('🔻 Server shutting down...');
+  
+  // If you're using a session store, clear it here
+  // Example: sessionStore.clear(() => console.log('Session store cleared'));
+
+  // For default memory store:
+  if (app.get('env') === 'development') {
+    console.log('⚠️ In-memory sessions will be lost automatically on shutdown.');
+  }
+
+  process.exit(0);
+};
+
+// Listen to shutdown signals
+process.on('SIGINT', shutdown); // Ctrl+C
+process.on('SIGTERM', shutdown); // kill

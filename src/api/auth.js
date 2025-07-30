@@ -3,7 +3,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcryptjs from 'bcryptjs';
-import User from '../models/User.js';
+import User from '../models/User.ts';
 import rateLimit from 'express-rate-limit';
 import crypto from 'crypto';
 import { Resend } from 'resend';
@@ -14,6 +14,7 @@ import LoginEvent from '../models/LoginEvent.model.js';
 import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
 import PasswordChangeEvent from '../models/PasswordChangeEvent.model.js';
+import { getPasswordStrength } from '../models/User.ts';
 
 import sendResetEmail from '../emailService.js' ;
 dotenv.config();

@@ -1,159 +1,78 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from 'react';
+import Graph from './Graph'; // Adjust path as needed
+import { useNavigate } from 'react-router-dom';
 
-// Props interface for Graph component
-// interface GraphProps {
-//   title: string;
-//   data: number[] ;
-// }
-
-interface GraphProps {
-  title: string;
-  data: number[] | PasswordHealthEntry[];
+interface EventData {
+  date: string;
+  value: number;
 }
 
-// ✅ React.FC applied here
-const Graph: React.FC<GraphProps> = ({ title, data }) => {
-    const isPasswordHealth = title === "Password Health";
-    const maxVal = isPasswordHealth
-    ? Math.max(...(data as PasswordHealthEntry[]).map(d => d.count), 1)
-    : Math.max(...(data as number[]), 1); // prevent divide by 0
+const SystemEventsPage: React.FC = () => {
+  const navigate = useNavigate();
+  const [loginEvents, setLoginEvents] = useState<EventData[]>([]);
+  const [passwordChanges, setPasswordChanges] = useState<EventData[]>([]);
+  const [suspiciousLogins, setSuspiciousLogins] = useState<EventData[]>([]);
+  const [passwordHealth, setPasswordHealth] = useState<EventData[]>([]);
 
- return (
-    <div className="bg-[#5b5252] w-80 h-56 m-4 rounded-md p-4 flex flex-col items-center justify-start shadow-lg">
-      <h2 className="text-white text-lg font-bold text-center mb-1">{title}</h2>
+useEffect(() => {
+  const fetchEvents = async () => {
+    try {
+      const res = await fetch('/api/siem-dashboard', {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      const data = await res.json();
 
-      {/* Only show total for selected graphs */}
-      {(title === "Login Events (Top alarms)" || title === "Password Changes (Top alarms)" || title === "Suspicious Login Alerts") && (
-        <p className="text-xl font-bold text-gray-300 mb-2">
-          Total: {(data as number[]).reduce((a, b) => a + b, 0)}
-        </p>
-      )}
+      // ✅ Transform data to match the expected structure for the graph
+setLoginEvents((data.loginEvents || []).map((event: any) => ({
+  date: event.date,
+  value: event.count,
+})));
 
-      <div className="flex justify-around items-end w-full h-full">
-        {data.length === 0 ? (
-          <p className="text-white text-sm text-center w-full">No data found</p>
-        ) : isPasswordHealth ? (
-          // Render password health bars
-          (data as PasswordHealthEntry[]).map((entry, i) => (
-            <div key={i} className="flex flex-col items-center mx-1">
-              <div
-                className="w-3 rounded-sm"
-                style={{
-                  height: `${(entry.count / maxVal) * 80}%`,
-                  backgroundColor:
-                    entry.category === 'Poor' ? '#ef4444' :
-                    entry.category === 'Medium' ? '#f59e0b' :
-                    entry.category === 'Good' ? '#3b82f6' :
-                    '#10b981',
-                }}
-                title={`${entry.category}: ${entry.count}`}
-              />
-              <span className="text-white text-xs mt-1">{entry.category}</span>
-            </div>
-          ))
-        ) : (
-          // Render generic bars
-          (data as number[]).map((val, i) => (
-            <div
-              key={i}
-              className="bg-red-500 w-1.5 mx-1 rounded-sm"
-              style={{ height: `${(val / maxVal) * 80}%` }}
-              title={`Value: ${val}`}
-            />
-          ))
-        )}
+setPasswordChanges((data.passwordChanges || []).map((event: any) => ({
+  date: event.date,
+  value: event.count,
+})));
+
+setSuspiciousLogins((data.suspiciousLogins || []).map((event: any) => ({
+  date: event.date,
+  value: event.count,
+})));
+
+setPasswordHealth((data.passwordHealth || []).map((entry: any) => ({
+  date: entry.category,
+  value: entry.count,
+})));
+    } catch (err) {
+      console.error('Failed to load event data', err);
+    }
+    
+  };
+
+  fetchEvents();
+}, []);
+
+
+  return (
+    <div className="bg-black min-h-screen px-6 py-6 text-white">
+      <button
+        onClick={() => navigate(-1)}
+        className="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-1 rounded mb-4 flex items-center"
+      >
+        <span className="mr-2">🔙</span> Back
+      </button>
+      <h1 className="text-2xl font-bold mb-6">System Event Management</h1>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <Graph title="Login Events (Top alarms)" data={loginEvents} />
+        <Graph title="Password Changes (Top alarms)" data={passwordChanges} />
+
+        <Graph title="Suspicious Login Alerts" data={suspiciousLogins} />
+        <Graph title="Password Health" data={passwordHealth} type="bar" />
       </div>
     </div>
   );
 };
 
-interface PasswordHealthEntry {
-  category: 'Poor' | 'Medium' | 'Good' | 'Strong';
-  count: number;}
-// Type for dashboard stats
-interface DashboardStats {
-  loginEvents: number[];
-  passwordChanges: number[];
-  suspiciousLogins: number[];
-  passwordHealth: PasswordHealthEntry[];
-}
-
-// ✅ React.FC applied here
-const SIEMDashboard: React.FC = () => {
-  const navigate = useNavigate();
-  const [stats, setStats] = useState<DashboardStats>({
-    loginEvents: [],
-    passwordChanges: [],
-    suspiciousLogins: [],
-    passwordHealth: [],
-  });
-
-useEffect(() => {
-  const fetchData = async () => {
-    const token = localStorage.getItem("token");
-    console.log("Token used:", token);
-
-    try {
-      const res = await fetch("/api/siem-dashboard", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const contentType = res.headers.get("content-type");
-
-      if (!res.ok) {
-        const errorText = await res.text(); // fallback in case error body is not JSON
-        throw new Error(`HTTP ${res.status}: ${errorText}`);
-      }
-
-      if (!contentType || !contentType.includes("application/json")) {
-        const body = await res.text();
-        throw new Error(`Expected JSON but got: ${body.slice(0, 100)}`);
-      }
-
-      const data = await res.json();
-      console.log("Fetched SIEM data:", data);
-
-      setStats({
-        loginEvents: data.loginEvents || [],
-        passwordChanges: data.passwordChanges || [],
-        suspiciousLogins: data.suspiciousLogins || [],
-        passwordHealth: data.passwordHealth || [],
-      });
-    } catch (err) {
-      console.error("Fetch error:", err);
-    }
-  };
-
-  fetchData();
-}, []);   
-
-  return (
-  <div className="min-h-screen bg-black text-white p-6">
-    {/* Header */}
-    <div className="flex items-center gap-4 mb-6">
-      <button
-        onClick={() => navigate(-1)}
-        className="bg-red-500 text-white px-4 py-2 rounded mb-4"
-      >
-        ⬅️ Back
-      </button>
-      <h1 className="text-xl md:text-2xl font-semibold">
-        System Event Management
-      </h1>
-    </div>
-
-    {/* Graph Grid */}
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 justify-items-center">
-      <Graph title="Login Events (Top alarms)" data={stats.loginEvents} />
-      <Graph title="Password Changes (Top alarms)" data={stats.passwordChanges} />
-      <Graph title="Suspicious Login Alerts" data={stats.suspiciousLogins} />
-      <Graph title="Password Health" data={stats.passwordHealth} />
-    </div>
-  </div>
-);
-}
-
-export default SIEMDashboard;
+export default SystemEventsPage;

@@ -1,6 +1,6 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import User from '../models/User.js'; // adjust path as needed
+import User from '../models/User.ts'; // adjust path as needed
 
 const router = express.Router();
 const secretKey = process.env.secretKey || 'default_secret_key';

@@ -247,7 +247,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
     <div className='p-4'>
       <button
         onClick={() => navigate(-1)}
-        className="bg-red-500 text-white px-4 py-2 rounded mb-4"
+        className=" text-blue px-4 py-2 rounded mb-4"
       >
         ⬅️ Back
       </button>

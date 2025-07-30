@@ -6,7 +6,7 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 
 import db from './db.js';
-import User from '../models/User.js';
+import User from '../models/User.ts';
 import LoginEvent from '../models/LoginEvent.model.js';
 import PasswordChangeEvent from '../models/PasswordChangeEvent.model.js';
 
@@ -18,10 +18,10 @@ SIEMDashboard.use(express.json());
 
 // ✅ Auth Middleware
 function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
+  const authHeader = req.headers['authorization']; // ✅ Correctly access the Authorization header
   if (!authHeader) return res.status(401).json({ error: 'Missing auth header' });
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.split(' ')[1]; // Bearer <token>
   if (!token) return res.status(401).json({ error: 'Token missing' });
 
   jwt.verify(token, process.env.JWT_SECRET || 'defaultsecret', (err, user) => {
@@ -37,58 +37,65 @@ SIEMDashboard.get('/siem-dashboard', authenticateToken, async (req, res) => {
   const { id: userId, email } = req.user;
 
   try {
-    const loginData = await LoginEvent.aggregate([
-      { $match: { userId: new mongoose.Types.ObjectId(userId) } },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$timestamp' } },
-          count: { $sum: 1 },
-        },
-      },
-      { $sort: { _id: 1 } },
-      { $limit: 7 },
-    ]);
+const loginData = await LoginEvent.aggregate([
+  { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+  {
+    $group: {
+      _id: { $dateToString: { format: '%Y-%m-%d', date: '$timestamp' } },
+      count: { $sum: 1 },
+    },
+  },
+  { $sort: { _id: 1 } },
+  { $limit: 15 }, // You can increase to 15 if you want 15 days
+]);
+const loginEvents = loginData.map(entry => ({
+  date: entry._id,
+  count: entry.count,
+}));
 
-    const loginCounts = loginData.map(entry => entry.count);
+const passwordChangeData = await PasswordChangeEvent.aggregate([
+  { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+  {
+    $group: {
+      _id: { $dateToString: { format: '%Y-%m-%d', date: '$timestamp' } },
+      count: { $sum: 1 },
+    },
+  },
+  { $sort: { _id: 1 } },
+  { $limit: 15 },
+]);
+const passwordChanges = passwordChangeData.map(entry => ({
+  date: entry._id,
+  count: entry.count,
+}));
 
-    const passwordChangeData = await PasswordChangeEvent.aggregate([
-      { $match: { userId: new mongoose.Types.ObjectId(userId) } },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$timestamp' } },
-          count: { $sum: 1 },
-        },
-      },
-      { $sort: { _id: 1 } },
-      { $limit: 7 },
-    ]);
-
-    const passwordChangeCounts = passwordChangeData.map(entry => entry.count);
-
-    const suspiciousLoginAgg = await LoginEvent.aggregate([
-      {
-        $match: {
-          userId: new mongoose.Types.ObjectId(userId),
-          success: false,
-        },
-      },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$timestamp' } },
-          count: { $sum: 1 },
-        },
-      },
-      {
-        $match: { count: { $gt: 8 } },
-      },
-      { $sort: { _id: 1 } },
-      { $limit: 7 },
-    ]);
-
-    const suspiciousLoginCounts = suspiciousLoginAgg.map(entry => entry.count);
+const suspiciousLoginAgg = await LoginEvent.aggregate([
+  {
+    $match: {
+      userId: new mongoose.Types.ObjectId(userId),
+      success: false,
+    },
+  },
+  {
+    $group: {
+      _id: { $dateToString: { format: '%Y-%m-%d', date: '$timestamp' } },
+      count: { $sum: 1 },
+    },
+  },
+  {
+    $match: { count: { $gt: 8 } },
+  },
+  { $sort: { _id: 1 } },
+  { $limit: 15 },
+]);
+const suspiciousLogins = suspiciousLoginAgg.map(entry => ({
+  date: entry._id,
+  count: entry.count,
+}));
 
 
-const users = await User.find({ userId }); // or all users if global dashboard
+
+const users = await User.find({_id: userId }); // or all users if global dashboard
 
 let poor = 0, medium = 0, good = 0, strong = 0;
 
@@ -112,9 +119,9 @@ const passwordHealth = [
     res.json({
       message: `Welcome back, ${email}`,
       email,
-      loginEvents: loginCounts,
-      passwordChanges: passwordChangeCounts,
-      suspiciousLogins: suspiciousLoginCounts,
+      loginEvents,
+      passwordChanges,
+      suspiciousLogins,
       passwordHealth,
     });
   } catch (err) {
