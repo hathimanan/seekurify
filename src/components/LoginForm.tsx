@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
@@ -23,7 +23,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode }) => {
   const [otpPayload, setOtpPayload] = useState<{ email: string; otpToken: string } | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showPIN, setShowPIN] = useState(false);
-
+const [success, setSuccess] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -95,6 +95,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode }) => {
 };
 
 
+useEffect(()=> { 
+if (success) {
+    const timer = setTimeout(() => {
+      navigate('/homepageAfterLogin');
+    }, 2000); // 2 second delay
+    return () => clearTimeout(timer);
+  }
+}, [success]);
+
   // Step 3: Handle PIN Verification
   const handleVerifyPIN = async (pin: string) => {
     try {
@@ -157,26 +166,39 @@ await apiService.verifyPin(otpPayload?.email ?? '', pin);
     return <ForgotPasswordForm />;
   }
 
-  // Main Login Form
-  return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Sign In</h1>
-          <p className="text-gray-600">Welcome back! Please login to your account</p>
-        </div>
 
-        <Card className="bg-white shadow-lg">
+  return (
+  <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4 py-10">
+    <div className="w-full max-w-md">
+
+      {success && (
+        <div className="mb-6 rounded-xl border border-green-300 bg-green-50 px-4 py-3 flex items-center justify-between shadow-sm animate-fade-in">
+          <div className="flex items-center space-x-3">
+            <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+              <span className="text-white text-xs font-bold">✓</span>
+            </div>
+            <span className="text-green-700 text-sm font-medium">Login successful! Redirecting...</span>
+          </div>
+        </div>
+      )}
+
+      {!success && (
+        <Card className="bg-white rounded-2xl shadow-md">
           <CardContent className="p-8">
+            <div className="text-center mb-6">
+              <h1 className="text-3xl font-bold text-gray-900">Sign In</h1>
+              <p className="text-gray-600 mt-1">Welcome back! Please login to your account</p>
+            </div>
+
             {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+              <div className="mb-6 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {error}
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label htmlFor="email" className="block text-lg font-medium text-gray-900 mb-2">
+                <label htmlFor="email" className="block text-sm font-medium text-gray-900 mb-1">
                   Email
                 </label>
                 <input
@@ -184,16 +206,14 @@ await apiService.verifyPin(otpPayload?.email ?? '', pin);
                   id="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-200 border-0 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                  
+                  className="w-full px-4 py-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   required
                 />
                 {emailError && <p className="text-red-600 text-sm mt-1">{emailError}</p>}
-
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-lg font-medium text-gray-900 mb-2">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-900 mb-1">
                   Password
                 </label>
                 <input
@@ -201,26 +221,25 @@ await apiService.verifyPin(otpPayload?.email ?? '', pin);
                   id="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-200 border-0 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   required
                 />
                 <div className="text-right mt-2">
                   <button
                     type="button"
                     onClick={() => setShowForgotPassword(true)}
-                    className="text-gray-900 hover:text-gray-700 font-medium underline"
+                    className="text-sm text-gray-600 hover:text-gray-800 underline"
                   >
-                    Forgot Password
+                    Forgot Password?
                   </button>
                 </div>
                 {passwordError && <p className="text-red-600 text-sm mt-1">{passwordError}</p>}
-
               </div>
 
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-md font-medium text-lg"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-md font-medium text-lg transition disabled:opacity-50"
               >
                 {isLoading ? 'Logging in...' : 'Login'}
               </Button>
@@ -229,13 +248,13 @@ await apiService.verifyPin(otpPayload?.email ?? '', pin);
             <div className="mt-6 space-y-3">
               <GoogleSignInButton
                 onSuccess={() => {
-                  navigate('/homepageAfterLogin');
+                  setSuccess(true); // ✅ trigger success message
                 }}
               />
 
               <Button
                 type="button"
-                className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 py-3 px-4 rounded-md font-medium flex items-center justify-center space-x-2"
+                className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 py-3 px-4 rounded-md font-medium flex items-center justify-center space-x-2 transition"
               >
                 <span>Sign In with Microsoft</span>
                 <span className="text-xl">⊞</span>
@@ -243,8 +262,8 @@ await apiService.verifyPin(otpPayload?.email ?? '', pin);
             </div>
 
             <div className="mt-6 text-center">
-              <p className="text-gray-600">
-                Don't have an account?{' '}
+              <p className="text-sm text-gray-600">
+                Don&apos;t have an account?{' '}
                 <button
                   onClick={onToggleMode}
                   className="text-blue-600 hover:text-blue-800 font-medium"
@@ -255,7 +274,8 @@ await apiService.verifyPin(otpPayload?.email ?? '', pin);
             </div>
           </CardContent>
         </Card>
-      </div>
+      )}
     </div>
-  );
-};
+  </div>
+);
+}

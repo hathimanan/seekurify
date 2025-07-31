@@ -134,79 +134,72 @@ try {
   //     />
   //   );
   // }
+return (
+  <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4 py-8">
+    <div className="w-full max-w-md">
+      
+      <div className="text-center mb-6">
+        <h1 className="text-3xl font-bold text-gray-900">Sign In</h1>
+        <p className="text-gray-600 mt-1">Welcome back! Please login to your account</p>
+      </div>
 
-  return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Sign In</h1>
-          <p className="text-gray-600">Welcome back! Please login to your account</p>
-        </div>
-
-        {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center mr-3">
-                <span className="text-white text-xs">!</span>
-              </div>
-            <span className="text-red-700 font-medium">{error}</span>
+      {error && (
+        <div className="mb-6 rounded-xl border border-red-300 bg-red-50 px-4 py-3 flex items-start justify-between shadow-sm">
+          <div className="flex items-center space-x-3">
+            <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
+              <span className="text-white text-xs font-bold">!</span>
             </div>
-            <button
-              onClick={() => setError('')}
-              className="text-red-500 hover:text-red-700"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <span className="text-red-700 text-sm font-medium">{error}</span>
           </div>
-        )}
-
-        <div className="bg-blue-600 p-8 rounded-lg">
-          <Card className="bg-gray-200 border-0">
-            <CardContent className="p-8">
-              <h2 className="text-2xl font-bold text-center mb-8 text-gray-900">
-                Enter OTP
-              </h2>
-              
-              <form onSubmit={handleSubmit}>
-                <div className="flex justify-center space-x-3 mb-8">
-                  {otp.map((digit, index) => (
-                    <input
-                      key={index}
-                      ref={(el) => (inputRefs.current[index] = el)}
-                      type="text"
-                      value={digit}
-                      onChange={(e) => handleInputChange(index, e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(index, e)}
-                      onPaste={index === 0 ? handlePaste : undefined}
-                      className="w-12 h-12 text-center text-xl font-bold border-2 border-gray-300 rounded-md focus:border-blue-500 focus:outline-none bg-white"
-                      maxLength={1}
-                    />
-                  ))}
-                </div>
-
-                <div className="flex justify-end">
-                  <Button                  
-                    type="submit"
-                    disabled={isLoading || !isOtpValid}
-                    className="bg-gray-700 hover:bg-gray-800 text-white px-8 py-2 rounded-md font-medium"
-                  >
-                    {isLoading ? 'Verifying...' : 'Submit'}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="mt-6 text-center">
           <button
-            onClick={onBack}
-            className="text-blue-600 hover:text-blue-800 font-medium"
+            onClick={() => setError('')}
+            className="text-red-500 hover:text-red-700 transition"
           >
-            ← Back to login
+            <X className="w-4 h-4" />
           </button>
         </div>
+      )}
+
+      <div className="bg-white rounded-2xl shadow-md px-6 py-8">
+        <h2 className="text-2xl font-semibold text-center text-gray-800 mb-6">Enter OTP</h2>
+
+        <form onSubmit={handleSubmit}>
+          <div className="flex justify-center gap-3 mb-6">
+            {otp.map((digit, index) => (
+              <input
+                key={index}
+                ref={(el) => (inputRefs.current[index] = el)}
+                type="text"
+                value={digit}
+                onChange={(e) => handleInputChange(index, e.target.value)}
+                onKeyDown={(e) => handleKeyDown(index, e)}
+                onPaste={index === 0 ? handlePaste : undefined}
+                maxLength={1}
+                className="w-12 h-12 text-center text-xl font-semibold border border-gray-300 rounded-md focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition outline-none bg-white"
+              />
+            ))}
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              type="submit"
+              disabled={isLoading || !isOtpValid}
+              className="bg-blue-600 hover:bg-blue-700 transition text-white px-6 py-2 rounded-md font-medium disabled:opacity-50"
+            >
+              {isLoading ? 'Verifying...' : 'Submit'}
+            </Button>
+          </div>
+        </form>
+      </div>
+
+      <div className="mt-6 text-center">
+        <button
+          onClick={onBack}
+          className="text-sm text-blue-600 hover:text-blue-800 transition font-medium"
+        >
+          ← Back to login
+        </button>
       </div>
     </div>
-  );
-};
+  </div>
+);}
