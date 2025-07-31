@@ -63,6 +63,16 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
         )}
 
+
+
+{successMessage && (
+  <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+    {successMessage} <br />
+    You can now close this tab.
+  </div>
+)}
+
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">

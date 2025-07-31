@@ -83,14 +83,16 @@ const suspiciousLoginAgg = await LoginEvent.aggregate([
     },
   },
   {
-    $match: { count: { $gt: 8 } },
+    $match: { count: { $gt: 7 } }, // ✅ updated threshold to match rate limit
   },
   { $sort: { _id: 1 } },
   { $limit: 15 },
 ]);
+
+// ✅ Add 1 to the suspicious count
 const suspiciousLogins = suspiciousLoginAgg.map(entry => ({
   date: entry._id,
-  count: entry.count,
+  count: entry.count + 1, // ✅ incrementing count
 }));
 
 

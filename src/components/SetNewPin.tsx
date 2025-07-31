@@ -7,6 +7,7 @@ interface DecodedToken {
   email: string;
   exp: number;
   iat: number;
+  newUser?: boolean; // <- added
 }
 
 interface UserProfile {
@@ -37,8 +38,11 @@ export const SetNewPin: React.FC = () => {
         if (token) {
         const decoded = jwtDecode<DecodedToken>(token);
         if (decoded?.email) {
-          setShowPinModal(true);
           setEmail(decoded.email);
+          if (!decoded.newUser) {
+                setShowPinModal(true);
+              }
+
         } else {
           setError('Invalid token. Please try again.');
           return;

@@ -16,7 +16,9 @@ export interface IUser extends Document {
 }
 
 // 2. Password strength checker
-export function getPasswordStrength(password: string): 'Poor' | 'Medium' | 'Good' | 'Strong' {
+export function getPasswordStrength(password: string | undefined): 'Poor' | 'Medium' | 'Good' | 'Strong' {
+  if (!password || typeof password !== 'string') return 'Poor';
+
   const length = password.length;
 
   if (length < 8) return 'Poor';
@@ -24,6 +26,7 @@ export function getPasswordStrength(password: string): 'Poor' | 'Medium' | 'Good
   else if (length >= 17 && length <= 24) return 'Good';
   else return 'Strong';
 }
+
 
 // 3. Define schema
 const userSchema: Schema<IUser> = new Schema({

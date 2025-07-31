@@ -21,6 +21,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+
+function base64UrlDecode(str: string): string {
+  str = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (str.length % 4) str += '=';
+  return atob(str);
+}
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
@@ -40,8 +47,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
+
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
+              const base64Payload = token.split('.')[1];
+    const decodedPayload = base64UrlDecode(base64Payload);
+        const payload = JSON.parse(decodedPayload);
         setUser({ id: payload.id, email: payload.email });
       } catch (error) {
         console.error('Invalid token:', error);

@@ -160,8 +160,17 @@ authRouter.post('/forgot-password', async (req, res) => {
   if (!email) return res.status(400).json({ error: 'Email is required' });
 
   try {
+    // ✅ Check if user with that email exists
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      // If user not found, return an error
+      return res.status(404).json({ error: 'No account found with this email address' });
+    }
+
+    // If user exists, proceed with sending reset code
     const resetCode = generateResetCode();
-    resetTokens.set(email, resetCode); // store in memory for now
+    resetTokens.set(email, resetCode); // store in memory (or use DB/Redis in production)
 
     await sendResetEmail(email, resetCode);
 
@@ -422,7 +431,7 @@ authRouter.post('/signup', async (req, res) => {
     await newUser.save();
 
     // 🔐 Generate email verification token
-    const emailToken = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: '15m' });
+    const emailToken = jwt.sign({ email, newUser: true }, process.env.JWT_SECRET, { expiresIn: '15m' });
     const verifyLink = `${process.env.FRONTEND_BASE_URL}/set-new-pin?token=${emailToken}`;
 
     // ⚙️ Set up OAuth2
@@ -526,20 +535,21 @@ authRouter.get('/profile', async (req, res) => {
 });
 
 authRouter.post('/change-password', authenticateToken, async (req, res) => {
-  user.passwordStrength = getPasswordStrength(req.body.password);
-  const { currentPassword, newPassword } = req.body;
   const user = await User.findById(req.user.id); // now safe
+  const { currentPassword, newPassword } = req.body;
+  user.passwordStrength = getPasswordStrength(newPassword); // ✅ use correct field
 
   if (!user) return res.status(404).json({ error: 'User not found' });
 
   const isMatch = await bcrypt.compare(currentPassword, user.password);
   if (!isMatch) return res.status(400).json({ error: 'Current password is incorrect' });
 
-  const hashedNewPassword = await bcrypt.hash(newPassword, 10);
-  user.password = hashedNewPassword;
+  // const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+  user.password = newPassword;
   
   await user.save();
-
+ console.log('Received currentPassword:', req.body.currentPassword);
+  console.log('Received newPassword:', req.body.newPassword);
   // Log password change event
   await PasswordChangeEvent.create({ userId: user._id });
 
