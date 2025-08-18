@@ -95,10 +95,15 @@ passwordRouter.put('/:id', authenticateToken, async (req, res) => {
     }
 
     const decryptedStoredPassword = decrypt(entry.password);
-
+console.log("Decrypted stored password:", decryptedStoredPassword);
+console.log("Current password provided:", currentPassword);
     if (decryptedStoredPassword !== currentPassword) {
-      return res.status(403).json({ error: "Current password does not match." });
-    }
+  return res.status(403).json({
+    error: "Current password does not match.",
+    reason: "incorrect_current_password"
+  });
+}
+
 
     // ✅ Update fields — encryption assumed in pre('save') middleware
     entry.website = website ?? entry.website;

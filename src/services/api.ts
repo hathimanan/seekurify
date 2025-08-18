@@ -197,10 +197,23 @@ async updatePassword(id: string, passwordData: PasswordEntry & { currentPassword
     body: JSON.stringify(passwordData)
   });
 
-  if (response.status === 401 || response.status === 403) {
-    authService.logout(); // invalid or expired token = logout
-    throw new Error('Session expired or unauthorized. Logging out.');
-  }
+  // if (response.status === 401 || response.status === 403) {
+  //   authService.logout(); // invalid or expired token = logout
+  //   throw new Error('Session expired or unauthorized. Logging out.');
+  // }
+
+if (response.status === 401) {
+  authService.logout();
+  throw new Error('Session expired or unauthorized. Logging out.');
+}
+
+if (response.status === 403) {
+  const error = await response.json();
+  throw new Error(error.error || 'Forbidden request');
+}
+
+
+
 
   if (!response.ok) {
     const error = await response.json();

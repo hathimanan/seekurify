@@ -36,31 +36,31 @@ const [success, setSuccess] = useState(false);
 
   // Frontend validations
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!email) {
-    setEmailError('Email is required');
-    return;
-  }
 
-  
-  if (!emailRegex.test(email)) {
-    setEmailError('Invalid email format');
-    return;
-  }
+   let hasError = false;
 
-  if (!password) {
-    setPasswordError('Password is required');
-    return;
-  }
+if (!email.trim()) {
+  setEmailError('Email is required');
+  hasError = true;
+} else if (!emailRegex.test(email)) {
+  setEmailError('Invalid email format');
+  hasError = true;
+}
 
-  if (password.length < 6) {
-    setPasswordError('Password length is too small');
-    return;
-  }
+// Password validation
+if (!password.trim()) {
+  setPasswordError('Password is required');
+  hasError = true;
+} else if (password.length < 6) {
+  setPasswordError('Password length is too small');
+  hasError = true;
+} else if (password.length > 18) {
+  setPasswordError('Password length is too large');
+  hasError = true;
+}
 
-  if (password.length > 18) {
-    setPasswordError('Password length is too large');
-    return;
-  }
+if (hasError) return;
+
 
   setIsLoading(true);
 
@@ -77,19 +77,24 @@ const [success, setSuccess] = useState(false);
     const { otpToken } = await otpRes.json();
     setOtpPayload({ email, otpToken });
 } catch (err: any) {
-  const message =
-    err?.response?.data?.error ||  // <-- Preferred (from backend message object)
-    err?.response?.data?.message || // fallback if plain string
-    err?.message ||                 // general fallback
-    'Login failed.';
-    if (message.toLowerCase().includes('email')) {
-      setEmailError(message);
-    } else if (message.toLowerCase().includes('password')) {
-      setPasswordError(message);
-    } else {
-      setError(message);
-    }
-  } finally {
+  const backend = err?.response?.data;
+
+  if (backend?.field === 'email') {
+    setEmailError(backend.error);
+  } else if (backend?.field === 'password') {
+    setPasswordError(backend.error);
+  } else {
+    const message =
+      backend?.error ||
+      backend?.message ||
+      err?.message ||
+      'Login failed.';
+    setError(message);
+  }
+}
+
+
+    finally {
     setIsLoading(false);
   }
 };
@@ -191,9 +196,16 @@ await apiService.verifyPin(otpPayload?.email ?? '', pin);
             </div>
 
             {error && (
-              <div className="mb-6 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
-              </div>
+              // <div className="mb-6 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <div className="flex items-start space-x-2 text-sm text-red-700 bg-red-50 border border-red-300 rounded-xl px-4 py-3 mb-6">
+  <svg className="h-5 w-5 mt-0.5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+    <path d="M18 10c0 4.418-3.582 8-8 8s-8-3.582-8-8 3.582-8 8-8 8 3.582 8 8zm-8-1V5h2v4h-2zm0 4v-2h2v2h-2z"/>
+  </svg>
+  <span>{error}</span>
+</div>
+
+
+              // </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -202,12 +214,12 @@ await apiService.verifyPin(otpPayload?.email ?? '', pin);
                   Email
                 </label>
                 <input
-                  type="email"
+                  type="text"
                   id="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                  required
+                  // required
                 />
                 {emailError && <p className="text-red-600 text-sm mt-1">{emailError}</p>}
               </div>
@@ -222,7 +234,7 @@ await apiService.verifyPin(otpPayload?.email ?? '', pin);
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                  required
+                  // required
                 />
                 <div className="text-right mt-2">
                   <button

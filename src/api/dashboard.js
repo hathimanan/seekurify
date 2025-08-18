@@ -71,7 +71,7 @@ dashboardRouter.post('/passwords', authenticateToken, (req, res) => {
 dashboardRouter.put('/passwords/:id', authenticateToken, (req, res) => {
   const userEmail = req.user.email;
   const { id } = req.params;
-  const { site, password } = req.body;
+  const { site, password, currentPassword } = req.body;
 
   const passwords = userPasswords[userEmail] || [];
   const passwordEntry = passwords.find((p) => p.id === id);
@@ -80,10 +80,24 @@ dashboardRouter.put('/passwords/:id', authenticateToken, (req, res) => {
     return res.status(404).json({ error: 'Password not found' });
   }
 
-  if (site) passwordEntry.site = site;
-  if (password) passwordEntry.password = password;
+  try {
+    const decryptedStoredPassword = decrypt(passwordEntry.password);
 
-  res.json(passwordEntry);
+    if (decryptedStoredPassword !== currentPassword) {
+      return res.status(403).json({
+        error: 'Current password does not match',
+        reason: 'incorrect_current_password'
+      });
+    }
+
+    if (site) passwordEntry.site = site;
+    if (password) passwordEntry.password = encrypt(password); // Encrypt new password
+
+    res.json(passwordEntry);
+  } catch (err) {
+    console.error('Error updating password:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // DELETE /passwords/:id - Delete a password by ID

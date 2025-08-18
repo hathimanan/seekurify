@@ -13,7 +13,7 @@ if (!SECRET_HEX) {
 const SECRET_KEY = Buffer.from(SECRET_HEX, 'hex'); // 32-byte key
 
 // Encrypt plaintext using AES-256-CBC
-function encrypt(text) {
+export function encrypt(text) {
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv('aes-256-cbc', SECRET_KEY, iv);
   const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
@@ -21,8 +21,19 @@ function encrypt(text) {
   return iv.toString('hex') + ':' + encrypted.toString('hex');
 }
 
+// Check if a string is already encrypted (basic format check: IV:EncryptedHex)
+export function isEncrypted(password) {
+  return (
+    typeof password === 'string' &&
+    password.includes(':') &&
+    /^[a-f0-9]{32}:[a-f0-9]+$/.test(password)
+  );
+}
+
+
+
 // Decrypt ciphertext back to plaintext
-function decrypt(data) {
+export function decrypt(data) {
   if (typeof data !== 'string' || data.indexOf(':') === -1) {
     // Nothing to decrypt or invalid format
     return data;
@@ -47,8 +58,14 @@ const passwordSchema = new mongoose.Schema({
 });
 
 // Encrypt password before saving
-passwordSchema.pre('save', function(next) {
+passwordSchema.pre('save', function (next) {
   if (!this.isModified('password')) return next();
+
+  if (isEncrypted(this.password)) {
+    // Already encrypted, skip re-encryption
+    return next();
+  }
+
   try {
     this.password = encrypt(this.password);
     this.updatedAt = new Date();

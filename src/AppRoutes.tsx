@@ -12,6 +12,7 @@ import SIEMDashboard from "./components/SIEMDashboard";
 import { ForgotPasswordForm } from "./components/ForgotPasswordForm"; 
 import Profile from "./components/Profile";
 import ChangePasswordForm from "./components/ChangePasswordForm";
+
 const AppRoutes = () => {
   const navigate = useNavigate();
 

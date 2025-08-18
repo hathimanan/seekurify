@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import Graph from './Graph'; // Adjust path as needed
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import Graph from "./Graph"; // Adjust path as needed
+import { useNavigate } from "react-router-dom";
 
 interface EventData {
   date: string;
@@ -14,45 +14,65 @@ const SystemEventsPage: React.FC = () => {
   const [suspiciousLogins, setSuspiciousLogins] = useState<EventData[]>([]);
   const [passwordHealth, setPasswordHealth] = useState<EventData[]>([]);
 
-useEffect(() => {
-  const fetchEvents = async () => {
-    try {
-      const res = await fetch('/api/siem-dashboard', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-      const data = await res.json();
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const res = await fetch("/api/siem-dashboard", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+        const data = await res.json();
 
-      // ✅ Transform data to match the expected structure for the graph
-setLoginEvents((data.loginEvents || []).map((event: any) => ({
-  date: event.date,
-  value: event.count,
-})));
+        // ✅ Login Events
+        setLoginEvents(
+          (data.loginEvents || []).map((event: any) => ({
+            date: String(event.date),
+            value: Number(event.count ?? 0),
+          }))
+        );
 
-setPasswordChanges((data.passwordChanges || []).map((event: any) => ({
-  date: event.date,
-  value: event.count,
-})));
+        // ✅ Password Changes
+        setPasswordChanges(
+          (data.passwordChanges || []).map((event: any) => ({
+            date: String(event.date),
+            value: Number(event.count ?? 0),
+          }))
+        );
 
-setSuspiciousLogins((data.suspiciousLogins || []).map((event: any) => ({
-  date: event.date,
-  value: event.count,
-})));
+        // ✅ Suspicious Logins (interval buckets -> { date, value })
+setSuspiciousLogins(
+  (data.suspiciousLogins || []).map((event: any) => {
+    const start = new Date(event.intervalStart);
 
-setPasswordHealth((data.passwordHealth || []).map((entry: any) => ({
-  date: entry.category,
-  value: entry.count,
-})));
-    } catch (err) {
-      console.error('Failed to load event data', err);
-    }
-    
-  };
+    const label = start.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
-  fetchEvents();
-}, []);
+    return {
+      date: label,                // just the start time
+      value: Number(event.count), // suspicious logins count
+    } as EventData;
+  })
+);
 
+
+
+        // ✅ Password Health
+        setPasswordHealth(
+          (data.passwordHealth || []).map((entry: any) => ({
+            date: String(entry.category),
+            value: Number(entry.count ?? 0),
+          }))
+        );
+      } catch (err) {
+        console.error("Failed to load event data", err);
+      }
+    };
+
+    fetchEvents();
+  }, []);
 
   return (
     <div className="bg-black min-h-screen px-6 py-6 text-white">
@@ -67,7 +87,6 @@ setPasswordHealth((data.passwordHealth || []).map((entry: any) => ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <Graph title="Login Events (Top alarms)" data={loginEvents} />
         <Graph title="Password Changes (Top alarms)" data={passwordChanges} />
-
         <Graph title="Suspicious Login Alerts" data={suspiciousLogins} />
         <Graph title="Password Health" data={passwordHealth} type="bar" />
       </div>

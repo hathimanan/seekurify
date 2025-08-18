@@ -69,32 +69,40 @@ const passwordChanges = passwordChangeData.map(entry => ({
   count: entry.count,
 }));
 
+// intervalMinutes = size of bucket in minutes (e.g. 3, 5, 15, 60)
+const intervalMinutes = 15;
+
 const suspiciousLoginAgg = await LoginEvent.aggregate([
   {
     $match: {
-      userId: new mongoose.Types.ObjectId(userId),
-      success: false,
+      success: false, // only suspicious/failed logins
     },
   },
   {
     $group: {
-      _id: { $dateToString: { format: '%Y-%m-%d', date: '$timestamp' } },
+      _id: {
+        $toDate: {
+          $subtract: [
+            { $toLong: "$timestamp" },
+            { $mod: [{ $toLong: "$timestamp" }, 1000 * 60 * intervalMinutes] }
+          ]
+        }
+      },
       count: { $sum: 1 },
     },
   },
-  {
-    $match: { count: { $gt: 7 } }, // ✅ updated threshold to match rate limit
-  },
-  { $sort: { _id: 1 } },
-  { $limit: 15 },
+  { $sort: { _id: 1 } }
 ]);
 
-// ✅ Add 1 to the suspicious count
-const suspiciousLogins = suspiciousLoginAgg.map(entry => ({
-  date: entry._id,
-  count: entry.count + 1, // ✅ incrementing count
-}));
-
+const suspiciousLogins = suspiciousLoginAgg.map(entry => {
+  const start = new Date(entry._id);
+  const end = new Date(start.getTime() + intervalMinutes * 60000);
+  return {
+    intervalStart: start.toISOString(),
+    intervalEnd: end.toISOString(),
+    count: entry.count,
+  };
+});
 
 
 const users = await User.find({_id: userId }); // or all users if global dashboard

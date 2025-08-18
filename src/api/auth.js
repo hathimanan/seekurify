@@ -27,13 +27,61 @@ if (!process.env.JWT_SECRET || !secretKeyOTP) {
   throw new Error("JWT secret keys are not properly defined in environment variables.");
 }
 
+// Custom function to send email
+async function sendSuspiciousLoginEmail(ip, email) {
+  try {
+        const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        type: 'OAuth2',
+        user: process.env.GMAIL_USER,
+        clientId: process.env.GMAIL_CLIENT_ID,
+        clientSecret: process.env.GMAIL_CLIENT_SECRET,
+        refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+        accessToken: process.env.GMAIL_ACCESS_TOKEN       }
+    });
+    await transporter.sendMail({
+      from: 'Securify',
+      to: email,
+      subject: 'Suspicious Login Attempts Detected',
+      text: `We detected multiple failed login attempts from IP: ${ip}. 
+If this wasn’t you, please reset your password and review account security.`,
+    });
+    console.log('⚠️ Suspicious login email sent.');
+  } catch (error) {
+    console.error('Error sending suspicious login email:', error);
+  }
+}
+
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 7,
+  max: 5,
   statusCode: 429,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many login attempts. Please try again later.' },
+
+  handler: async (req, res, next, options) => {
+    const ipAddress = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get('User-Agent');
+    const targetEmail = req.body?.email || process.env.ADMIN_EMAIL;
+
+    // 1️⃣ Log this suspicious attempt into DB
+    await LoginEvent.create({
+      userId: null, // can't be determined at limiter stage
+      success: false,
+      ipAddress,
+      userAgent,
+      timestamp: new Date(),
+      reason: 'Too many login attempts (rate limit hit)',
+    });
+
+    // 2️⃣ Send notification email
+    await sendSuspiciousLoginEmail(ipAddress, targetEmail);
+
+    // 3️⃣ Return rate limit message
+    res.status(options.statusCode).json(options.message);
+  },
 });
 
 
@@ -101,7 +149,7 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
         timestamp: new Date(),
       });
 
-      return res.status(401).json({ field: 'email', error: 'Invalid credentials' });
+      return res.status(401).json({ field: 'email', error: 'Invalid password' });
     }
 
     // ✅ Log successful login
