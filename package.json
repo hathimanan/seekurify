@@ -25,6 +25,7 @@
     "express-rate-limit": "^7.5.1",
     "express-session": "^1.18.2",
     "firebase": "^11.10.0",
+    "framer-motion": "^12.23.12",
     "googleapis": "^152.0.0",
     "jsonwebtoken": "^9.0.2",
     "jwt-decode": "^4.0.0",
