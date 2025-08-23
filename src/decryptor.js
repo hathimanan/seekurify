@@ -28,7 +28,7 @@ function decrypt(encrypted) {
 }
 
 // Test
-const encryptedString = '614ab6ca9a34120730f9241cc1189cee:6d6d32acfb1ada10e195538159ec69747d04f5cd97ef5d26724454cb2c7cc3b5';
+const encryptedString = 'c1b5004c4eedc415c220681707baaffa:2d5bded4904a2720584c8a86b4299a77';
 const decrypted = decrypt(encryptedString);
 console.log('Key type:', typeof encryptionKey); // Should be 'object'
 console.log('Key length:', encryptionKey.length); // Should be 32

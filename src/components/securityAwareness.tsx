@@ -28,49 +28,84 @@ const tips: string[] = [
   "Regularly backup your data to the cloud or external drives.",
 ];
 
+
 const mockRecentAttacks: Attack[] = [
   {
-    title: "Ransomware Hits XYZ Hospital",
-    date: "July 21, 2025",
-    description: "Patient data leaked after attackers gained access.",
-    link: "https://example.com/ransomware-hospital",
+    title: "Workday Breach via Social Engineering",
+    date: "August 2025",
+    description:
+      "HR platform Workday was compromised in a phishing campaign that exposed customer names, emails, and phone numbers.",
+    link: "https://www.techradar.com/pro/security/hackers-breach-hr-firm-workday-is-it-the-latest-salesforce-crm-attack-victim",
   },
   {
-    title: "Scam Alert: Fake IRCTC Emails",
-    date: "July 18, 2025",
-    description: "Users received phishing emails pretending to be from IRCTC.",
-    link: "https://example.com/irctc-scam",
+    title: "Colt Telecom Hit by Warlock Ransomware",
+    date: "August 2025",
+    description:
+      "UK’s Colt Technology Services suffered a ransomware attack exploiting a Microsoft SharePoint vulnerability.",
+    link: "https://www.itpro.com/security/cyber-attacks/uk-telecoms-firm-takes-systems-offline-after-cyber-attack",
   },
   {
-    title: "Bank OTP Fraud Cases Rise",
-    date: "July 15, 2025",
-    description: "Fraudsters trick users into sharing OTPs via fake calls.",
-    link: "https://example.com/otp-fraud",
+    title: "ShinyHunters Breach Impacts Google Salesforce Data",
+    date: "August 2025",
+    description:
+      "Google was among victims of the ShinyHunters Salesforce breach, exposing sensitive small-business contact data.",
+    link: "https://www.itpro.com/security/cyber-attacks/google-cyber-researchers-were-tracking-the-shinyhunters-groups-salesforce-attacks-then-realized-theyd-fallen-victim",
+  },
+  {
+    title: "Marks & Spencer Recovers After £300m Cyberattack Loss",
+    date: "August 2025",
+    description:
+      "M&S online services are back after an April attack that caused significant losses, showing the long-term impact of breaches.",
+    link: "https://www.reuters.com/business/retail-consumer/ms-food-sales-growth-accelerates-cyber-hack-impact-fades-nielseniq-data-shows-2025-08-20",
+  },
+  {
+    title: "AI Deepfake Scams Target Global Corporates",
+    date: "August 2025",
+    description:
+      "Fraudsters using AI-powered deepfakes to impersonate executives have caused global companies losses exceeding $200m.",
+    link: "https://www.wsj.com/articles/ai-drives-rise-in-ceo-impersonator-scams-2bd675c4",
   },
 ];
 
+
 const mockMediumArticles: MediumArticle[] = [
   {
-    title: "How to Build a Strong Cybersecurity Culture",
-    date: "July 10, 2025",
+    title: "Security in the Era of Phishing",
+    date: "August 2025",
     description:
-      "Explore strategies for promoting security awareness in organizations.",
-    link: "https://medium.com/@cyber/how-to-build-culture",
+      "Insights into phishing tactics and how to safeguard against evolving threats.",
+    link: "https://medium.com/@hathimanan/security-in-the-era-of-phishing-75203e5c92c9",
   },
   {
-    title: "Understanding Zero Trust Architecture",
-    date: "June 28, 2025",
+    title: "Ransomware Attacks and Akira",
+    date: "August 2025",
     description:
-      "Learn the fundamentals of Zero Trust and how to implement it.",
-    link: "https://medium.com/@cyber/zero-trust-architecture",
+      "Exploring the Akira ransomware group and the broader impact of ransomware on organizations.",
+    link: "https://medium.com/@hathimanan/ransomware-attacks-and-akira-ec9ef87737d8",
   },
   {
-    title: "Top 10 Password Manager Tools Compared",
-    date: "June 15, 2025",
-    description: "A detailed comparison of leading password managers.",
-    link: "https://medium.com/@cyber/password-manager-tools",
+    title: "Security – The Core Aspect of Our Data",
+    date: "July 2025",
+    description:
+      "Understanding why security is the foundation of modern digital trust.",
+    link: "https://medium.com/@hathimanan/security-the-core-aspect-of-our-data-56843d7d040f",
+  },
+  {
+    title: "Data Security Chapter 2: Fundamentals of Security",
+    date: "July 2025",
+    description:
+      "A deep dive into the essential principles and practices of data security.",
+    link: "https://medium.com/@hathimanan/data-security-chapter-2-fundamentals-of-security-5de97f0f0fb1",
+  },
+  {
+    title: "AI, Cloud Computing & Cybersecurity – The Thin Line Between Them",
+    date: "June 2025",
+    description:
+      "Exploring the intersection of AI, cloud, and cybersecurity in the digital era.",
+    link: "https://medium.com/@hathimanan/ai-cloud-computing-cybersecurity-the-thin-line-between-them-f47ea204e875",
   },
 ];
+
 
 export const SecurityAwareness: React.FC = () => {
   const [current, setCurrent] = useState(0);

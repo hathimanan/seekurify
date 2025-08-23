@@ -46,7 +46,7 @@ console.log("Authorization Header:", authHeader);
 
 
 passwordRouter.post('/', authenticateToken, async (req, res) => {
-  const userId = req.user.id; // From verified token
+  const userId = req.user._id; // From verified token
   const { website, username, password } = req.body;
 
   if (!website || !username || !password) {
@@ -65,7 +65,7 @@ passwordRouter.post('/', authenticateToken, async (req, res) => {
 
 // 🔐 Retrieve all passwords
 passwordRouter.get('/', authenticateToken, async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.user._id;
 
   try {
     const passwords = await Password.find({ userId });
@@ -80,7 +80,7 @@ passwordRouter.get('/', authenticateToken, async (req, res) => {
 // 🔐 Update a password
 // Assuming Express and middleware (like auth) are already in place
 passwordRouter.put('/:id', authenticateToken, async (req, res) => {
-  const userId = req.user?.id; // Set via auth middleware
+  const userId = req.user?._id; // Set via auth middleware
   const { website, username, password, currentPassword } = req.body;
 
   if (!currentPassword) {
@@ -127,7 +127,7 @@ console.log("Current password provided:", currentPassword);
 
 
 passwordRouter.delete('/:id', authenticateToken, async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.user._id;
   const { id } = req.params;
 
   try {

@@ -15,6 +15,7 @@ import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
 import PasswordChangeEvent from '../models/PasswordChangeEvent.model.js';
 import { getPasswordStrength } from '../models/User.ts';
+import Razorpay from "razorpay";
 
 import sendResetEmail from '../emailService.js' ;
 dotenv.config();
@@ -30,7 +31,7 @@ if (!process.env.JWT_SECRET || !secretKeyOTP) {
 // Custom function to send email
 async function sendSuspiciousLoginEmail(ip, email) {
   try {
-        const transporter = nodemailer.createTransport({
+    const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         type: 'OAuth2',
@@ -38,15 +39,37 @@ async function sendSuspiciousLoginEmail(ip, email) {
         clientId: process.env.GMAIL_CLIENT_ID,
         clientSecret: process.env.GMAIL_CLIENT_SECRET,
         refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-        accessToken: process.env.GMAIL_ACCESS_TOKEN       }
+        accessToken: process.env.GMAIL_ACCESS_TOKEN
+      }
     });
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; color: #333;">
+        <h2 style="color: #d9534f;">⚠️ Suspicious Login Detected</h2>
+        <p>We noticed multiple failed login attempts to your <strong>Securify</strong> account from the following IP address:</p>
+        <p style="background-color: #f8d7da; padding: 10px; border-radius: 5px; font-weight: bold;">${ip}</p>
+        <p>If this wasn’t you, we strongly recommend you:</p>
+        <ul>
+          <li>Reset your password immediately</li>
+          <li>Review your account security settings</li>
+        </ul>
+        <a href="${process.env.FRONTEND_BASE_URL}/reset-password" 
+           style="display: inline-block; padding: 10px 20px; margin: 10px 0; background-color: #d9534f; color: #fff; text-decoration: none; border-radius: 5px;">
+           Reset Password
+        </a>
+        <p style="font-size: 12px; color: #666;">If you did attempt to login, you can safely ignore this message.</p>
+        <hr style="border: none; border-top: 1px solid #eee;" />
+        <p style="font-size: 12px; color: #999;">&copy; ${new Date().getFullYear()} Securify. All rights reserved.</p>
+      </div>
+    `;
+
     await transporter.sendMail({
-      from: 'Securify',
+      from: 'Securify <no-reply@securify.com>',
       to: email,
       subject: 'Suspicious Login Attempts Detected',
-      text: `We detected multiple failed login attempts from IP: ${ip}. 
-If this wasn’t you, please reset your password and review account security.`,
+      html: htmlContent
     });
+
     console.log('⚠️ Suspicious login email sent.');
   } catch (error) {
     console.error('Error sending suspicious login email:', error);
@@ -302,14 +325,31 @@ authRouter.post('/send-otp', async (req, res) => {
         accessToken: process.env.GMAIL_ACCESS_TOKEN       }
     });
 
-    const mailOptions = {
-      from: `Securify 🔐 <${process.env.GMAIL_USER}>`,
-      to: email,
-      subject: 'Your OTP Code',
-      text: `Your OTP code is: ${otp}. It expires in 10 minutes.`,
-      html: `<p><strong>Your OTP code is:</strong> <code>${otp}</code></p><p>This code will expire in 10 minutes.</p>`
-    };
-
+const mailOptions = {
+  from: `Securify 🔐 <${process.env.GMAIL_USER}>`,
+  to: email,
+  subject: '🔒 Your One-Time Password (OTP)',
+  text: `Your OTP code is: ${otp}. It expires in 10 minutes.`,
+  html: `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 10px; overflow: hidden;">
+      <div style="background-color: #4a90e2; color: white; text-align: center; padding: 20px;">
+        <h2>Securify</h2>
+        <p style="margin: 0;">Your Secure OTP</p>
+      </div>
+      <div style="padding: 30px; text-align: center;">
+        <p style="font-size: 16px;">Hello,</p>
+        <p style="font-size: 16px;">Use the OTP below to complete your login:</p>
+        <p style="font-size: 24px; font-weight: bold; margin: 20px 0; color: #4a90e2;">${otp}</p>
+        <p style="font-size: 14px; color: #555;">This OTP will expire in <strong>10 minutes</strong>.</p>
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+        <p style="font-size: 12px; color: #999;">If you did not request this OTP, please ignore this email.</p>
+      </div>
+      <div style="background-color: #f7f7f7; text-align: center; padding: 15px; font-size: 12px; color: #999;">
+        © ${new Date().getFullYear()} Securify. All rights reserved.
+      </div>
+    </div>
+  `
+};
     const result = await transporter.sendMail(mailOptions);
     console.log("✅ OTP email sent:", result.response);
 
@@ -377,7 +417,7 @@ authRouter.post('/verify-pin', async (req, res) => {
     if (!isValidPin) return res.status(400).json({ error: 'Invalid PIN' });
 
     const token = jwt.sign(
-      { id: user._id, email: user.email },
+      { _id: user._id, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
@@ -570,7 +610,7 @@ authRouter.post('/update-pin', async (req, res) => {
 
 authRouter.get('/profile', async (req, res) => {
   try {
-    const userId = req.user.id; 
+    const userId = req.user._id; 
     const user = await User.findById(userId).select('-password'); // exclude password
 
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -583,7 +623,7 @@ authRouter.get('/profile', async (req, res) => {
 });
 
 authRouter.post('/change-password', authenticateToken, async (req, res) => {
-  const user = await User.findById(req.user.id); // now safe
+  const user = await User.findById(req.user._id); // now safe
   const { currentPassword, newPassword } = req.body;
   user.passwordStrength = getPasswordStrength(newPassword); // ✅ use correct field
 
@@ -603,5 +643,103 @@ authRouter.post('/change-password', authenticateToken, async (req, res) => {
 
   res.status(200).json({ message: 'Password changed successfully' });
 });
+
+
+
+
+
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
+
+
+authRouter.post("/create-order", authenticateToken, async (req, res) => {
+  try {
+    const { amount, currency = "INR", receipt } = req.body;
+
+    if (!amount || isNaN(amount)) {
+      return res.status(400).json({ success: false, message: "Invalid amount" });
+    }
+
+    const options = {
+      amount: amount * 100, // Convert INR to paise
+      currency,
+      receipt: receipt || `receipt_${Date.now()}`,
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    res.json({
+      success: true,
+      orderId: order.id,
+      order,
+      key: process.env.RAZORPAY_KEY_ID, // send key to frontend
+    });
+  } catch (error) {
+    console.error("Error creating Razorpay order:", error);
+    res.status(500).json({
+      success: false,
+      message: error?.description || error?.message || "Failed to create order",
+    });
+  }
+});
+
+// ----------------- PAYMENT SUCCESS -----------------
+authRouter.post("/payment-success", authenticateToken, async (req, res) => {
+  console.log("req.user:", req.user);
+  try {
+    if (!req.user) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ success: false, message: "Incomplete payment details received" });
+    }
+
+    const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
+    hmac.update(`${razorpay_order_id}|${razorpay_payment_id}`);
+    const generatedSignature = hmac.digest("hex");
+
+    if (generatedSignature === razorpay_signature) {
+      // Payment verified
+      await User.findByIdAndUpdate(req.user._id, { hasPaid: true });
+      return res.status(200).json({ success: true, message: "Payment verified successfully" });
+    } else {
+      return res.status(400).json({ success: false, message: "Invalid payment signature" });
+    }
+  } catch (err) {
+    console.error("Server error:", err);
+    return res.status(500).json({ success: false, message: "Server error while verifying payment" });
+  }
+});
+
+// ----------------- CHECK PAYMENT -----------------
+authRouter.post("/check-payment", authenticateToken, async (req, res) => {
+  try {
+    // Ensure user is authenticated
+    if (!req.user || !req.user._id) {
+      console.warn("check-payment: req.user missing or invalid");
+      return res.status(401).json({ hasPaid: false, message: "Unauthorized" });
+    }
+
+    // Fetch user from DB using the ID you stored
+const user = await User.findById(req.user._id).select("hasPaid");
+    if (!user) {
+      console.warn(`check-payment: User not found for ID ${req.user._id}`);
+      return res.status(404).json({ hasPaid: false, message: "User not found" });
+    }
+
+    // Return payment status
+    res.json({ hasPaid: user.hasPaid });
+  } catch (err) {
+    console.error("check-payment error:", err);
+    res.status(500).json({ hasPaid: false, message: "Internal server error" });
+  }
+  console.trace;
+});
+
+
+
+
 
 export default authRouter;

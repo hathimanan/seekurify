@@ -22,31 +22,33 @@ oauth2Client.setCredentials({
 
 async function sendEmail({ to, subject, text }) {
   try {
-    const accessToken = await oauth2Client.getAccessToken();
+    const { token } = await oauth2Client.getAccessToken();
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
         type: "OAuth2",
-        user: process.env.GMAIL_USER,
+        user: process.env.GMAIL_USER,          // ✅ Admin account
         clientId: process.env.GMAIL_CLIENT_ID,
         clientSecret: process.env.GMAIL_CLIENT_SECRET,
         refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-        accessToken: accessToken.token,
-      }
+        accessToken: token,
+      },
     });
 
     const mailOptions = {
-      from: `Securify <${process.env.GMAIL_USER}>`,
+      from: `Securify <${process.env.GMAIL_USER}>`, // ✅ Sender is always admin
       to,
       subject,
-      text
+      text,
     };
 
     const result = await transporter.sendMail(mailOptions);
     console.log("✅ Email sent:", result.response);
+    return result;
   } catch (err) {
     console.error("❌ Email error:", err.message || err);
+    throw err; // Optional: propagate error to route
   }
 }
 
@@ -88,7 +90,7 @@ contactRouter.post('/contact', authenticateToken, async (req, res) => {
 
     // ✉️ Use the OAuth2 sendEmail helper
     await sendEmail({
-      to: process.env.MAIL_USER, // Your inbox
+      to: process.env.GMAIL_USER, // Your inbox
       subject: `Contact Form: ${subject}`,
       text: `
         You have a new message from the contact form:

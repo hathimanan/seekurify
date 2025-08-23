@@ -13,6 +13,7 @@ export interface IUser extends Document {
   passwordStrength?: 'Poor' | 'Medium' | 'Good' | 'Strong';
   pin?: string;
   isModified(field: string): boolean;
+  hasPaid?: boolean;
 }
 
 // 2. Password strength checker
@@ -39,6 +40,7 @@ const userSchema: Schema<IUser> = new Schema({
   otpEpiry: { type: Date },
   passwordStrength: { type: String, enum: ['Poor', 'Medium', 'Good', 'Strong'] },
   pin: { type: String },
+  hasPaid: { type: Boolean, default: false }, // ✅ Add this
 });
 
 // 4. Hashing middleware

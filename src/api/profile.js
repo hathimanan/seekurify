@@ -25,7 +25,7 @@ const authenticateToken = (req, res, next) => {
 // ✅ GET /api/profile – Get user profile
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('name email username');
+    const user = await User.findById(req.user._id).select('name email username');
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     res.status(200).json(user);
@@ -41,7 +41,7 @@ router.put('/', authenticateToken, async (req, res) => {
   const { name, username } = req.body;
 
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     user.name = name || user.name;

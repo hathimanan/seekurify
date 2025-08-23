@@ -22,7 +22,7 @@ const authenticateToken = (req, res, next) => {
 router.get('/homepageAfterLogin', authenticateToken, async (req, res) => {
   try {
     const userEmail = req.user.email;
-    const userId = req.user.id;
+    const userId = req.user._id;
 
     // 🔐 Fetch user from DB
     const user = await User.findOne({ _id: userId, email: userEmail });
