@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Button } from './ui/button';
+import Header from "../components/ui/Header";
+import Footer from "../components/ui/Footer";
 import {
   Dialog,
   DialogContent,
@@ -20,12 +22,12 @@ interface PasswordEntry {
   category?: string;
   notes?: string;
   createdAt: string;
- // for payment
+  // for payment
 }
 
 
 interface PaymentEntry {
-  name?: string | '';  
+  name?: string | '';
   email?: string | '';
   contact?: string | '';
   amount: number | 0;
@@ -74,9 +76,9 @@ export const Dashboard: React.FC = () => {
   const [pinError, setPinError] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [confirmId, setConfirmId] = useState<string | null>(null);
-const [prevRoute, setPrevRoute] = useState("/homePageAfterLogin"); // default route
+  const [prevRoute, setPrevRoute] = useState("/homePageAfterLogin"); // default route
 
-const [paymentChecked, setPaymentChecked] = useState(false);
+  const [paymentChecked, setPaymentChecked] = useState(false);
   const [hasPaid, setHasPaid] = useState<boolean>(false); // 🚨 Payment status
   const [showPayModal, setShowPayModal] = useState(false);
 
@@ -88,38 +90,38 @@ const [paymentChecked, setPaymentChecked] = useState(false);
   const navigate = useNavigate();
 
   const handleReverifyPinSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  try {
-    const token = localStorage.getItem('token');
-    const response = await fetch('/api/auth/verify-pin', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}` // optional for this route if not required
-      },
-      body: JSON.stringify({
-        email: user?.email,    // ✅ Ensure email is included
-        pin: reverifyPinInput  // ✅ PIN input
-      })
-    });
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/auth/verify-pin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` // optional for this route if not required
+        },
+        body: JSON.stringify({
+          email: user?.email,    // ✅ Ensure email is included
+          pin: reverifyPinInput  // ✅ PIN input
+        })
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (data.token) {
-      // ✅ PIN verified
-      setIsReverified(true);
-      setShowReverifyPinModal(false);
-      setPinError(false); // reset error state
-      setReverifyPinInput("");
-    } else {
-      // ❌ PIN incorrect
+      if (data.token) {
+        // ✅ PIN verified
+        setIsReverified(true);
+        setShowReverifyPinModal(false);
+        setPinError(false); // reset error state
+        setReverifyPinInput("");
+      } else {
+        // ❌ PIN incorrect
+        setPinError(true);
+      }
+    } catch (error) {
+      console.error("Error verifying PIN:", error);
       setPinError(true);
     }
-  } catch (error) {
-    console.error("Error verifying PIN:", error);
-    setPinError(true);
-  }
-};
+  };
 
 
   // Form state
@@ -140,40 +142,40 @@ const [paymentChecked, setPaymentChecked] = useState(false);
   });
 
 
-useEffect(() => {
-  let isMounted = true;
+  useEffect(() => {
+    let isMounted = true;
 
-  const initialize = async () => {
-    try {
-      const paid = await checkPaymentStatus(); // ✅ async payment check
+    const initialize = async () => {
+      try {
+        const paid = await checkPaymentStatus(); // ✅ async payment check
 
-      if (!isMounted) return;
+        if (!isMounted) return;
 
-      if (paid) {
-        setHasPaid(true);
-        setShowPayModal(false);
-        setPaymentChecked(true);
-        // Load passwords without page reload
-        await loadPasswords();
-      } else {
-        setHasPaid(false);
-        setShowPayModal(true);
-        setPaymentChecked(true);
+        if (paid) {
+          setHasPaid(true);
+          setShowPayModal(false);
+          setPaymentChecked(true);
+          // Load passwords without page reload
+          await loadPasswords();
+        } else {
+          setHasPaid(false);
+          setShowPayModal(true);
+          setPaymentChecked(true);
+        }
+      } catch (err) {
+        console.error("Initialization error:", err);
+        if (isMounted) {
+          setHasPaid(false);
+          setShowPayModal(true);
+          setPaymentChecked(true);
+        }
       }
-    } catch (err) {
-      console.error("Initialization error:", err);
-      if (isMounted) {
-        setHasPaid(false);
-        setShowPayModal(true);
-        setPaymentChecked(true);
-      }
-    }
-  };
+    };
 
-  initialize();
+    initialize();
 
-  return () => { isMounted = false; };
-}, []);
+    return () => { isMounted = false; };
+  }, []);
 
 
 
@@ -184,7 +186,7 @@ useEffect(() => {
     try {
       setIsLoading(true);
       const data = await apiService.getPasswords();
-          console.log('Passwords from backend:', data);
+      console.log('Passwords from backend:', data);
       setPasswords(data);
       setShowReverifyPinModal(true); // only for paid users
     } catch (err) {
@@ -197,46 +199,46 @@ useEffect(() => {
   // ----------------------------
   // Payment check
   // ----------------------------
-const checkPaymentStatus = async (): Promise<boolean> => {
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) throw new Error('User not authenticated');
+  const checkPaymentStatus = async (): Promise<boolean> => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('User not authenticated');
 
-    const response = await fetch('/api/auth/check-payment', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-    });
+      const response = await fetch('/api/auth/check-payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    if (!response.ok) {
-      console.warn("Payment check failed with status:", response.status);
+      if (!response.ok) {
+        console.warn("Payment check failed with status:", response.status);
+        setHasPaid(false);
+        setShowPayModal(true);
+        return false;
+      }
+
+      const data = await response.json();
+      const paid = !!data.hasPaid;
+
+      setHasPaid(paid);
+      setShowPayModal(!paid);
+
+      // ✅ Store in localStorage for persistence
+      if (paid) localStorage.setItem('hasPaid', 'true');
+      else localStorage.removeItem('hasPaid');
+
+      return paid;
+    } catch (err) {
+      console.error('Payment check failed:', err);
       setHasPaid(false);
       setShowPayModal(true);
       return false;
+    } finally {
+      setPaymentChecked(true);
     }
-
-    const data = await response.json();
-    const paid = !!data.hasPaid;
-
-    setHasPaid(paid);
-    setShowPayModal(!paid);
-
-    // ✅ Store in localStorage for persistence
-    if (paid) localStorage.setItem('hasPaid', 'true');
-    else localStorage.removeItem('hasPaid');
-
-    return paid;
-  } catch (err) {
-    console.error('Payment check failed:', err);
-    setHasPaid(false);
-    setShowPayModal(true);
-    return false;
-  } finally {
-    setPaymentChecked(true);
-  }
-};
+  };
 
   // ----------------------------
   // Handle Pay Now
@@ -294,7 +296,7 @@ const checkPaymentStatus = async (): Promise<boolean> => {
               setHasPaid(true);
               setShowPayModal(false);
               localStorage.setItem('hasPaid', 'true');
-                window.location.href = '/dashboard'; // ✅ full reload
+              window.location.href = '/dashboard'; // ✅ full reload
             } else {
               setError(result.message || 'Payment verification failed.');
             }
@@ -383,30 +385,30 @@ const checkPaymentStatus = async (): Promise<boolean> => {
           </div>
         </div>
       </div>
-    );  
-  }      
+    );
+  }
 
 
-          <Dialog open={!!error} onOpenChange={() => setError(error)}>
-  <DialogContent className="rounded-2xl p-6 bg-red-50 border border-red-200">
-    <DialogHeader>
-      <DialogTitle className="text-red-600 text-xl font-semibold">
-        Payment Failed
-      </DialogTitle>
-    </DialogHeader>
-    <p className="text-gray-700 mt-2">
-      {error}
-    </p>
-    <div className="mt-4 flex justify-end">
-      <button
-        onClick={() => setError(error)}
-        className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
-      >
-        Close
-      </button>
-    </div>
-  </DialogContent>
-</Dialog>
+  <Dialog open={!!error} onOpenChange={() => setError(error)}>
+    <DialogContent className="rounded-2xl p-6 bg-red-50 border border-red-200">
+      <DialogHeader>
+        <DialogTitle className="text-red-600 text-xl font-semibold">
+          Payment Failed
+        </DialogTitle>
+      </DialogHeader>
+      <p className="text-gray-700 mt-2">
+        {error}
+      </p>
+      <div className="mt-4 flex justify-end">
+        <button
+          onClick={() => setError(error)}
+          className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
+        >
+          Close
+        </button>
+      </div>
+    </DialogContent>
+  </Dialog>
 
 
 
@@ -420,7 +422,7 @@ const checkPaymentStatus = async (): Promise<boolean> => {
     try {
       await apiService.addPassword(passwordformData);
 
-    // setPasswords(prev => [password, ...prev]);
+      // setPasswords(prev => [password, ...prev]);
       setPasswordFormData({ website: '', username: '', password: '', category: 'General', notes: '' });
       setShowAddForm(false);
       loadPasswords();
@@ -441,89 +443,95 @@ const checkPaymentStatus = async (): Promise<boolean> => {
     setShowEditModal(true);
   };
 
-  
-const handleUpdatePassword = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!editingPassword) return;
 
-  try {
-    const updatedPassword = await apiService.updatePassword(editingPassword._id, {
-      ...passwordformData,
-      currentPassword
-    });
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPassword) return;
 
-    setPasswords(prev =>
-      prev.map(p => (p._id === editingPassword._id ? updatedPassword : p))
-    );
+    try {
+      const updatedPassword = await apiService.updatePassword(editingPassword._id, {
+        ...passwordformData,
+        currentPassword
+      });
 
-    setSuccessMessage('Password updated successfully!');
-    setShowEditModal(false);
-    setEditingPassword(null);
-    setPasswordFormData({ website: '', username: '', password: '', category: '', notes: '' });
-  } catch (err: any) {
-    if (err.response?.status === 403 && err.response?.data?.error?.includes("Current password does not match")) {
-      setError("Incorrect current password. Please try again.");
-    } else if (err.response?.status === 401) {
-      setError("Your session has expired. Please log in again.");
-      logout();
-      navigate("/login");
-    } else {
-      setError(err instanceof Error ? err.message : 'Failed to update password');
+      setPasswords(prev =>
+        prev.map(p => (p._id === editingPassword._id ? updatedPassword : p))
+      );
+
+      setSuccessMessage('Password updated successfully!');
+      setShowEditModal(false);
+      setEditingPassword(null);
+      setPasswordFormData({ website: '', username: '', password: '', category: '', notes: '' });
+    } catch (err: any) {
+      if (err.response?.status === 403 && err.response?.data?.error?.includes("Current password does not match")) {
+        setError("Incorrect current password. Please try again.");
+      } else if (err.response?.status === 401) {
+        setError("Your session has expired. Please log in again.");
+        logout();
+        navigate("/login");
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to update password');
+      }
     }
-  }
-};
+  };
 
 
-const handleDeletePassword = async (_id: string) => {
-  if (!_id) return;
-  setIsDeleting(_id);
-  try {
-    await apiService.deletePassword(_id);
-    setPasswords((current) => current.filter((pw) => pw._id !== _id));
-  } catch (err) {
-    console.error('Error deleting password:', err);
-    setError(err instanceof Error ? err.message : 'Failed to delete password');
-  } finally {
-    setIsDeleting(null);
-    setConfirmId(null);
-  }
-};
+  const handleDeletePassword = async (_id: string) => {
+    if (!_id) return;
+    setIsDeleting(_id);
+    try {
+      await apiService.deletePassword(_id);
+      setPasswords((current) => current.filter((pw) => pw._id !== _id));
+    } catch (err) {
+      console.error('Error deleting password:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete password');
+    } finally {
+      setIsDeleting(null);
+      setConfirmId(null);
+    }
+  };
 
 
   const handleViewPassword = (passwordId: string) => {
-  const freshPassword = passwords.find(p => p._id === passwordId);
-  if (freshPassword) {
-    setViewingPassword(freshPassword);
-    setShowPassword(true);
-  }
-};
+    const freshPassword = passwords.find(p => p._id === passwordId);
+    if (freshPassword) {
+      setViewingPassword(freshPassword);
+      setShowPassword(true);
+    }
+  };
 
-const generatePassword = () => {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-  const length = 16;
-  const buf = new Uint32Array(length);
-  crypto.getRandomValues(buf);
-  let password = '';
-  for (let i = 0; i < length; i++) {
-    password += alphabet[buf[i] % alphabet.length];
-  }
-  setPasswordFormData({ ...passwordformData, password });
-};
-
-
+  const generatePassword = () => {
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    const length = 16;
+    const buf = new Uint32Array(length);
+    crypto.getRandomValues(buf);
+    let password = '';
+    for (let i = 0; i < length; i++) {
+      password += alphabet[buf[i] % alphabet.length];
+    }
+    setPasswordFormData({ ...passwordformData, password });
+  };
 
 
 
-return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300 p-6">
-      
-      {/* Back Button */}
-<button
-  onClick={() => navigate(prevRoute)}
-  className="flex items-center gap-2 text-white bg-gradient-to-r from-red-500 to-red-600 px-3 py-2 rounded-lg shadow-md hover:scale-105 transition transform duration-200"
->
-  <ArrowLeft className="w-5 h-5" /> Back
-</button>
+
+
+  return (
+  <div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300">
+<Header
+      token={"token"}
+      handleLogout={() => { throw new Error("Function not implemented."); }}
+    />
+        <main className="flex-1 px-6 py-4 md:py-6 lg:py-8">
+          {/* Back Button */}
+            <div className="mb-6">
+        <button
+          onClick={() => navigate(prevRoute)}
+          className="flex items-center gap-2 text-white bg-gradient-to-r from-red-500 to-red-600 px-3 py-2 rounded-lg shadow-md hover:scale-105 transition transform duration-200"
+        >
+          <ArrowLeft className="w-5 h-5" /> Back
+        </button>
+      </div>
       {/* Header */}
       <div className="mt-6 mb-8">
         <h1 className="text-3xl font-extrabold text-gray-900 drop-shadow">
@@ -577,13 +585,13 @@ return (
                     >
                       👁️
                     </button>
-                  <button
-                    onClick={() => handleEditPassword(password)}
-                    className="hover:text-yellow-300"
-                    title="Edit"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
+                    <button
+                      onClick={() => handleEditPassword(password)}
+                      className="hover:text-yellow-300"
+                      title="Edit"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
 
                     <button
                       onClick={() => setConfirmId(password._id)}
@@ -594,31 +602,31 @@ return (
                     </button>
 
                     {confirmId === password._id && (
-  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-    <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-lg">
-      <h3 className="text-lg font-bold mb-3">Confirm Delete</h3>
-      <p className="text-gray-600 mb-4">Are you sure you want to delete this password?</p>
+                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                        <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-lg">
+                          <h3 className="text-lg font-bold mb-3">Confirm Delete</h3>
+                          <p className="text-gray-600 mb-4">Are you sure you want to delete this password?</p>
 
-      <div className="flex justify-end gap-3">
-        <button
-          onClick={() => setConfirmId(null)}
-          className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={() => handleDeletePassword(password._id)} // ✅ function used here
-          className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-        >
-          {isDeleting === password._id ? "Deleting..." : "Delete"}
-        </button>
-      </div>
+                          <div className="flex justify-end gap-3">
+                            <button
+                              onClick={() => setConfirmId(null)}
+                              className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => handleDeletePassword(password._id)} // ✅ function used here
+                              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                            >
+                              {isDeleting === password._id ? "Deleting..." : "Delete"}
+                            </button>
+                          </div>
 
-    </div>
-  </div>
+                        </div>
+                      </div>
                     )}
                   </div>
-                </div>              
+                </div>
 
                 {/* Info */}
                 <div className="space-y-1">
@@ -634,88 +642,88 @@ return (
           </div>
         )}
 
-{showReverifyPinModal && !pinError && (
-  // ✅ Default PIN Modal UI (your previous version)
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-    <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-lg">
-      <h3 className="text-xl font-bold text-black mb-4">Re-enter PIN to Confirm</h3>
-      <form onSubmit={handleReverifyPinSubmit} className="space-y-4">
-        <input
-          type="email"
-          value={user?.email || ''}
-          // onChange={(e) => setEmail(e.target.value)}
-          placeholder="Enter Email"
-          className="w-full px-3 py-2 border border-gray-300 bg-gray-100 text-gray-700 rounded-md focus:outline-none cursor-not-allowed"
-          disabled
-        />
+        {showReverifyPinModal && !pinError && (
+          // ✅ Default PIN Modal UI (your previous version)
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-lg">
+              <h3 className="text-xl font-bold text-black mb-4">Re-enter PIN to Confirm</h3>
+              <form onSubmit={handleReverifyPinSubmit} className="space-y-4">
+                <input
+                  type="email"
+                  value={user?.email || ''}
+                  // onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter Email"
+                  className="w-full px-3 py-2 border border-gray-300 bg-gray-100 text-gray-700 rounded-md focus:outline-none cursor-not-allowed"
+                  disabled
+                />
 
-        <input
-          type="password"
-          value={reverifyPinInput}
-          onChange={(e) => setReverifyPinInput(e.target.value)}
-          placeholder="Enter PIN"
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          required
-        />
-        <div className="flex justify-end">
-          <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
-            Confirm
-          </Button>
-        </div>
-      </form>
-    </div>
-  </div>
-)}
+                <input
+                  type="password"
+                  value={reverifyPinInput}
+                  onChange={(e) => setReverifyPinInput(e.target.value)}
+                  placeholder="Enter PIN"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+                <div className="flex justify-end">
+                  <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
+                    Confirm
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
-{showReverifyPinModal && pinError && (
-  // ❌ Incorrect PIN Modal UI (refined error version)
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-    <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-red-200">
-      <h3 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2 flex items-center gap-2">
-        ⚠️ Incorrect PIN
-      </h3>
-      <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-        Please re-enter your PIN to confirm access.
-      </p>
+        {showReverifyPinModal && pinError && (
+          // ❌ Incorrect PIN Modal UI (refined error version)
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-red-200">
+              <h3 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2 flex items-center gap-2">
+                ⚠️ Incorrect PIN
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                Please re-enter your PIN to confirm access.
+              </p>
 
-      <form onSubmit={handleReverifyPinSubmit} className="space-y-4">
-        <input
-          type="email"
-          value={user?.email || ''}
-          // onChange={(e) => setEmail(e.target.value)}
-          placeholder="Enter Email"
-          className="w-full px-3 py-2 border border-gray-300 bg-gray-100 text-gray-500 rounded-md focus:outline-none cursor-not-allowed"
-          disabled
-        />
+              <form onSubmit={handleReverifyPinSubmit} className="space-y-4">
+                <input
+                  type="email"
+                  value={user?.email || ''}
+                  // onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter Email"
+                  className="w-full px-3 py-2 border border-gray-300 bg-gray-100 text-gray-500 rounded-md focus:outline-none cursor-not-allowed"
+                  disabled
+                />
 
-        <input
-          type="password"
-          value={reverifyPinInput}
-          onChange={(e) => setReverifyPinInput(e.target.value)}
-          placeholder="Enter PIN"
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-          required
-        />
+                <input
+                  type="password"
+                  value={reverifyPinInput}
+                  onChange={(e) => setReverifyPinInput(e.target.value)}
+                  placeholder="Enter PIN"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                  required
+                />
 
-        <div className="flex justify-end gap-3">
-          {/* <button
+                <div className="flex justify-end gap-3">
+                  {/* <button
             type="button"
             onClick={() => setShowReverifyPinModal(false)}
             className="px-4 py-2 rounded-md bg-gray-200 hover:bg-gray-300 text-gray-800 transition"
           >
             Cancel
           </button> */}
-          <Button
-            type="submit"
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md shadow-md transition"
-          >
-            Confirm
-          </Button>
-        </div>
-      </form>
-    </div>
-  </div>
-)}
+                  <Button
+                    type="submit"
+                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md shadow-md transition"
+                  >
+                    Confirm
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {showPassword && viewingPassword && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -772,17 +780,17 @@ return (
 
 
 
-        {showEditModal &&  (
+        {showEditModal && (
 
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-yellow-400 p-6 rounded-lg w-full max-w-md">
               <h3 className="text-xl font-bold text-black mb-4">Edit Password</h3>
 
               {successMessage && (
-  <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded mb-4">
-    {successMessage}
-  </div>
-)}
+                <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded mb-4">
+                  {successMessage}
+                </div>
+              )}
               <form onSubmit={handleUpdatePassword} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-black mb-1">
@@ -1012,6 +1020,8 @@ return (
           </div>
         )}
       </div>
+      </main>
+      <Footer />
     </div>
   );
 };

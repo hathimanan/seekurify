@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { JSX, useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { apiService } from "../../services/api";
 import { motion } from "framer-motion";
-
-import defaultProfileIcon from "../../../src/assets/default-profile.png"; // fallback image
+import Header from "../../components/ui/Header";
+import Footer from "../../components/ui/Footer";
+// import defaultProfileIcon from "../../../src/assets/default-profile.png"; // fallback image
 
 export const HomePageAfter = (): JSX.Element => {
   const { user, logout } = useAuth();
@@ -69,9 +70,13 @@ export const HomePageAfter = (): JSX.Element => {
   }
 
   return (
+    
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50">
+          <Header token={"token"} handleLogout={function (): void {
+        throw new Error("Function not implemented.");
+      } } />
       {/* Navbar */}
-      <div className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white flex justify-between items-center px-8 py-4 shadow-md">
+      {/* <div className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white flex justify-between items-center px-8 py-4 shadow-md">
         <motion.h1
           className="text-3xl font-extrabold tracking-wide cursor-pointer"
           whileHover={{ scale: 1.05 }}
@@ -79,17 +84,17 @@ export const HomePageAfter = (): JSX.Element => {
           Securify
         </motion.h1>
 
-        {/* Profile + Dropdown */}
         <div className="relative">
           <motion.img
             whileHover={{ scale: 1.1 }}
             src={profileIconUrl || defaultProfileIcon}
             alt="Profile"
             onClick={() => setShowDropdown(!showDropdown)}
-            onError={(e: { currentTarget: { src: string; onerror: null; }; }) => {
-              e.currentTarget.src = defaultProfileIcon;
-              e.currentTarget.onerror = null;
-            }}
+            onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+                const target = e.currentTarget;
+                target.src = defaultProfileIcon;
+                target.onerror = null; // prevent infinite loop
+              }}
             className="w-11 h-11 rounded-full border-2 border-white object-cover cursor-pointer shadow-md"
           />
 
@@ -126,7 +131,7 @@ export const HomePageAfter = (): JSX.Element => {
             </motion.div>
           )}
         </div>
-      </div>
+      </div> */}
 
       {/* PIN Modal */}
       {showPinModal && (
@@ -272,6 +277,7 @@ export const HomePageAfter = (): JSX.Element => {
           </section>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

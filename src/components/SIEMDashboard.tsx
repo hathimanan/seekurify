@@ -2,6 +2,10 @@ import React, { useEffect, useState } from "react";
 import Graph from "./Graph"; // Adjust path as needed
 import { useNavigate } from "react-router-dom";
 
+import Header from "../components/ui/Header";
+import Footer from "../components/ui/Footer";
+import { ArrowLeft } from "lucide-react";
+
 interface EventData {
   date: string;
   value: number;
@@ -13,6 +17,7 @@ const SystemEventsPage: React.FC = () => {
   const [passwordChanges, setPasswordChanges] = useState<EventData[]>([]);
   const [suspiciousLogins, setSuspiciousLogins] = useState<EventData[]>([]);
   const [passwordHealth, setPasswordHealth] = useState<EventData[]>([]);
+    const [prevRoute, setPrevRoute] = useState("/homePageAfterLogin"); // default route
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -63,19 +68,32 @@ const SystemEventsPage: React.FC = () => {
     fetchEvents();
   }, []);
 
-  return (
-    <div className="bg-gradient-to-br from-gray-900 via-black to-gray-800 min-h-screen px-6 py-6 text-white">
+return (
+  <div className="bg-gradient-to-br from-gray-900 via-black to-gray-800 min-h-screen flex flex-col text-white">
+
+    {/* Header */}
+    <Header
+      token={"token"}
+      handleLogout={() => {
+        localStorage.removeItem("token");
+        navigate("/login");
+      }}
+    />
+
+    {/* Main Content */}
+    <main className="flex-grow px-6 py-4">
       {/* Back Button */}
-      <button
-        onClick={() => navigate(-1)}
-        className="bg-gradient-to-r from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 
-        text-white font-semibold px-5 py-2 rounded-xl mb-6 flex items-center shadow-lg transform transition-all duration-300 hover:scale-105"
-      >
-        <span className="mr-2">🔙</span> Back
-      </button>
+      <div className="mb-6">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-white bg-gradient-to-r from-red-500 to-red-600 px-4 py-2 rounded-lg shadow-md hover:scale-105 transition-transform duration-200"
+        >
+          <ArrowLeft className="w-5 h-5" /> Back
+        </button>
+      </div>
 
       {/* Title */}
-      <h1 className="text-3xl font-extrabold mb-10 text-center bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-orange-600 drop-shadow-md">
+      <h1 className="text-3xl md:text-4xl font-extrabold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-orange-600 drop-shadow-md">
         ⚡ System Event Management Dashboard ⚡
       </h1>
 
@@ -84,21 +102,21 @@ const SystemEventsPage: React.FC = () => {
         <div className="bg-gradient-to-tr from-gray-800 to-gray-900 p-5 rounded-2xl shadow-xl hover:shadow-cyan-500/30 transition-shadow duration-300">
           <Graph title="📊 Login Events (Top alarms)" data={loginEvents} />
         </div>
-
         <div className="bg-gradient-to-tr from-gray-800 to-gray-900 p-5 rounded-2xl shadow-xl hover:shadow-pink-500/30 transition-shadow duration-300">
           <Graph title="🔑 Password Changes (Top alarms)" data={passwordChanges} />
         </div>
-
         <div className="bg-gradient-to-tr from-gray-800 to-gray-900 p-5 rounded-2xl shadow-xl hover:shadow-yellow-500/30 transition-shadow duration-300">
           <Graph title="⚠️ Suspicious Login Alerts" data={suspiciousLogins} />
         </div>
-
         <div className="bg-gradient-to-tr from-gray-800 to-gray-900 p-5 rounded-2xl shadow-xl hover:shadow-green-500/30 transition-shadow duration-300">
           <Graph title="🛡️ Password Health" data={passwordHealth} type="bar" />
         </div>
       </div>
-    </div>
-  );
-};
+    </main>
 
-export default SystemEventsPage;
+    {/* Footer */}
+    <Footer />
+  </div>
+);
+}
+      export default SystemEventsPage;

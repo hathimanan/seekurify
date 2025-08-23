@@ -34,7 +34,7 @@ function authenticateToken(req, res, next) {
 // ✅ Dashboard Route
 SIEMDashboard.get('/siem-dashboard', authenticateToken, async (req, res) => {
   console.log("✅ SIEM Dashboard hit by:", req.user?.email);
-  const { id: userId, email } = req.user;
+  const { _id: userId, email } = req.user;
 
   try {
 const loginData = await LoginEvent.aggregate([

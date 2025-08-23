@@ -1,6 +1,10 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import Header from "../components/ui/Header";
+import Footer from "../components/ui/Footer";
+import { ArrowLeft } from "lucide-react";
+
 
 interface Attack {
   title: string;
@@ -27,6 +31,7 @@ const tips: string[] = [
   "Avoid accessing sensitive information over public Wi-Fi.",
   "Regularly backup your data to the cloud or external drives.",
 ];
+
 
 
 const mockRecentAttacks: Attack[] = [
@@ -111,6 +116,7 @@ export const SecurityAwareness: React.FC = () => {
   const [current, setCurrent] = useState(0);
   const navigate = useNavigate();
   const carouselRef = useRef<HTMLDivElement>(null);
+const [prevRoute, setPrevRoute] = useState("/homePageAfterLogin"); // default route
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -120,117 +126,146 @@ export const SecurityAwareness: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-pink-100 p-6">
-      {/* Back button */}
-      <button
-        onClick={() => navigate(-1)}
-        className="bg-gradient-to-r from-rose-500 to-red-600 text-white px-5 py-2 rounded-full shadow-md hover:scale-105 transition-transform mb-6"
-      >
-        ⬅️ Back
-      </button>
+  <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-pink-100 flex flex-col">
+    <Header
+        token={"token"}
+        handleLogout={() => {
+          localStorage.removeItem("token");
+          navigate("/login");
+        }}
+      />
 
-      {/* Header */}
-      <header className="text-center mb-12">
-        <h1 className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-pink-600 drop-shadow-md">
-          Stay Safe Online
-        </h1>
-        <p className="text-gray-600 mt-2 text-lg">
-          Simple steps to protect your digital life
-        </p>
-      </header>
-
-      {/* ✅ Security Tips */}
-      <section className="mb-14">
-        <h2 className="text-2xl font-semibold mb-6 text-indigo-700">
-          Steps to Stay Secure Online
-        </h2>
-        <ul className="grid md:grid-cols-2 gap-5">
-          {tips.map((tip, index) => (
-            <li
-              key={index}
-              className="bg-white/70 backdrop-blur-lg shadow-md hover:shadow-xl p-5 rounded-2xl border-l-4 border-indigo-500 hover:border-pink-500 transition-all duration-300"
-            >
-              ✅ {tip}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* ✅ Recent Attacks Auto Rotating */}
-      <section className="mb-14">
-        <h2 className="text-2xl font-semibold mb-6 text-rose-700">
-          Recent Cyber Attacks
-        </h2>
-        <motion.div
-          key={current}
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="bg-gradient-to-r from-red-100 to-rose-200 p-6 rounded-2xl shadow-lg max-w-3xl mx-auto"
-        >
-          <h3 className="text-lg font-bold text-red-900 mb-1">
-            {mockRecentAttacks[current].title}
-          </h3>
-          <p className="text-sm text-gray-600 mb-2">
-            {mockRecentAttacks[current].date}
-          </p>
-          <p className="mb-3">{mockRecentAttacks[current].description}</p>
-          <a
-            href={mockRecentAttacks[current].link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-indigo-700 font-medium hover:underline"
+      {/* Main Content */}
+      <main className="flex-grow px-6 py-4">
+        {/* Back Button */}
+        <div className="mb-6">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-white bg-gradient-to-r from-red-500 to-red-600 px-4 py-2 rounded-lg shadow-md hover:scale-105 transition-transform duration-200"
           >
-            🔗 Read more →
-          </a>
-        </motion.div>
-      </section>
-
-      {/* ✅ Medium Articles Auto-Scroll */}
-      <section>
-        <h2 className="text-2xl font-semibold mb-6 text-green-700">
-          Latest Medium Articles
-        </h2>
-
-        <div className="overflow-hidden">
-          <motion.div
-            className="flex gap-6"
-            animate={{ x: ["0%", "-100%"] }}
-            transition={{
-              ease: "linear",
-              duration: 22,
-              repeat: Infinity,
-            }}
-          >
-            {mockMediumArticles.concat(mockMediumArticles).map(
-              (article, index) => (
-                <div
-                  key={index}
-                  className="min-w-[320px] bg-white/80 backdrop-blur-lg rounded-2xl shadow-md hover:shadow-xl p-6 transition-all duration-300"
-                >
-                  <h3 className="font-bold text-lg text-green-800">
-                    {article.title}
-                  </h3>
-                  <p className="text-sm text-gray-500">{article.date}</p>
-                  <p className="mt-2 text-gray-700">{article.description}</p>
-                  <a
-                    href={article.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block mt-3 text-indigo-600 hover:underline font-medium"
-                  >
-                    Read on Medium →
-                  </a>
-                </div>
-              )
-            )}
-          </motion.div>
+            <ArrowLeft className="w-5 h-5" /> Back
+          </button>
         </div>
 
-        <p className="text-gray-500 text-sm mt-3 text-center">
-          📰 Articles auto-scroll continuously
-        </p>
-      </section>
+        {/* Header */}
+        <header className="text-center mb-12">
+          <h1 className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-pink-600 drop-shadow-md">
+            Stay Safe Online
+          </h1>
+          <p className="text-gray-600 mt-2 text-lg">
+            Simple steps to protect your digital life
+          </p>
+        </header>
+
+        {/* ✅ Security Tips */}
+        <section className="mb-14">
+          <h2 className="text-2xl font-semibold mb-6 text-indigo-700">
+            Steps to Stay Secure Online
+          </h2>
+          <ul className="grid md:grid-cols-2 gap-5">
+            {tips.map((tip, index) => (
+              <li
+                key={index}
+                className="bg-white/70 backdrop-blur-lg shadow-md hover:shadow-xl p-5 rounded-2xl border-l-4 border-indigo-500 hover:border-pink-500 transition-all duration-300"
+              >
+                ✅ {tip}
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="mb-14 max-w-md mx-auto bg-white/80 backdrop-blur-lg p-6 rounded-2xl shadow-md text-center">
+          <h2 className="text-2xl font-semibold mb-4 text-purple-700">
+            Check if Your Account Has Been Breached
+          </h2>
+          <p className="mb-4 text-gray-700">
+            Visit the official Have I Been Pwned website to see if your email or account has been involved in a data breach.
+          </p>
+          <button
+            onClick={() => window.open("https://www.haveibeenpwned.com/", "_blank")}
+            className="bg-purple-500 text-white px-6 py-3 rounded hover:bg-purple-600 transition-colors"
+          >
+            Go to Have I Been Pwned
+          </button>
+        </section>
+
+        {/* ✅ Recent Attacks Auto Rotating */}
+        <section className="mb-14">
+          <h2 className="text-2xl font-semibold mb-6 text-rose-700">
+            Recent Cyber Attacks
+          </h2>
+          <motion.div
+            key={current}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="bg-gradient-to-r from-red-100 to-rose-200 p-6 rounded-2xl shadow-lg max-w-3xl mx-auto"
+          >
+            <h3 className="text-lg font-bold text-red-900 mb-1">
+              {mockRecentAttacks[current].title}
+            </h3>
+            <p className="text-sm text-gray-600 mb-2">
+              {mockRecentAttacks[current].date}
+            </p>
+            <p className="mb-3">{mockRecentAttacks[current].description}</p>
+            <a
+              href={mockRecentAttacks[current].link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-indigo-700 font-medium hover:underline"
+            >
+              🔗 Read more →
+            </a>
+          </motion.div>
+        </section>
+
+        {/* ✅ Medium Articles Auto-Scroll */}
+        <section>
+          <h2 className="text-2xl font-semibold mb-6 text-green-700">
+            Latest Medium Articles
+          </h2>
+
+          <div className="overflow-hidden">
+            <motion.div
+              className="flex gap-6"
+              animate={{ x: ["0%", "-100%"] }}
+              transition={{
+                ease: "linear",
+                duration: 22,
+                repeat: Infinity,
+              }}
+            >
+              {mockMediumArticles.concat(mockMediumArticles).map(
+                (article, index) => (
+                  <div
+                    key={index}
+                    className="min-w-[320px] bg-white/80 backdrop-blur-lg rounded-2xl shadow-md hover:shadow-xl p-6 transition-all duration-300"
+                  >
+                    <h3 className="font-bold text-lg text-green-800">
+                      {article.title}
+                    </h3>
+                    <p className="text-sm text-gray-500">{article.date}</p>
+                    <p className="mt-2 text-gray-700">{article.description}</p>
+                    <a
+                      href={article.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block mt-3 text-indigo-600 hover:underline font-medium"
+                    >
+                      Read on Medium →
+                    </a>
+                  </div>
+                )
+              )}
+            </motion.div>
+          </div>
+
+          <p className="text-gray-500 text-sm mt-3 text-center">
+            📰 Articles auto-scroll continuously
+          </p>
+        </section>
+      </main>
+      <Footer />
     </div>
   );
 };

@@ -12,6 +12,8 @@ import SIEMDashboard from "./components/SIEMDashboard";
 import { ForgotPasswordForm } from "./components/ForgotPasswordForm"; 
 import Profile from "./components/Profile";
 import ChangePasswordForm from "./components/ChangePasswordForm";
+import PrivacyPolicy from "./components/PrivacyPolicy";
+import TermsAndConditions from "./components/TermsAndConditions";
 
 const AppRoutes = () => {
   const navigate = useNavigate();
@@ -69,6 +71,9 @@ const AppRoutes = () => {
 
         <Route path="/change-password" element={<ChangePasswordForm />} />
 
+<Route path="/privacy-policy" element={<PrivacyPolicy />} />
+
+<Route path="/terms-and-conditions" element={<TermsAndConditions />} />
     </Routes>
   );
 };
