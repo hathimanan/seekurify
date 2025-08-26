@@ -3,8 +3,7 @@ import mongoose from 'mongoose';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 
-dotenv.config(); // Load .env variables
-
+dotenv.config({ path: '.env.development' });
 // Ensure encryption key is provided
 const SECRET_HEX = process.env.PASSWORD_ENCRYPTION_KEY;
 if (!SECRET_HEX) {

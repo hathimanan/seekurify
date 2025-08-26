@@ -1,29 +1,136 @@
+// --- Load environment variables ---
 import dotenv from 'dotenv';
-dotenv.config();
-
+import path from 'path';
+import { fileURLToPath } from 'url';
 import express from 'express';
 import session from 'express-session';
 import cors from 'cors';
-import path from 'path';
 import helmet from 'helmet';
-import { fileURLToPath } from 'url';
 
-// --- Paths ---
+// --- Paths for __dirname in ES modules ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// --- App ---
+// --- Load correct .env file ---
+const NODE_ENV = process.env.NODE_ENV || "development";
+dotenv.config({
+  path: NODE_ENV === "production"
+    ? ".env.production"
+    : NODE_ENV === "test"
+    ? ".env.test"
+    : ".env.development"
+});
+
+// --- Determine if production ---
+const PROD = NODE_ENV === "production";
+
+// --- App setup ---
 const app = express();
-const PORT = process.envPORT || 5000;
-const PROD = process.env.NODE_ENV === 'production';
+const PORT = process.env.PORT || 5000;
 
-// If you're behind a reverse proxy (Render, Railway, Nginx, Heroku), enable this so secure cookies & HSTS behave correctly
+// --- CORS setup ---
+const allowedOrigins = PROD
+  ? ['https://your-domain.com']           // production frontend(s)
+  : ['http://localhost:5173'];            // dev frontend
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) callback(null, true);
+    else callback(new Error('Not allowed by CORS'));
+  },
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
+
+// --- Security headers ---
+const devCsp = {
+  useDefaults: true,
+  directives: {
+    "default-src": ["'self'"],
+    "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+    "style-src": ["'self'", "'unsafe-inline'"],
+    "img-src": ["'self'", "data:", "blob:"],
+    "font-src": ["'self'", "data:"],
+    "connect-src": ["'self'", "ws:", "wss:"],
+    "frame-ancestors": ["'none'"],
+    "object-src": ["'none'"],
+    "base-uri": ["'self'"]
+  }
+};
+
+
+const prodCsp = {
+  useDefaults: true,
+  directives: {
+    "default-src": ["'self'"],
+    "script-src": ["'self'"],
+    "style-src": ["'self'", "'unsafe-inline'"],
+    "img-src": ["'self'", "data:", "blob:"],
+    "font-src": ["'self'", "data:"],
+    "connect-src": ["'self'"],
+    "frame-ancestors": ["'none'"],
+    "object-src": ["'none'"],
+    "base-uri": ["'self'"],
+    "upgrade-insecure-requests": []
+  }
+};
+
+app.use(helmet({
+  contentSecurityPolicy: PROD ? prodCsp : devCsp,
+  crossOriginEmbedderPolicy: false,
+}));
+
+// Extra Helmet hardening
+app.use(helmet.referrerPolicy({ policy: 'no-referrer' }));
+app.use(helmet.crossOriginOpenerPolicy());
+app.use(helmet.crossOriginResourcePolicy({ policy: 'same-site' }));
+app.use(helmet.originAgentCluster());
+if (PROD) {
+  app.use(helmet.hsts({
+    maxAge: 60 * 60 * 24 * 365,
+    includeSubDomains: true,
+    preload: true
+  }));
+}
+
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        defaultSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "http://localhost:5000"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+      },
+    },
+  })
+);
+
+
+// --- Trust proxy for secure cookies & HSTS ---
 app.set('trust proxy', 1);
-
-// Turn off the Express signature
 app.disable('x-powered-by');
 
-// --- DB ---
+// --- Body parsing ---
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+
+// --- Sessions (5 min) ---
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your_secret_key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 5 * 60 * 1000,
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: PROD,
+  }
+}));
+
+// --- Database connection ---
 import './src/api/db.js';
 
 // --- Routers ---
@@ -33,89 +140,12 @@ import dashboardRouter from './src/api/dashboard.js';
 import passwordRoutes from './src/api/passwords.js';
 import homepageBeforeloginRoutes from './src/api/homepageBeforelogin.js';
 import homepageAfterLoginRoutes from './src/api/homepageAfterLogin.js';
-import userSchema from './src/models/User.ts';
 import malwareAnalyzerRouter from './src/api/malwareanalyzer.js';
 import contactRouter from './src/api/contactForm.js';
 import SIEMDashboard from './src/api/siemDashboard.js';
 import profileRoute from './src/api/profile.js';
+import userSchema from './src/models/User.ts';
 
-// --- CORS first (so Helmet COEP/CORP don't conflict in dev) ---
-app.use(cors({
-  origin: PROD ? ['https://your-domain.com'] : true, // adjust for your domains
-  credentials: true
-}));
-
-// --- Helmet: security headers ---
-const devCsp = {
-  useDefaults: true,
-  directives: {
-    // In dev, Vite dev server & React Fast Refresh may need inline/eval
-    "default-src": ["'self'"],
-    "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-    "style-src": ["'self'", "'unsafe-inline'"],
-    "img-src": ["'self'", "data:", "blob:"],
-    "font-src": ["'self'", "data:"],
-    "connect-src": ["'self'", "ws:", "wss:"], // APIs, websockets (Vite dev)
-    "frame-ancestors": ["'none'"],
-    "object-src": ["'none'"],
-    "base-uri": ["'self'"]
-  }
-};
-
-const prodCsp = {
-  useDefaults: true,
-  directives: {
-    "default-src": ["'self'"],
-    "script-src": ["'self'"], // no inline/eval in prod builds
-    "style-src": ["'self'", "'unsafe-inline'"], // allow inline styles from frameworks; remove if fully hashed
-    "img-src": ["'self'", "data:", "blob:"],
-    "font-src": ["'self'", "data:"],
-    "connect-src": ["'self'"], // add external API origins here if any
-    "frame-ancestors": ["'none'"],
-    "object-src": ["'none'"],
-    "base-uri": ["'self'"],
-    "upgrade-insecure-requests": [] // if your site is fully HTTPS
-  }
-};
-
-app.use(helmet({
-  // Leave defaults on; add/override below
-  contentSecurityPolicy: PROD ? prodCsp : devCsp,
-  crossOriginEmbedderPolicy: false, // often needed for third-party iframes/canvases
-}));
-
-// Extra hardening (some are already included by helmet defaults; kept explicit for clarity)
-app.use(helmet.referrerPolicy({ policy: 'no-referrer' }));
-app.use(helmet.crossOriginOpenerPolicy());
-app.use(helmet.crossOriginResourcePolicy({ policy: 'same-site' }));
-app.use(helmet.originAgentCluster());
-
-// HSTS only in production (requires HTTPS)
-if (PROD) {
-  app.use(helmet.hsts({
-    maxAge: 60 * 60 * 24 * 365, // 1 year
-    includeSubDomains: true,
-    preload: true
-  }));
-}
-
-// --- Body parsing ---
-app.use(express.json());
-
-// --- Session (5 min) ---
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'your_secret_key',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    maxAge: 5 * 60 * 1000,
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: PROD, // secure cookies only over HTTPS
-  }
-}));
-app.use(express.urlencoded({ extended: false }));
-// --- API Routes ---
 app.use('/api/homepage', homepageBeforeloginRoutes);
 app.use('/api/auth', authRouter);
 app.use('/api/login', loginRoutes);
@@ -128,24 +158,24 @@ app.use('/api', SIEMDashboard);
 app.use('/api/profile', profileRoute);
 app.use('/api/user', userSchema);
 
-// --- Static (Vite build) ---
-app.use(express.static(path.join(__dirname, 'dist')));
+// --- Serve static files from Vite build ---
+app.use(express.static(path.join(__dirname, 'securifyy-main')));
 
-// --- SPA fallback for non-API routes ---
+// --- SPA fallback (non-API routes) ---
 app.get(/^\/(?!api).*/, (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// --- Start ---
+// --- Start server ---
 app.listen(PORT, () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT} in ${NODE_ENV} mode`);
 });
 
 // --- Graceful shutdown ---
 const shutdown = () => {
   console.log('🔻 Server shutting down...');
-  if (app.get('env') === 'development') {
-    console.log('⚠️ In-memory sessions will be lost automatically on shutdown.');
+  if (NODE_ENV === 'development') {
+    console.log('⚠️ In-memory sessions will be lost.');
   }
   process.exit(0);
 };

@@ -10,7 +10,7 @@ import User from '../models/User.ts';
 import LoginEvent from '../models/LoginEvent.model.js';
 import PasswordChangeEvent from '../models/PasswordChangeEvent.model.js';
 
-dotenv.config();
+dotenv.config({ path: '.env.development' });
 const SIEMDashboard = express.Router();
 
 SIEMDashboard.use(cors());

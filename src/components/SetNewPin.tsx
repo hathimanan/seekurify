@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
+import { ArrowLeft } from 'lucide-react';
+import Header from './ui/Header';
+import Footer from './ui/Footer';
 
 
 interface DecodedToken {
@@ -34,6 +37,7 @@ export const SetNewPin: React.FC = () => {
   const [pinInput, setPinInput] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
 
+  
   useEffect(() => {
         if (token) {
         const decoded = jwtDecode<DecodedToken>(token);
@@ -109,14 +113,24 @@ export const SetNewPin: React.FC = () => {
 
  return (
   <div className="p-0">
-    <div className="min-h-screen bg-gray-100 p-2 relative">
-      <button
-        onClick={() => navigate(-1)}
-        className="bg-red-500 text-white px-4 py-2 rounded mb-4"
-      >
-        ⬅️ Back
-      </button>
+      <Header
+        token={localStorage.getItem("token") || ""}
+        handleLogout={() => {
+          localStorage.removeItem("token");
+          navigate("/login");
+        }}
+      />
 
+            <main className="flex-grow p-6 bg-gradient-to-br from-indigo-50 to-blue-100 rounded-lg">
+    <div className="p-6 bg-gradient-to-br from-indigo-50 to-blue-100 min-h-screen rounded-lg">
+                  <div className="mb-6">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-white bg-gradient-to-r from-red-500 to-red-600 px-3 py-2 rounded-lg shadow-md hover:scale-105 transition transform duration-200"
+        >
+          <ArrowLeft className="w-5 h-5" /> Back
+        </button>
+      </div>
       {/* 🔧 FIXED CLASSNAME HERE */}
       <div className="flex items-center justify-center">
         <form
@@ -214,5 +228,7 @@ export const SetNewPin: React.FC = () => {
         </form>
       </div>
     </div>
+    </main>
+    <Footer />
   </div>
 );}

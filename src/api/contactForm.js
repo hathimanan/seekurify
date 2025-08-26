@@ -4,8 +4,7 @@ import Contact from '../models/Contact.js'; // ✅ Ensure correct model path
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import { google } from 'googleapis';
-dotenv.config();
-
+dotenv.config({ path: '.env.development' });
 const contactRouter = express.Router();
 const OAuth2 = google.auth.OAuth2;
 

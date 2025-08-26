@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect  } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Button } from './ui/button';
@@ -84,7 +85,7 @@ export const Dashboard: React.FC = () => {
 
 
 
-
+const location = useLocation();
 
 
   const navigate = useNavigate();
@@ -156,7 +157,7 @@ export const Dashboard: React.FC = () => {
           setShowPayModal(false);
           setPaymentChecked(true);
           // Load passwords without page reload
-          await loadPasswords();
+await loadPasswords(Date.now());
         } else {
           setHasPaid(false);
           setShowPayModal(true);
@@ -175,17 +176,17 @@ export const Dashboard: React.FC = () => {
     initialize();
 
     return () => { isMounted = false; };
-  }, []);
+  }, [location.pathname]);
 
 
 
   // ----------------------------
   // Load passwords
   // ----------------------------
-  const loadPasswords = async () => {
+  const loadPasswords = async (cacheBuster?: number) => {
     try {
       setIsLoading(true);
-      const data = await apiService.getPasswords();
+const data = await apiService.getPasswords(cacheBuster);
       console.log('Passwords from backend:', data);
       setPasswords(data);
       setShowReverifyPinModal(true); // only for paid users
@@ -444,52 +445,66 @@ export const Dashboard: React.FC = () => {
   };
 
 
+
   const handleUpdatePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingPassword) return;
+    // const data = await apiService.getPasswords({ params: { t: Date.now() } });
 
-    try {
-      const updatedPassword = await apiService.updatePassword(editingPassword._id, {
-        ...passwordformData,
-        currentPassword
-      });
+  e.preventDefault();
+  if (!editingPassword) return;
 
-      setPasswords(prev =>
-        prev.map(p => (p._id === editingPassword._id ? updatedPassword : p))
-      );
+  try {
+    await apiService.updatePassword(editingPassword._id, {
+      ...passwordformData,
+      currentPassword,
+    });
 
-      setSuccessMessage('Password updated successfully!');
-      setShowEditModal(false);
-      setEditingPassword(null);
-      setPasswordFormData({ website: '', username: '', password: '', category: '', notes: '' });
-    } catch (err: any) {
-      if (err.response?.status === 403 && err.response?.data?.error?.includes("Current password does not match")) {
-        setError("Incorrect current password. Please try again.");
-      } else if (err.response?.status === 401) {
-        setError("Your session has expired. Please log in again.");
-        logout();
-        navigate("/login");
-      } else {
-        setError(err instanceof Error ? err.message : 'Failed to update password');
-      }
+    setPasswords(prev =>
+  prev.map(item =>
+    item._id === editingPassword._id
+      ? { ...item, ...passwordformData }
+      : item
+  )
+);
+
+    // ✅ Instead of just updating state manually, fetch fresh data
+await loadPasswords(Date.now());
+    setSuccessMessage('Password updated successfully!');
+    setShowEditModal(false);
+    setEditingPassword(null);
+    
+    setPasswordFormData({ website: '', username: '', password: '', category: '', notes: '' });
+  } catch (err: any) {
+    if (err.response?.status === 403 && err.response?.data?.error?.includes("Current password does not match")) {
+      setError("Incorrect current password. Please try again.");
+    } else if (err.response?.status === 401) {
+      setError("Your session has expired. Please log in again.");
+      logout();
+      navigate("/login");
+    } else {
+      setError(err instanceof Error ? err.message : 'Failed to update password');
     }
-  };
+  }
+};
+
 
 
   const handleDeletePassword = async (_id: string) => {
-    if (!_id) return;
-    setIsDeleting(_id);
-    try {
-      await apiService.deletePassword(_id);
-      setPasswords((current) => current.filter((pw) => pw._id !== _id));
-    } catch (err) {
-      console.error('Error deleting password:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete password');
-    } finally {
-      setIsDeleting(null);
-      setConfirmId(null);
-    }
-  };
+  if (!_id) return;
+  setIsDeleting(_id);
+  try {
+    await apiService.deletePassword(_id);
+
+    // ✅ Fetch fresh data after deletion
+await loadPasswords(Date.now());
+  } catch (err) {
+    console.error('Error deleting password:', err);
+    setError(err instanceof Error ? err.message : 'Failed to delete password');
+  } finally {
+    setIsDeleting(null);
+    setConfirmId(null);
+  }
+};
+
 
 
   const handleViewPassword = (passwordId: string) => {
@@ -519,7 +534,7 @@ export const Dashboard: React.FC = () => {
   return (
   <div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300">
 <Header
-      token={"token"}
+      token={localStorage.getItem("token") || ""}
       handleLogout={() => { throw new Error("Function not implemented."); }}
     />
         <main className="flex-1 px-6 py-4 md:py-6 lg:py-8">

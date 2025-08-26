@@ -1,5 +1,8 @@
+import { ArrowLeft } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Header from './ui/Header';
+import Footer from './ui/Footer';
 
 interface UserProfile {
   name: string;
@@ -90,13 +93,27 @@ const [isVerifying, setIsVerifying] = useState(false);
 
   return (
     <div className="min-h-screen bg-gray-100 relative">
-      {/* Back Button */}
-      <button
-        onClick={() => navigate(-1)}
-        className="absolute top-4 left-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition"
-      >
-        ⬅️ Back
-      </button>
+
+      <Header
+        token={localStorage.getItem("token") || ""}
+        handleLogout={() => {
+          localStorage.removeItem("token");
+          navigate("/login");
+        }}
+      />
+
+            <main className="flex-grow p-6 bg-gradient-to-br from-indigo-50 to-blue-100 rounded-lg">
+    <div className="p-6 bg-gradient-to-br from-indigo-50 to-blue-100 min-h-screen rounded-lg">
+                  <div className="mb-6">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-white bg-gradient-to-r from-red-500 to-red-600 px-3 py-2 rounded-lg shadow-md hover:scale-105 transition transform duration-200"
+        >
+          <ArrowLeft className="w-5 h-5" /> Back
+        </button>
+      </div>
+
+
 
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-100 flex items-center justify-center px-4">
         <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md border border-gray-200">
@@ -262,6 +279,9 @@ const [isVerifying, setIsVerifying] = useState(false);
           </div>
         </div>
       </div>
+      </div>
+      </main>
+      <Footer />
     </div>
   );
 };

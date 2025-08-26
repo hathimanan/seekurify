@@ -128,7 +128,7 @@ const [prevRoute, setPrevRoute] = useState("/homePageAfterLogin"); // default ro
   return (
   <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-pink-100 flex flex-col">
     <Header
-        token={"token"}
+        token={localStorage.getItem("token") || ""}
         handleLogout={() => {
           localStorage.removeItem("token");
           navigate("/login");

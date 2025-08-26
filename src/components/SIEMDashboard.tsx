@@ -73,7 +73,7 @@ return (
 
     {/* Header */}
     <Header
-      token={"token"}
+      token={localStorage.getItem("token") || ""}
       handleLogout={() => {
         localStorage.removeItem("token");
         navigate("/login");

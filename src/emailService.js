@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 import { google } from 'googleapis';
 import dotenv from 'dotenv';
-dotenv.config();
+dotenv.config({ path: '.env.development' });
 import express from 'express';
 const router = express.Router();
 

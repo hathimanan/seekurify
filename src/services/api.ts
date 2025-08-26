@@ -4,7 +4,7 @@ import LoginEventSchema from '../models/LoginEvent.model.js';
 
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
   ? '/api' 
-  : 'http://localhost:5000/api';
+  : 'http://localhost:5173/api';
 
 interface LoginCredentials {
   email: string;
@@ -146,7 +146,7 @@ async  logLoginEvent(userId: string) {
 
 
 
-async getPasswords() {
+async getPasswords(cacheBuster?: number) {
   const token = localStorage.getItem('token');
 
   if (!token) {
@@ -154,9 +154,14 @@ async getPasswords() {
     throw new Error('User not authenticated. Token missing.');
     }
 
-  const response = await fetch(`${API_BASE_URL}/passwords`, {
+      const url = cacheBuster
+    ? `${API_BASE_URL}/passwords?t=${cacheBuster}`
+    : `${API_BASE_URL}/passwords`;
+
+  const response = await fetch(url, {
     method: 'GET',
     headers: this.getAuthHeaders(),
+     cache: 'no-store',
   });
 
   if (!response.ok) {

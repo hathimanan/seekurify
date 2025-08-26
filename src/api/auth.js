@@ -18,7 +18,14 @@ import { getPasswordStrength } from '../models/User.ts';
 import Razorpay from "razorpay";
 
 import sendResetEmail from '../emailService.js' ;
-dotenv.config();
+dotenv.config({
+  path:
+    process.env.NODE_ENV === 'production'
+      ? '.env.production'
+      : process.env.NODE_ENV === 'test'
+      ? '.env.test'
+      : '.env.development',
+});
 const OAuth2 = google.auth.OAuth2;
 
 const authRouter = express.Router();
@@ -53,7 +60,7 @@ async function sendSuspiciousLoginEmail(ip, email) {
           <li>Reset your password immediately</li>
           <li>Review your account security settings</li>
         </ul>
-        <a href="${process.env.FRONTEND_BASE_URL}/reset-password" 
+        <a href="${process.env.REACT_APP_BASE_URL}/reset-password" 
            style="display: inline-block; padding: 10px 20px; margin: 10px 0; background-color: #d9534f; color: #fff; text-decoration: none; border-radius: 5px;">
            Reset Password
         </a>
@@ -520,7 +527,7 @@ authRouter.post('/signup', async (req, res) => {
 
     // 🔐 Generate email verification token
     const emailToken = jwt.sign({ email, newUser: true }, process.env.JWT_SECRET, { expiresIn: '15m' });
-    const verifyLink = `${process.env.FRONTEND_BASE_URL}/set-new-pin?token=${emailToken}`;
+    const verifyLink = `${process.env.REACT_APP_BASE_URL}/set-new-pin?token=${emailToken}`;
 
     // ⚙️ Set up OAuth2
     const oauth2Client = new OAuth2(

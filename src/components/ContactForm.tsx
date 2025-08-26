@@ -48,7 +48,7 @@ const ContactForm: React.FC = () => {
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 to-purple-100 flex flex-col">
       <Header
-        token={"token"}
+        token={localStorage.getItem("token") || ""}
         handleLogout={() => {
           localStorage.removeItem("token");
           navigate("/login");
