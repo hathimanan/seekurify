@@ -1,7 +1,7 @@
 import 'dotenv'; // Load environment variables
 import mongoose from 'mongoose';
 
-const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/securify';
+const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/vaultence';
 
 mongoose.connect(mongoURI, {
   useNewUrlParser: true,

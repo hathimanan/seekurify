@@ -52,7 +52,7 @@ export const HomePageBefore = (): JSX.Element => {
       {/* Hero Section */}
       <div className="flex flex-col items-center justify-center flex-1 text-center px-4">
         <h1 className="text-6xl sm:text-7xl font-extrabold mb-6 text-white drop-shadow-lg">
-          Securify
+          Vaultence
         </h1>
         <p className="text-lg lg:text-4xl mb-12 text-white">
           Your all-in-one cybersecurity platform. Secure passwords, detect threats, and stay informed.
@@ -71,7 +71,7 @@ export const HomePageBefore = (): JSX.Element => {
 
       {/* Footer */}
       <footer className="text-gray-300 text-sm text-center py-4">
-        &copy; {new Date().getFullYear()} Securify. All rights reserved.
+        &copy; {new Date().getFullYear()} Vaultence. All rights reserved.
       </footer>
     </div>
   );

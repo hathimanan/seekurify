@@ -30,7 +30,7 @@ router.get('/homepageAfterLogin', authenticateToken, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const dashboardInfo = {
-      message: `Welcome to Securify dashboard, ${user.email}!`,
+      message: `Welcome to Vaultence dashboard, ${user.email}!`,
       features: [
         'Analyze Malware',
         'Password Manager',

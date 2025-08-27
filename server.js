@@ -159,7 +159,7 @@ app.use('/api/profile', profileRoute);
 app.use('/api/user', userSchema);
 
 // --- Serve static files from Vite build ---
-app.use(express.static(path.join(__dirname, 'securifyy-main')));
+app.use(express.static(path.join(__dirname, 'vaultence')));
 
 // --- SPA fallback (non-API routes) ---
 app.get(/^\/(?!api).*/, (req, res) => {

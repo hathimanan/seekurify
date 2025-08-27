@@ -75,63 +75,7 @@ export const HomePageAfter = (): JSX.Element => {
           <Header token={"token"} handleLogout={function (): void {
         throw new Error("Function not implemented.");
       } } />
-      {/* Navbar */}
-      {/* <div className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white flex justify-between items-center px-8 py-4 shadow-md">
-        <motion.h1
-          className="text-3xl font-extrabold tracking-wide cursor-pointer"
-          whileHover={{ scale: 1.05 }}
-        >
-          Securify
-        </motion.h1>
-
-        <div className="relative">
-          <motion.img
-            whileHover={{ scale: 1.1 }}
-            src={profileIconUrl || defaultProfileIcon}
-            alt="Profile"
-            onClick={() => setShowDropdown(!showDropdown)}
-            onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-                const target = e.currentTarget;
-                target.src = defaultProfileIcon;
-                target.onerror = null; // prevent infinite loop
-              }}
-            className="w-11 h-11 rounded-full border-2 border-white object-cover cursor-pointer shadow-md"
-          />
-
-          {showDropdown && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="absolute right-0 top-14 w-52 bg-white text-gray-700 shadow-lg rounded-xl overflow-hidden"
-            >
-              <button
-                className="w-full px-4 py-2 hover:bg-indigo-50"
-                onClick={() => navigate("/profile")}
-              >
-                Profile
-              </button>
-              <button
-                className="w-full px-4 py-2 hover:bg-indigo-50"
-                onClick={() => navigate(`/set-new-pin?token=${token}`)}
-              >
-                Change PIN
-              </button>
-              <button
-                className="w-full px-4 py-2 hover:bg-indigo-50"
-                onClick={() => navigate("/change-password")}
-              >
-                Change Password
-              </button>
-              <button
-                className="w-full px-4 py-2 text-red-600 hover:bg-red-50"
-                onClick={handleLogout}
-              >
-                Logout
-              </button>
-            </motion.div>
-          )}
-        </div>
-      </div> */}
+     
 
       {/* PIN Modal */}
       {showPinModal && (
@@ -193,7 +137,7 @@ export const HomePageAfter = (): JSX.Element => {
             className="bg-gradient-to-r from-blue-100 to-indigo-100 text-center py-4 rounded-2xl text-2xl font-bold text-indigo-800 mb-8 shadow-lg"
             whileHover={{ scale: 1.02 }}
           >
-            About Securify
+            About Vaultence
           </motion.div>
 
           <section className="bg-white py-12 px-6 md:px-20 rounded-xl shadow-lg">
@@ -209,10 +153,10 @@ export const HomePageAfter = (): JSX.Element => {
 
               {/* Full Original Content */}
               <p className="text-gray-700 text-justify leading-relaxed space-y-4 text-base">
-                <strong>Securify</strong> is an all-in-one cybersecurity platform
+                <strong>Vaultence</strong> is an all-in-one cybersecurity platform
                 built to empower users with advanced tools and essential
                 knowledge to stay secure in the digital world. The core mission
-                of Securify is twofold: to enhance user security through robust
+                of Vaultence is twofold: to enhance user security through robust
                 features and to promote cybersecurity awareness through
                 accessible information and insights.
                 <br />
@@ -226,7 +170,7 @@ export const HomePageAfter = (): JSX.Element => {
                 password hygiene.
                 <br />
                 <br />
-                Securify goes beyond password protection by integrating multiple
+                Vaultence goes beyond password protection by integrating multiple
                 real-time security utilities, including:
                 <ul className="list-disc list-inside mt-2 text-gray-800">
                   <li>
@@ -252,7 +196,7 @@ export const HomePageAfter = (): JSX.Element => {
                 <br />
                 Whether you're an individual looking to improve your digital
                 safety or a developer interested in integrating secure
-                practices, Securify offers a modern, user-centric approach to
+                practices, Vaultence offers a modern, user-centric approach to
                 personal and professional cybersecurity—all from a single,
                 intuitive interface.
               </p>

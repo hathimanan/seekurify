@@ -66,7 +66,7 @@ const Header: React.FC<HeaderProps> = ({
           whileHover={{ scale: 1.05 }}
           onClick={() => navigate("/")}
         >
-          Securify
+          Vaultence
         </motion.h1>
 
      {/* Desktop Nav */}

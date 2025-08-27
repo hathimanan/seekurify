@@ -36,7 +36,7 @@ async function sendEmail({ to, subject, text }) {
     });
 
     const mailOptions = {
-      from: `Securify <${process.env.GMAIL_USER}>`, // ✅ Sender is always admin
+      from: `Vaultence <${process.env.GMAIL_USER}>`, // ✅ Sender is always admin
       to,
       subject,
       text,

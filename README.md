@@ -1,11 +1,11 @@
-# Securify Project
+# Vaultence Project
 
-Welcome to Securify!
-Securify is a secure password manager application that also promotes cybersecurity awareness. It features a dedicated dashboard for managing user passwords, which are securely stored using hashing. Users can optionally generate strong random passwords based on their preferences.
+Welcome to Vaultence!
+Vaultence is a secure password manager application that also promotes cybersecurity awareness. It features a dedicated dashboard for managing user passwords, which are securely stored using hashing. Users can optionally generate strong random passwords based on their preferences.
 
 The application includes additional security tools such as a link checker (to detect safe or suspicious URLs), a file and malware scanner, and a dashboard for system information and event logs to monitor system activities.
 
-Securify is built using ReactJS for the frontend and Node.js/Express for the backend.
+Vaultence is built using ReactJS for the frontend and Node.js/Express for the backend.
 
 
 ## Getting started
@@ -25,7 +25,7 @@ npm install
 Create a `.env` file in the root directory with the following variables:
 
 ```
-MONGODB_URI=mongodb://localhost:27017/securify
+MONGODB_URI=mongodb://localhost:27017/Vaultence
 secretKey=342b1cccd0172c02ccaa09ddcc0b1d6bbbb205674a4d71d2702e40d12bb53e3c
 PORT=5000
 GMAIL_USER=test266105@gmail.com

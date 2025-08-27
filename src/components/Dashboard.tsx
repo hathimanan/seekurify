@@ -276,7 +276,7 @@ const data = await apiService.getPasswords(cacheBuster);
         key,
         amount: paymentFormData.amount * 100, // dynamic
         currency: 'INR',
-        name: 'Securify',
+        name: 'Vaultence',
         description: 'Secure Payment Gateway',
         order_id: orderId,
         prefill: paymentFormData,

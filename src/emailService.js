@@ -29,7 +29,7 @@ async function sendResetEmail(email, resetCode) {
   });
 
   const mailOptions = {
-    from: `Securify Reset <${process.env.GMAIL_USER}>`,
+    from: `Vaultence Reset <${process.env.GMAIL_USER}>`,
     to: email,
     subject: 'Your Password Reset Code',
     text: `Your password reset code is: ${resetCode}`,
