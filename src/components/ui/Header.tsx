@@ -130,7 +130,8 @@ const Header: React.FC<HeaderProps> = ({
                 </button>
                 <button
                   className="w-full px-4 py-2 hover:bg-indigo-50 text-left"
-                  onClick={() => navigate(`/set-new-pin?token=${token}`)}
+
+onClick={() => navigate(`/set-new-pin?token=${localStorage.getItem("token")}`)}
                 >
                   Change PIN
                 </button>

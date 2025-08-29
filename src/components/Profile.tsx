@@ -181,33 +181,43 @@ const [isVerifying, setIsVerifying] = useState(false);
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
     <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm">
       <h2 className="text-lg font-semibold mb-4">Verify PIN</h2>
+
       <input
         type="password"
         placeholder="Enter your PIN"
         value={pinInput}
-        onChange={(e) => setPinInput(e.target.value)}
+        onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))} 
         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
+
+      {/* Inline error message */}
       {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
 
       <div className="mt-4 flex justify-end space-x-2">
-        {/* <button
-          onClick={() => setShowPinModal(false)}
-          className="px-3 py-2 bg-gray-300 rounded hover:bg-gray-400 text-sm"
-        >
-          Cancel
-        </button> */}
         <button
           onClick={async () => {
-            setIsVerifying(true);
+            // ✅ Reset error message
             setError('');
+
+            // ✅ Frontend validation
+            if (!pinInput.trim()) {
+              setError('PIN field cannot be empty.');
+              return;
+            }
+            if (!/^\d+$/.test(pinInput)) {
+              setError('PIN must contain only numeric values.');
+              return;
+            }
+
+            // ✅ Proceed with API request
+            setIsVerifying(true);
             try {
               const token = localStorage.getItem('token');
               const res = await fetch('/api/auth/verify-pin', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  Authorization: `Bearer ${token}`, // optional if not required
+                  Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                   email: user?.email,
@@ -218,7 +228,7 @@ const [isVerifying, setIsVerifying] = useState(false);
               const data = await res.json();
               if (data.token) {
                 setShowPinModal(false);
-                navigate('/change-password'); // ✅ Navigate on success
+                navigate('/change-password');
               } else {
                 setError('Incorrect PIN. Please try again.');
               }
@@ -237,6 +247,7 @@ const [isVerifying, setIsVerifying] = useState(false);
     </div>
   </div>
 )}
+
 
 
 

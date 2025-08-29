@@ -54,7 +54,7 @@ export const HomePageAfter = (): JSX.Element => {
 
   const handleChangePin = () => {
     setShowPinModal(false);
-    navigate("/set-new-pin", { state: { email: user?.email || "" } });
+    navigate(`/set-new-pin?token=${token}`);
   };
 
   const handleCloseModal = () => {

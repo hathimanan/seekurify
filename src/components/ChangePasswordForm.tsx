@@ -24,45 +24,69 @@ const ChangePasswordForm: React.FC = () => {
     setIsPinVerified(false);
   }, []);
 
-  const handleVerifyPin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPinError('');
+// Handle PIN verification
+const handleVerifyPin = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setPinError('');
 
-    const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/login');
-      return;
+  // Empty field validation
+  if (!pin) {
+    setPinError('PIN cannot be empty');
+    return;
+  }
+
+  // Numeric and length validation
+  if (!/^\d{4}$/.test(pin)) {
+    setPinError('PIN must be exactly 4 digits');
+    return;
+  }
+
+  const token = localStorage.getItem('token');
+  if (!token) {
+    navigate('/login');
+    return;
+  }
+
+  let email = '';
+  try {
+    const decoded: any = jwtDecode(token);
+    email = decoded.email;
+  } catch (err) {
+    setPinError('Invalid token');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/verify-pin', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ email, pin }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'PIN verification failed');
     }
 
-    let email = '';
-    try {
-      const decoded: any = jwtDecode(token);
-      email = decoded.email;
-    } catch (err) {
-      setPinError('Invalid token');
-      return;
-    }
+    setIsPinVerified(true);
+  } catch (err) {
+    setPinError(err instanceof Error ? err.message : 'PIN verification failed');
+  }
+};
 
-    try {
-      const res = await fetch('/api/auth/verify-pin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ email, pin }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'PIN verification failed');
-      }
-
-      setIsPinVerified(true);
-    } catch (err) {
-      setPinError(err instanceof Error ? err.message : 'PIN verification failed');
-    }
-  };
+// Keep numeric-only restriction in input handler
+const handleNumericInput = (
+  e: React.ChangeEvent<HTMLInputElement>,
+  setter: (val: string) => void
+) => {
+  const value = e.target.value;
+  if (/^\d{0,4}$/.test(value)) {
+    setter(value);
+  }
+};
 
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -146,15 +170,17 @@ const ChangePasswordForm: React.FC = () => {
                   <div className="text-red-600 text-sm mb-3">{pinError}</div>
                 )}
                 <form onSubmit={handleVerifyPin}>
-                  <input
-                    type="password"
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    className="w-full px-4 py-2 border rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="4-digit PIN"
-                    maxLength={4}
-                    required
-                  />
+<input
+  type="password"
+  inputMode="numeric"
+  value={pin}
+  onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+  maxLength={4}
+  placeholder="4-digit PIN"
+  className="w-full px-4 py-2 border rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+/>
+
+
                   <Button
                     type="submit"
                     className="w-full bg-blue-600 text-white hover:bg-blue-700 py-2 rounded-md"

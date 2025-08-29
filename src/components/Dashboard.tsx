@@ -82,7 +82,7 @@ export const Dashboard: React.FC = () => {
   const [paymentChecked, setPaymentChecked] = useState(false);
   const [hasPaid, setHasPaid] = useState<boolean>(false); // 🚨 Payment status
   const [showPayModal, setShowPayModal] = useState(false);
-
+const [reverifyPinError, setReverifyPinError] = useState('');
 
 
 const location = useLocation();
@@ -179,6 +179,22 @@ await loadPasswords(Date.now());
   }, [location.pathname]);
 
 
+const validateReverifyPin = (e: React.FormEvent) => {
+  e.preventDefault();
+  setReverifyPinError('');
+
+  if (!reverifyPinInput.trim()) {
+    setReverifyPinError('PIN field cannot be empty.');
+    return;
+  }
+
+  if (!/^\d+$/.test(reverifyPinInput)) {
+    setReverifyPinError('PIN must contain only numeric values.');
+    return;
+  }
+
+  handleReverifyPinSubmit(e);
+};
 
   // ----------------------------
   // Load passwords
@@ -658,87 +674,92 @@ await loadPasswords(Date.now());
         )}
 
         {showReverifyPinModal && !pinError && (
-          // ✅ Default PIN Modal UI (your previous version)
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-lg">
-              <h3 className="text-xl font-bold text-black mb-4">Re-enter PIN to Confirm</h3>
-              <form onSubmit={handleReverifyPinSubmit} className="space-y-4">
-                <input
-                  type="email"
-                  value={user?.email || ''}
-                  // onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter Email"
-                  className="w-full px-3 py-2 border border-gray-300 bg-gray-100 text-gray-700 rounded-md focus:outline-none cursor-not-allowed"
-                  disabled
-                />
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-lg">
+      <h3 className="text-xl font-bold text-black mb-4">Re-enter PIN to Confirm</h3>
+      <form onSubmit={validateReverifyPin} className="space-y-4">
+        <input
+          type="email"
+          value={user?.email || ""}
+          className="w-full px-3 py-2 border border-gray-300 bg-gray-100 text-gray-700 rounded-md cursor-not-allowed"
+          disabled
+        />
 
-                <input
-                  type="password"
-                  value={reverifyPinInput}
-                  onChange={(e) => setReverifyPinInput(e.target.value)}
-                  placeholder="Enter PIN"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-                <div className="flex justify-end">
-                  <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
-                    Confirm
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+        <div>
+          <input
+            type="password"
+            value={reverifyPinInput}
+            maxLength={4}
 
-        {showReverifyPinModal && pinError && (
-          // ❌ Incorrect PIN Modal UI (refined error version)
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-red-200">
-              <h3 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2 flex items-center gap-2">
-                ⚠️ Incorrect PIN
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                Please re-enter your PIN to confirm access.
-              </p>
+            onChange={(e) => setReverifyPinInput(e.target.value.replace(/\D/g, ''))}
+            placeholder="Enter PIN"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {reverifyPinError && (
+            <p className="text-sm text-red-600 mt-1">{reverifyPinError}</p>
+          )}
+        </div>
 
-              <form onSubmit={handleReverifyPinSubmit} className="space-y-4">
-                <input
-                  type="email"
-                  value={user?.email || ''}
-                  // onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter Email"
-                  className="w-full px-3 py-2 border border-gray-300 bg-gray-100 text-gray-500 rounded-md focus:outline-none cursor-not-allowed"
-                  disabled
-                />
-
-                <input
-                  type="password"
-                  value={reverifyPinInput}
-                  onChange={(e) => setReverifyPinInput(e.target.value)}
-                  placeholder="Enter PIN"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-                  required
-                />
-
-                <div className="flex justify-end gap-3">
-                  {/* <button
-            type="button"
-            onClick={() => setShowReverifyPinModal(false)}
-            className="px-4 py-2 rounded-md bg-gray-200 hover:bg-gray-300 text-gray-800 transition"
+        <div className="flex justify-end">
+          <Button
+            type="submit"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
           >
-            Cancel
-          </button> */}
-                  <Button
-                    type="submit"
-                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md shadow-md transition"
-                  >
-                    Confirm
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+            Confirm
+          </Button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
+
+{showReverifyPinModal && pinError && (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-red-200">
+      <h3 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2 flex items-center gap-2">
+        ⚠️ Incorrect PIN
+      </h3>
+      <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+        Please re-enter your PIN to confirm access.
+      </p>
+
+      <form onSubmit={validateReverifyPin} className="space-y-4">
+        <input
+          type="email"
+          value={user?.email || ""}
+          className="w-full px-3 py-2 border border-gray-300 bg-gray-100 text-gray-500 rounded-md cursor-not-allowed"
+          disabled
+        />
+
+        <div>
+          <input
+            type="password"
+            value={reverifyPinInput}
+              maxLength={4}
+            onChange={(e) => setReverifyPinInput(e.target.value.replace(/\D/g, ''))}
+            placeholder="Enter PIN"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+          />
+          {reverifyPinError && (
+            <p className="text-sm text-red-600 mt-1">{reverifyPinError}</p>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <Button
+            type="submit"
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md shadow-md transition"
+          >
+            Confirm
+          </Button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
+        
 
         {showPassword && viewingPassword && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">

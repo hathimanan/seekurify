@@ -19,17 +19,38 @@ const ContactForm: React.FC = () => {
     subject: "",
     message: "",
   });
+  const [errors, setErrors] = useState<Partial<FormData>>({});
   const [status, setStatus] = useState<string>("");
   const navigate = useNavigate();
-  const [prevRoute, setPrevRoute] = useState("/homePageAfterLogin");
+
+  const validate = () => {
+    const newErrors: Partial<FormData> = {};
+
+    if (!formData.name.trim()) newErrors.name = "Name is required.";
+if (!formData.email.trim()) {
+    newErrors.email = "Email is required.";
+  } else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(formData.email)) {
+    newErrors.email = "Enter a valid email address (e.g., test@gmail.com).";
+  }
+    if (!formData.subject.trim()) newErrors.subject = "Subject is required.";
+    if (!formData.message.trim()) newErrors.message = "Message cannot be empty.";
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+
+    // Clear errors as user types
+    setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!validate()) return;
+
     setStatus("Sending...");
     const token = localStorage.getItem("token");
 
@@ -54,19 +75,17 @@ const ContactForm: React.FC = () => {
           navigate("/login");
         }}
       />
-<div className="w-full max-w-lg mb-6 ml-4 sm:ml-6 mt-4 sm:mt-6">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-white bg-gradient-to-r from-red-500 to-red-600 px-4 py-2 rounded-full shadow-lg hover:scale-105 transition-transform duration-200"
-          >
-            <ArrowLeft className="w-5 h-5" /> Back
-          </button>
-        </div>
+
+      <div className="w-full max-w-lg mb-6 ml-4 sm:ml-6 mt-4 sm:mt-6">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-white bg-gradient-to-r from-red-500 to-red-600 px-4 py-2 rounded-full shadow-lg hover:scale-105 transition-transform duration-200"
+        >
+          <ArrowLeft className="w-5 h-5" /> Back
+        </button>
+      </div>
+
       <main className="flex-grow px-4 sm:px-6 md:px-12 py-8 flex flex-col items-center">
-        {/* Back Button */}
-
-
-        {/* Form Card */}
         <div className="w-full max-w-lg bg-white shadow-xl rounded-3xl p-8 border border-gray-200">
           <div className="text-center mb-6">
             <h2 className="text-3xl font-extrabold text-gray-800">Contact Us</h2>
@@ -77,17 +96,23 @@ const ContactForm: React.FC = () => {
             {["name", "email", "subject"].map((field) => (
               <div key={field}>
                 <label className="block text-sm font-semibold text-gray-600 mb-1 capitalize">
-                  {field}
+                  {field}*
                 </label>
                 <input
                   name={field}
                   type={field === "email" ? "email" : "text"}
                   value={(formData as any)[field]}
                   onChange={handleChange}
-                  required
                   placeholder={`Enter your ${field}`}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+                  className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 transition 
+                    ${errors[field as keyof FormData]
+                      ? "border-red-500 focus:ring-red-300"
+                      : "border-gray-300 focus:ring-blue-400"
+                    }`}
                 />
+                {errors[field as keyof FormData] && (
+                  <p className="text-sm text-red-600 mt-1">{errors[field as keyof FormData]}</p>
+                )}
               </div>
             ))}
 
@@ -97,10 +122,14 @@ const ContactForm: React.FC = () => {
                 name="message"
                 value={formData.message}
                 onChange={handleChange}
-                required
                 placeholder="Type your message..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl h-36 resize-none focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+                className={`w-full px-4 py-3 border rounded-xl h-36 resize-none focus:outline-none focus:ring-2 transition 
+                  ${errors.message ? "border-red-500 focus:ring-red-300" : "border-gray-300 focus:ring-blue-400"
+                  }`}
               />
+              {errors.message && (
+                <p className="text-sm text-red-600 mt-1">{errors.message}</p>
+              )}
             </div>
 
             <button
