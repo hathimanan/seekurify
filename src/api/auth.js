@@ -17,6 +17,7 @@ import PasswordChangeEvent from '../models/PasswordChangeEvent.model.js';
 import { getPasswordStrength } from '../models/User.ts';
 import Razorpay from "razorpay";
 import Trial from "../models/Trial.js";
+import requestIp from 'request-ip';
 
 import sendResetEmail from '../emailService.js' ;
 dotenv.config({
@@ -51,25 +52,34 @@ async function sendSuspiciousLoginEmail(ip, email) {
       }
     });
 
-    const htmlContent = `
-      <div style="font-family: Arial, sans-serif; color: #333;">
-        <h2 style="color: #d9534f;">⚠️ Suspicious Login Detected</h2>
-        <p>We noticed multiple failed login attempts to your <strong>Vaultence</strong> account from the following IP address:</p>
-        <p style="background-color: #f8d7da; padding: 10px; border-radius: 5px; font-weight: bold;">${ip}</p>
-        <p>If this wasn’t you, we strongly recommend you:</p>
-        <ul>
-          <li>Reset your password immediately</li>
-          <li>Review your account security settings</li>
-        </ul>
-        <a href="${process.env.REACT_APP_BASE_URL}/reset-password" 
-           style="display: inline-block; padding: 10px 20px; margin: 10px 0; background-color: #d9534f; color: #fff; text-decoration: none; border-radius: 5px;">
-           Reset Password
-        </a>
-        <p style="font-size: 12px; color: #666;">If you did attempt to login, you can safely ignore this message.</p>
-        <hr style="border: none; border-top: 1px solid #eee;" />
-        <p style="font-size: 12px; color: #999;">&copy; ${new Date().getFullYear()} Vaultence. All rights reserved.</p>
-      </div>
-    `;
+   const htmlContent = `
+  <div style="font-family: Arial, sans-serif; color: #333;">
+    <h2 style="color: #d9534f;">⚠️ Suspicious Login Detected</h2>
+    <p>We noticed multiple failed login attempts to your <strong>Vaultence</strong> account from the following IP address:</p>
+    <p style="background-color: #f8d7da; padding: 10px; border-radius: 5px; font-weight: bold;">${ip}</p>
+    <p>If this wasn’t you, we strongly recommend you:</p>
+    <ul>
+      <li>Reset your password immediately</li>
+      <li>
+        Review your account security settings <br/>
+        <span style="font-size: 14px;">
+          Want to Report the incident to Government Official Cybercrime Portal? 
+          <a href="https://cybercrime.gov.in/Webform/Crime_AuthoLogin.aspx" target="_blank" style="color: #007bff; text-decoration: underline;">
+            Click here
+          </a>
+        </span>
+      </li>
+    </ul>
+    <a href="${process.env.REACT_APP_BASE_URL}/reset-password" 
+       style="display: inline-block; padding: 10px 20px; margin: 10px 0; background-color: #d9534f; color: #fff; text-decoration: none; border-radius: 5px;">
+       Reset Password
+    </a>
+    <p style="font-size: 12px; color: #666;">If you did attempt to login, you can safely ignore this message.</p>
+    <hr style="border: none; border-top: 1px solid #eee;" />
+    <p style="font-size: 12px; color: #999;">&copy; ${new Date().getFullYear()} Vaultence. All rights reserved.</p>
+  </div>
+`;
+
 
     await transporter.sendMail({
       from: 'Vaultence <no-reply@Vaultence.com>',
@@ -92,26 +102,51 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many login attempts. Please try again later.' },
 
-  handler: async (req, res, next, options) => {
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.get('User-Agent');
-    const targetEmail = req.body?.email || process.env.ADMIN_EMAIL;
+handler: async (req, res, next, options) => {
+    try {
+      // 1️⃣ Extract IP considering proxy headers
+      const clientIp = requestIp.getClientIp(req) || req.headers['x-real-ip'] || req.ip;
+      const userAgent = req.get('User-Agent');
+      const targetEmail = req.body?.email || process.env.ADMIN_EMAIL;
 
-    // 1️⃣ Log this suspicious attempt into DB
-    await LoginEvent.create({
-      userId: null, // can't be determined at limiter stage
-      success: false,
-      ipAddress,
-      userAgent,
-      timestamp: new Date(),
-      reason: 'Too many login attempts (rate limit hit)',
-    });
+      // 2️⃣ Check if the IP belongs to a VPN/Proxy/Hosting provider
+      let ipDetails = {};
+      try {
+        const response = await axios.get(`https://ipinfo.io/${clientIp}/json`);
+        ipDetails = response.data;
+      } catch (err) {
+        console.error('IP Lookup failed:', err.message);
+      }
 
-    // 2️⃣ Send notification email
-    await sendSuspiciousLoginEmail(ipAddress, targetEmail);
+      const isSuspicious =
+        ipDetails.org?.toLowerCase().includes('vpn') ||
+        ipDetails.org?.toLowerCase().includes('hosting') ||
+        ipDetails.org?.toLowerCase().includes('cloud');
 
-    // 3️⃣ Return rate limit message
-    res.status(options.statusCode).json(options.message);
+      // 3️⃣ Log suspicious attempts to DB
+      await LoginEvent.create({
+        userId: null,
+        success: false,
+        ipAddress: clientIp,
+        userAgent,
+        timestamp: new Date(),
+        reason: isSuspicious
+          ? 'Rate limit hit from suspected VPN/Proxy'
+          : 'Rate limit hit',
+        geoLocation: ipDetails.city
+          ? `${ipDetails.city}, ${ipDetails.region}, ${ipDetails.country}`
+          : 'Unknown',
+      });
+
+      // 4️⃣ Send real-time alerts
+      await sendSuspiciousLoginEmail(clientIp, targetEmail, ipDetails);
+
+      // 5️⃣ Respond with rate limit message
+      res.status(options.statusCode).json(options.message);
+    } catch (err) {
+      console.error('Login limiter handler error:', err);
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
   },
 });
 

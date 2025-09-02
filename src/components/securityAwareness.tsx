@@ -5,7 +5,6 @@ import Header from "../components/ui/Header";
 import Footer from "../components/ui/Footer";
 import { ArrowLeft } from "lucide-react";
 
-
 interface Attack {
   title: string;
   date: string;
@@ -20,18 +19,29 @@ interface MediumArticle {
   link: string;
 }
 
-const tips: string[] = [
-  "Use strong, unique passwords for each account.",
-  "Enable two-factor authentication (2FA) wherever possible.",
-  "Avoid clicking on suspicious links or attachments.",
-  "Keep your devices and apps updated regularly.",
-  "Install antivirus software and run regular scans.",
-  "Never share your OTP or banking PIN with anyone.",
-  "Verify website URLs before entering personal information.",
-  "Avoid accessing sensitive information over public Wi-Fi.",
-  "Regularly backup your data to the cloud or external drives.",
-];
+// Update tips to include links
+// tips.ts
+export const tips = [
+  { text: "Use strong, unique passwords for each account.", link: "/tips/strong-passwords" },
+  { text: "Enable two-factor authentication (2FA) wherever possible.", link: "/tips/two-factor-authentication" },
+  { text: "Avoid clicking on suspicious links or attachments.", link: "/tips/avoid-suspicious-links" },
+  { text: "Keep your devices and apps updated regularly.", link: "/tips/keep-devices-updated" },
+  { text: "Install antivirus software and run regular scans.", link: "/tips/install-antivirus" },
+  { text: "Never share your OTP or banking PIN with anyone.", link: "/tips/never-share-otp" },
+  { text: "Verify website URLs before entering personal information.", link: "/tips/verify-website-urls" },
+  { text: "Avoid accessing sensitive information over public Wi-Fi.", link: "/tips/avoid-public-wifi" },
+  { text: "Regularly backup your data to the cloud or external drives.", link: "/tips/backup-your-data" },
 
+    // <Route path="/tips/strong-passwords" element={<StrongPasswords />} />
+    //     <Route path="/tips/two-factor-authentication" element={<TwoFactorAuthentication />} />
+    //     <Route path="/tips/avoid-suspicious-links" element={<AvoidSuspiciousLinks />} />
+    //     <Route path="/tips/keep-devices-updated" element={<KeepDevicesUpdated />} />
+    //     <Route path="/tips/install-antivirus" element={<InstallAntivirus />} />
+    //     <Route path="/tips/never-share-otp" element={<NeverShareOTP />} />
+    //     <Route path="/tips/verify-website-urls" element={<VerifyWebsiteURLs />} />
+    //     <Route path="/tips/avoid-public-wifi" element={<AvoidPublicWifi />} />
+    //     <Route path="/tips/backup-your-data" element={<BackupYourData />} />
+];
 
 
 const mockRecentAttacks: Attack[] = [
@@ -72,7 +82,6 @@ const mockRecentAttacks: Attack[] = [
   },
 ];
 
-
 const mockMediumArticles: MediumArticle[] = [
   {
     title: "Security in the Era of Phishing",
@@ -111,12 +120,10 @@ const mockMediumArticles: MediumArticle[] = [
   },
 ];
 
-
 export const SecurityAwareness: React.FC = () => {
   const [current, setCurrent] = useState(0);
   const navigate = useNavigate();
   const carouselRef = useRef<HTMLDivElement>(null);
-const [prevRoute, setPrevRoute] = useState("/homePageAfterLogin"); // default route
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -126,8 +133,8 @@ const [prevRoute, setPrevRoute] = useState("/homePageAfterLogin"); // default ro
   }, []);
 
   return (
-  <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-pink-100 flex flex-col">
-    <Header
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-pink-100 flex flex-col">
+      <Header
         token={localStorage.getItem("token") || ""}
         handleLogout={() => {
           localStorage.removeItem("token");
@@ -135,8 +142,7 @@ const [prevRoute, setPrevRoute] = useState("/homePageAfterLogin"); // default ro
         }}
       />
 
-      {/* Main Content */}
-      <main className="flex-grow px-6 py-4">
+      <main className="flex-grow px-6 py-6 max-w-6xl mx-auto">
         {/* Back Button */}
         <div className="mb-6">
           <button
@@ -147,7 +153,7 @@ const [prevRoute, setPrevRoute] = useState("/homePageAfterLogin"); // default ro
           </button>
         </div>
 
-        {/* Header */}
+        {/* Page Header */}
         <header className="text-center mb-12">
           <h1 className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-pink-600 drop-shadow-md">
             Stay Safe Online
@@ -157,40 +163,50 @@ const [prevRoute, setPrevRoute] = useState("/homePageAfterLogin"); // default ro
           </p>
         </header>
 
-        {/* ✅ Security Tips */}
-        <section className="mb-14">
-          <h2 className="text-2xl font-semibold mb-6 text-indigo-700">
-            Steps to Stay Secure Online
-          </h2>
-          <ul className="grid md:grid-cols-2 gap-5">
-            {tips.map((tip, index) => (
-              <li
-                key={index}
-                className="bg-white/70 backdrop-blur-lg shadow-md hover:shadow-xl p-5 rounded-2xl border-l-4 border-indigo-500 hover:border-pink-500 transition-all duration-300"
-              >
-                ✅ {tip}
-              </li>
-            ))}
-          </ul>
-        </section>
+        {/* Security Tips */}
+<section className="mb-14 border rounded-2xl p-6 bg-white/70 shadow-md">
+  <h2 className="text-2xl font-semibold mb-6 text-indigo-700">
+    Steps to Stay Secure Online
+  </h2>
+  <ul className="grid md:grid-cols-2 gap-5">
+    {tips.map((tip, index) => (
+      <li
+        key={index}
+        className="bg-white shadow-md hover:shadow-lg p-4 rounded-xl border-l-4 border-indigo-500 hover:border-pink-500 
+                   transition-all duration-300 cursor-pointer hover:bg-gray-100"
+        onClick={() => window.open(tip.link, "_blank")}
+      >
+        <span className="font-medium text-gray-800">
+          ✅ {tip.text}
+        </span>
+      </li>
+    ))}
+  </ul>
+</section>
 
-        <section className="mb-14 max-w-md mx-auto bg-white/80 backdrop-blur-lg p-6 rounded-2xl shadow-md text-center">
+
+
+        {/* Account Breach Checker */}
+        <section className="mb-14 border rounded-2xl p-6 bg-white/80 shadow-md text-center">
           <h2 className="text-2xl font-semibold mb-4 text-purple-700">
             Check if Your Account Has Been Breached
           </h2>
           <p className="mb-4 text-gray-700">
-            Visit the official Have I Been Pwned website to see if your email or account has been involved in a data breach.
+            Visit the official Have I Been Pwned website to see if your email or
+            account has been involved in a data breach.
           </p>
           <button
-            onClick={() => window.open("https://www.haveibeenpwned.com/", "_blank")}
+            onClick={() =>
+              window.open("https://www.haveibeenpwned.com/", "_blank")
+            }
             className="bg-purple-500 text-white px-6 py-3 rounded hover:bg-purple-600 transition-colors"
           >
             Go to Have I Been Pwned
           </button>
         </section>
 
-        {/* ✅ Recent Attacks Auto Rotating */}
-        <section className="mb-14">
+        {/* Recent Cyber Attacks */}
+        <section className="mb-14 border rounded-2xl p-6 bg-gradient-to-r from-red-100 to-rose-200 shadow-md">
           <h2 className="text-2xl font-semibold mb-6 text-rose-700">
             Recent Cyber Attacks
           </h2>
@@ -199,7 +215,7 @@ const [prevRoute, setPrevRoute] = useState("/homePageAfterLogin"); // default ro
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="bg-gradient-to-r from-red-100 to-rose-200 p-6 rounded-2xl shadow-lg max-w-3xl mx-auto"
+            className="bg-white/80 p-6 rounded-xl shadow-md"
           >
             <h3 className="text-lg font-bold text-red-900 mb-1">
               {mockRecentAttacks[current].title}
@@ -219,12 +235,11 @@ const [prevRoute, setPrevRoute] = useState("/homePageAfterLogin"); // default ro
           </motion.div>
         </section>
 
-        {/* ✅ Medium Articles Auto-Scroll */}
-        <section>
+        {/* Medium Articles */}
+        <section className="border rounded-2xl p-6 bg-white/70 shadow-md">
           <h2 className="text-2xl font-semibold mb-6 text-green-700">
             Latest Medium Articles
           </h2>
-
           <div className="overflow-hidden">
             <motion.div
               className="flex gap-6"
@@ -239,7 +254,7 @@ const [prevRoute, setPrevRoute] = useState("/homePageAfterLogin"); // default ro
                 (article, index) => (
                   <div
                     key={index}
-                    className="min-w-[320px] bg-white/80 backdrop-blur-lg rounded-2xl shadow-md hover:shadow-xl p-6 transition-all duration-300"
+                    className="min-w-[320px] bg-white rounded-xl shadow-md hover:shadow-xl p-6 transition-all duration-300"
                   >
                     <h3 className="font-bold text-lg text-green-800">
                       {article.title}
@@ -259,12 +274,12 @@ const [prevRoute, setPrevRoute] = useState("/homePageAfterLogin"); // default ro
               )}
             </motion.div>
           </div>
-
           <p className="text-gray-500 text-sm mt-3 text-center">
             📰 Articles auto-scroll continuously
           </p>
         </section>
       </main>
+
       <Footer />
     </div>
   );
