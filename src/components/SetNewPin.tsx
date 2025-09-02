@@ -267,7 +267,8 @@ export const SetNewPin: React.FC = () => {
 
         setIsLoading(true);
         setError('');
-        // Add your API call to set the new PIN here
+        setSuccess('');
+        handleSubmit(e);
       }}
       className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
       disabled={isLoading || !email}

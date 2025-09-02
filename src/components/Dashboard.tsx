@@ -13,6 +13,8 @@ import {
 } from "../components/ui/dialog";
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit, Trash2 } from 'lucide-react';
+import { set } from 'mongoose';
+import { reload } from 'firebase/auth';
 
 interface PasswordEntry {
   _id: string;
@@ -78,51 +80,56 @@ export const Dashboard: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [prevRoute, setPrevRoute] = useState("/homePageAfterLogin"); // default route
-
   const [paymentChecked, setPaymentChecked] = useState(false);
   const [hasPaid, setHasPaid] = useState<boolean>(false); // 🚨 Payment status
   const [showPayModal, setShowPayModal] = useState(false);
 const [reverifyPinError, setReverifyPinError] = useState('');
-
-
+const [showTrialModal, setShowTrialModal] = useState(false);
+const [trialMessage, setTrialMessage] = useState("");
+const [trialActive, setTrialActive] = useState(false);
+const [showOnlyPayModal, setShowOnlyPayModal] = useState(false);
+const [isTrialExpired, setTrialExpired] = useState(false);
+const [trialAcknowledged, setTrialAcknowledged] = useState(false);
 const location = useLocation();
 
 
   const navigate = useNavigate();
 
   const handleReverifyPinSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/auth/verify-pin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}` // optional for this route if not required
-        },
-        body: JSON.stringify({
-          email: user?.email,    // ✅ Ensure email is included
-          pin: reverifyPinInput  // ✅ PIN input
-        })
-      });
+  e.preventDefault();
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch('/api/auth/verify-pin', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        email: user?.email,
+        pin: reverifyPinInput
+      })
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (data.token) {
-        // ✅ PIN verified
-        setIsReverified(true);
-        setShowReverifyPinModal(false);
-        setPinError(false); // reset error state
-        setReverifyPinInput("");
-      } else {
-        // ❌ PIN incorrect
-        setPinError(true);
-      }
-    } catch (error) {
-      console.error("Error verifying PIN:", error);
+    if (data.token) {
+      setIsReverified(true);
+      setShowReverifyPinModal(false);
+      setPinError(false);
+      setReverifyPinInput("");
+
+      // ✅ Load passwords after successful PIN verification
+      await loadPasswords(Date.now());
+    } else {
       setPinError(true);
     }
-  };
+  } catch (error) {
+    console.error("Error verifying PIN:", error);
+    setPinError(true);
+  }
+};
+
 
 
   // Form state
@@ -143,40 +150,21 @@ const location = useLocation();
   });
 
 
-  useEffect(() => {
-    let isMounted = true;
+// FRONTEND: Dashboard.tsx (Core Fixes)
 
-    const initialize = async () => {
-      try {
-        const paid = await checkPaymentStatus(); // ✅ async payment check
+useEffect(() => {
+  let isMounted = true;
 
-        if (!isMounted) return;
+  const initialize = async () => {
+    if (!isMounted) return;
 
-        if (paid) {
-          setHasPaid(true);
-          setShowPayModal(false);
-          setPaymentChecked(true);
-          // Load passwords without page reload
-await loadPasswords(Date.now());
-        } else {
-          setHasPaid(false);
-          setShowPayModal(true);
-          setPaymentChecked(true);
-        }
-      } catch (err) {
-        console.error("Initialization error:", err);
-        if (isMounted) {
-          setHasPaid(false);
-          setShowPayModal(true);
-          setPaymentChecked(true);
-        }
-      }
-    };
+    await checkPaymentStatus();
+  };
 
-    initialize();
+  initialize();
 
-    return () => { isMounted = false; };
-  }, [location.pathname]);
+  return () => { isMounted = false; };
+}, [location.pathname]);
 
 
 const validateReverifyPin = (e: React.FormEvent) => {
@@ -199,63 +187,161 @@ const validateReverifyPin = (e: React.FormEvent) => {
   // ----------------------------
   // Load passwords
   // ----------------------------
-  const loadPasswords = async (cacheBuster?: number) => {
-    try {
-      setIsLoading(true);
-const data = await apiService.getPasswords(cacheBuster);
-      console.log('Passwords from backend:', data);
-      setPasswords(data);
-      setShowReverifyPinModal(true); // only for paid users
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load passwords');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+const loadPasswords = async (cacheBuster?: number) => {
+  try {
+    setIsLoading(true);
+    const data = await apiService.getPasswords(cacheBuster);
+    setPasswords(data);
+
+    // Decide modal based on backend states
+    if (hasPaid || (trialActive && trialAcknowledged)) {
+      // setShowReverifyPinModal(true);
+      setShowPayModal(false);
+    } else if (!hasPaid && trialActive && !trialAcknowledged) {
+      // setShowTrialModal(true);
+      setShowPayModal(false);
+    // } else {
+    //   setShowReverifyPinModal(false);
+    //   setShowPayModal(true);
+    // }
+}
+
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Failed to load passwords');
+    setShowReverifyPinModal(false);
+    setShowPayModal(true);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   // ----------------------------
   // Payment check
   // ----------------------------
-  const checkPaymentStatus = async (): Promise<boolean> => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) throw new Error('User not authenticated');
 
-      const response = await fetch('/api/auth/check-payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
 
-      if (!response.ok) {
-        console.warn("Payment check failed with status:", response.status);
-        setHasPaid(false);
-        setShowPayModal(true);
-        return false;
-      }
 
-      const data = await response.json();
-      const paid = !!data.hasPaid;
 
-      setHasPaid(paid);
-      setShowPayModal(!paid);
 
-      // ✅ Store in localStorage for persistence
-      if (paid) localStorage.setItem('hasPaid', 'true');
-      else localStorage.removeItem('hasPaid');
+ const checkPaymentStatus = async (): Promise<void> => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) throw new Error('User not authenticated');
 
-      return paid;
-    } catch (err) {
-      console.error('Payment check failed:', err);
-      setHasPaid(false);
-      setShowPayModal(true);
-      return false;
-    } finally {
-      setPaymentChecked(true);
+    const response = await fetch('/api/auth/check-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    });
+
+    if (!response.ok) throw new Error('Failed to check payment status');
+    const data = await response.json();
+
+    // Update states from backend
+    setHasPaid(data.hasPaid);
+    setTrialActive(data.isTrialActive);
+    setTrialExpired(data.isTrialExpired);
+
+    // Reset all modals first
+    setShowPayModal(false);
+    setShowOnlyPayModal(false);
+    setShowTrialModal(false);
+    setShowReverifyPinModal(false);
+
+    // --- Modal Flow ---
+    // 1. New user (not started trial, not paid)
+    if (!data.hasPaid && !data.isTrialActive && !data.isTrialExpired) {
+      setShowPayModal(true); // Pay modal with trial button
+      return;
     }
-  };
+
+    // 2. In trial (trial started but unpaid)
+    if (!data.hasPaid && data.isTrialActive && !data.isTrialExpired) {
+       if (!isReverified) {
+        setShowReverifyPinModal(true); // After acknowledgment, show PIN modal if not reverified
+      }
+      return;
+    }
+
+    // 3. Trial expired, unpaid
+    if (!data.hasPaid && !data.isTrialActive && data.isTrialExpired) {
+      setShowOnlyPayModal(true); // Pay modal, no trial button
+      return;
+    }
+
+    // 4. Trial expired, paid OR 5. Paid but no trial (rare but valid)
+    if (data.hasPaid) {
+      if (!isReverified) {
+        setShowReverifyPinModal(true); // Paid users must reverify PIN if not done
+      }
+      // else: full access, no modal
+      return;
+    }
+
+    // Fallback: show pay modal
+    setShowPayModal(true);
+
+  } catch (err) {
+    console.error('Error checking payment status:', err);
+    setHasPaid(false);
+    setShowPayModal(true);
+    setShowOnlyPayModal(false);
+    setShowTrialModal(false);
+    setShowReverifyPinModal(false);
+  } finally {
+    setPaymentChecked(true);
+  }
+};
+
+  const handleStartTrial = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) throw new Error('User not authenticated');
+
+    const response = await fetch('/api/auth/start-trial/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Failed to start trial');
+
+    // Persist trial state
+    setTrialActive(true);
+    localStorage.setItem('trialActive', 'true');
+
+    // Show trial modal for acknowledgment
+    setTrialMessage('Your trial has started! You have 7 days to explore.');
+    if(!trialAcknowledged) {
+      setShowTrialModal(true);
+    }
+    setShowOnlyPayModal(false);
+    setShowReverifyPinModal(false);
+    setTrialAcknowledged(false); // user has not clicked OK yet
+
+  } catch (error) {
+    console.error('Error starting trial:', error);
+
+    setTrialMessage('Failed to start the trial. Please try again.');
+    // setShowTrialModal(true);
+  }
+};
+
+// ----------------------------
+// Trial modal OK handler
+// ----------------------------
+const handleTrialModalOk = () => {
+  setTrialAcknowledged(true);    // User acknowledged trial
+  setShowTrialModal(false);
+  setShowPayModal(false);
+  setShowOnlyPayModal(false);
+  setShowReverifyPinModal(true); // Show PIN modal for trial users
+  // Call checkPaymentStatus after state update
+  setTimeout(() => checkPaymentStatus(), 0);
+};
 
   // ----------------------------
   // Handle Pay Now
@@ -313,6 +399,7 @@ const data = await apiService.getPasswords(cacheBuster);
               setHasPaid(true);
               setShowPayModal(false);
               localStorage.setItem('hasPaid', 'true');
+              checkPaymentStatus();
               window.location.href = '/dashboard'; // ✅ full reload
             } else {
               setError(result.message || 'Payment verification failed.');
@@ -348,62 +435,126 @@ const data = await apiService.getPasswords(cacheBuster);
     );
   }
 
+if (showOnlyPayModal) {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 relative animate-fadeIn">
+        {/* Close Button */}
+        <button
+          onClick={() => navigate(-1)}
+          className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 transition"
+        >
+          ✕
+        </button>
+
+        {/* Header */}
+        <div className="text-center">
+          <h2 className="text-3xl font-bold text-gray-900">Subscription Required</h2>
+          <p className="text-lg text-gray-600 mt-2">
+            Your trial period has expired. Upgrade now to continue using all features.
+          </p>
+        </div>
+
+        {/* Amount Card */}
+        <div className="mt-8 bg-gray-50 border rounded-xl p-5 flex justify-between items-center">
+          <div>
+            <p className="text-lg font-semibold text-gray-800">Total</p>
+            <p className="text-sm text-gray-500">Monthly Subscription</p>
+          </div>
+          <p className="text-3xl font-extrabold text-green-600">₹100</p>
+        </div>
+
+        {/* Pay Button Only */}
+        <div className="flex flex-col gap-4 mt-8">
+          <button
+            onClick={handlePayNow}
+            className="w-full px-6 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-lg shadow-md transition"
+          >
+            Proceed to Pay
+          </button>
+        </div>
+
+        {/* Security Note */}
+        <div className="text-center mt-6 text-sm text-gray-500">
+          🔒 Secure checkout powered by our payment gateway.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+if(showTrialModal) {
+  return (
+  <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
+    <div className="bg-white rounded-2xl shadow-lg p-6 max-w-md w-full text-center animate-fadeIn">
+      <h2 className="text-xl font-semibold mb-2">Free Trial</h2>
+      <p className="text-gray-700">{trialMessage || "Loading..."}</p>
+
+<button
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              onClick={handleTrialModalOk}
+            >
+              OK
+            </button>
+
+    </div>
+  </div>
+)}
+
+
+
   if (showPayModal) {
     return (
-      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-        <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">💳 Upgrade Required</h2>
-          <p className="text-gray-600 mb-6">
-            This feature is available only for paid users. Please purchase to get full access.
-          </p>
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 relative animate-fadeIn">
+          {/* Close Button */}
+          <button
+            onClick={() => navigate(-1)}
+            className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 transition"
+          >
+            ✕
+          </button>
 
-          {/* Payment Form */}
-          <div className="space-y-3 mb-6 text-left">
-            <input
-              type="text"
-              placeholder="Full Name"
-              value={paymentFormData.name}
-              onChange={(e) => setPaymentFormData(prev => ({ ...prev, name: e.target.value }))}
-              className="border rounded-md p-2 w-full"
-            />
-            <input
-              type="email"
-              placeholder="Email"
-              value={paymentFormData.email}
-              onChange={(e) => setPaymentFormData(prev => ({ ...prev, email: e.target.value }))}
-              className="border rounded-md p-2 w-full"
-            />
-            <input
-              type="tel"
-              placeholder="Contact Number"
-              value={paymentFormData.contact}
-              onChange={(e) => setPaymentFormData(prev => ({ ...prev, contact: e.target.value }))}
-              className="border rounded-md p-2 w-full"
-            />
-            <input
-              type="number"
-              disabled
-              placeholder="Amount (INR)"
-              value={paymentFormData.amount}
-              className="border rounded-md p-2 w-full"
-            />
+          {/* Header */}
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-gray-900">Upgrade to Premium</h2>
+            <p className="text-lg text-gray-600 mt-2">
+              Get unlimited access to all premium features.
+            </p>
           </div>
 
-          <div className="flex justify-center gap-4">
-            <Button onClick={() => navigate(-1)} className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">
-              Go Back
-            </Button>
-            {!hasPaid && (
-              <Button onClick={handlePayNow} className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg shadow-md">
-                Pay Now
-              </Button>
-            )}
-            {hasPaid && <p className="text-green-600">Payment Completed ✅</p>}
+          {/* Amount Card */}
+          <div className="mt-8 bg-gray-50 border rounded-xl p-5 flex justify-between items-center">
+            <div>
+              <p className="text-lg font-semibold text-gray-800">Total</p>
+              <p className="text-sm text-gray-500">Monthly Subscription</p>
+            </div>
+            <p className="text-3xl font-extrabold text-green-600">₹100</p>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 mt-8">
+            <button
+              onClick={handlePayNow}
+              className="w-full px-6 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-lg shadow-md transition"
+            >
+              Proceed to Pay
+            </button>
+            <button
+              onClick={handleStartTrial}
+              className="w-full px-6 py-3 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold text-lg shadow-md transition"
+            >
+              Start Free Trial (7 Days)
+            </button>
+          </div>
+
+          {/* Security Note */}
+          <div className="text-center mt-6 text-sm text-gray-500">
+            🔒 Secure checkout powered by our payment gateway.
           </div>
         </div>
       </div>
-    );
-  }
+    )}
 
 
   <Dialog open={!!error} onOpenChange={() => setError(error)}>

@@ -16,6 +16,7 @@ import bcrypt from 'bcrypt';
 import PasswordChangeEvent from '../models/PasswordChangeEvent.model.js';
 import { getPasswordStrength } from '../models/User.ts';
 import Razorpay from "razorpay";
+import Trial from "../models/Trial.js";
 
 import sendResetEmail from '../emailService.js' ;
 dotenv.config({
@@ -721,32 +722,82 @@ authRouter.post("/payment-success", authenticateToken, async (req, res) => {
 });
 
 // ----------------- CHECK PAYMENT -----------------
+// ==========================
+// CHECK PAYMENT STATUS
+// ==========================
 authRouter.post("/check-payment", authenticateToken, async (req, res) => {
   try {
-    // Ensure user is authenticated
-    if (!req.user || !req.user._id) {
-      console.warn("check-payment: req.user missing or invalid");
+    const userId = req.user?._id;
+    if (!userId) {
       return res.status(401).json({ hasPaid: false, message: "Unauthorized" });
     }
 
-    // Fetch user from DB using the ID you stored
-const user = await User.findById(req.user._id).select("hasPaid");
+    const user = await User.findById(userId).select("hasPaid plan");
     if (!user) {
-      console.warn(`check-payment: User not found for ID ${req.user._id}`);
       return res.status(404).json({ hasPaid: false, message: "User not found" });
     }
 
-    // Return payment status
-    res.json({ hasPaid: user.hasPaid });
+    const trial = await Trial.findOne({ userId }).sort({ endDate: -1 });
+    const now = new Date();
+
+    let isTrialActive = false;
+    let isTrialExpired = false;
+    let trialEndDate = null;
+
+    if (trial) {
+      trialEndDate = trial.endDate;
+      if (now <= new Date(trial.endDate)) {
+        isTrialActive = true;
+      } else {
+        isTrialExpired = true;
+      }
+    }
+
+    return res.status(200).json({
+      hasPaid: !!user.hasPaid,
+      plan: user.plan || "free",
+      isTrialActive,
+      isTrialExpired,
+      trialEndDate,
+    });
   } catch (err) {
     console.error("check-payment error:", err);
     res.status(500).json({ hasPaid: false, message: "Internal server error" });
   }
-  console.trace;
 });
 
+// ==========================
+// START TRIAL
+// ==========================
+authRouter.post("/start-trial", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
+    const user = await User.findById(userId).select("hasPaid");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (user.hasPaid) return res.status(400).json({ message: "Paid users cannot start a trial." });
 
+    const activeTrial = await Trial.findOne({ userId, endDate: { $gte: new Date() } });
+    if (activeTrial) return res.status(400).json({ message: "Active trial already exists" });
 
+    const startDate = new Date();
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 7);
+
+    const newTrial = await Trial.create({ userId, startDate, endDate });
+    await User.findByIdAndUpdate(userId, { plan: "trial" });
+
+    return res.status(200).json({
+      message: "Trial started successfully",
+      trialActive: true,
+      startDate,
+      endDate,
+    });
+  } catch (err) {
+    console.error("start-trial error:", err);
+    res.status(500).json({ message: "Failed to start trial" });
+  }
+});
 
 export default authRouter;
