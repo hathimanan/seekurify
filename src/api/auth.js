@@ -19,6 +19,10 @@ import Razorpay from "razorpay";
 import Trial from "../models/Trial.js";
 import requestIp from 'request-ip';
 
+import axios from 'axios';            // ← you reference axios but never imported
+import { pushAlert } from '../realtime/socketHub.js';
+
+
 import sendResetEmail from '../emailService.js' ;
 dotenv.config({
   path:
@@ -29,7 +33,7 @@ dotenv.config({
       : '.env.development',
 });
 const OAuth2 = google.auth.OAuth2;
-
+const app = express();
 const authRouter = express.Router();
 // const userPasswords = new Map();
 const secretKeyOTP = process.env.secretKeyOTP ?? 'otp_secret_key';
@@ -103,51 +107,61 @@ const loginLimiter = rateLimit({
   message: { error: 'Too many login attempts. Please try again later.' },
 
 handler: async (req, res, next, options) => {
+  try {
+    const clientIp = requestIp.getClientIp(req) || req.headers['x-real-ip'] || req.ip;
+    const userAgent = req.get('User-Agent');
+    const targetEmail = req.body?.email || process.env.ADMIN_EMAIL;
+
+    let ipDetails = {};
     try {
-      // 1️⃣ Extract IP considering proxy headers
-      const clientIp = requestIp.getClientIp(req) || req.headers['x-real-ip'] || req.ip;
-      const userAgent = req.get('User-Agent');
-      const targetEmail = req.body?.email || process.env.ADMIN_EMAIL;
-
-      // 2️⃣ Check if the IP belongs to a VPN/Proxy/Hosting provider
-      let ipDetails = {};
-      try {
-        const response = await axios.get(`https://ipinfo.io/${clientIp}/json`);
-        ipDetails = response.data;
-      } catch (err) {
-        console.error('IP Lookup failed:', err.message);
-      }
-
-      const isSuspicious =
-        ipDetails.org?.toLowerCase().includes('vpn') ||
-        ipDetails.org?.toLowerCase().includes('hosting') ||
-        ipDetails.org?.toLowerCase().includes('cloud');
-
-      // 3️⃣ Log suspicious attempts to DB
-      await LoginEvent.create({
-        userId: null,
-        success: false,
-        ipAddress: clientIp,
-        userAgent,
-        timestamp: new Date(),
-        reason: isSuspicious
-          ? 'Rate limit hit from suspected VPN/Proxy'
-          : 'Rate limit hit',
-        geoLocation: ipDetails.city
-          ? `${ipDetails.city}, ${ipDetails.region}, ${ipDetails.country}`
-          : 'Unknown',
-      });
-
-      // 4️⃣ Send real-time alerts
-      await sendSuspiciousLoginEmail(clientIp, targetEmail, ipDetails);
-
-      // 5️⃣ Respond with rate limit message
-      res.status(options.statusCode).json(options.message);
+      const response = await axios.get(`https://ipinfo.io/${clientIp}/json`);
+      ipDetails = response.data;
     } catch (err) {
-      console.error('Login limiter handler error:', err);
-      res.status(500).json({ error: 'Internal Server Error' });
+      console.error('IP Lookup failed:', err.message);
     }
-  },
+
+    const isSuspicious =
+      ipDetails.org?.toLowerCase().includes('vpn') ||
+      ipDetails.org?.toLowerCase().includes('hosting') ||
+      ipDetails.org?.toLowerCase().includes('cloud');
+
+    await LoginEvent.create({
+      userId: null,
+      success: false,
+      ipAddress: clientIp,
+      userAgent,
+      timestamp: new Date(),
+      reason: isSuspicious ? 'Rate limit hit from suspected VPN/Proxy' : 'Rate limit hit',
+      geoLocation: ipDetails.city
+        ? `${ipDetails.city}, ${ipDetails.region}, ${ipDetails.country}`
+        : 'Unknown',
+    });
+
+    // 🔔 Email to account email (if provided) or admin
+    await sendSuspiciousLoginEmail(clientIp, targetEmail);
+
+    // 🔔 Optional: if the email belongs to a user who is currently logged in, push a realtime alert
+    if (req.body?.email) {
+      const victim = await User.findOne({ email: req.body.email }).select('_id');
+      if (victim?._id) {
+        pushAlert(String(victim._id), "suspiciousLogin", {
+          type: "rate_limited",
+          ip: clientIp,
+          org: ipDetails?.org || "Unknown",
+          location: ipDetails?.city ? `${ipDetails.city}, ${ipDetails.region}, ${ipDetails.country}` : "Unknown",
+          userAgent,
+          at: new Date().toISOString(),
+          message: "Multiple rapid login attempts detected (possible VPN/Proxy).",
+        });
+      }
+    }
+
+    return res.status(options.statusCode).json(options.message);
+  } catch (err) {
+    console.error('Login limiter handler error:', err);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+},
 });
 
 
@@ -169,7 +183,8 @@ function authenticateToken(req, res, next) {
 authRouter.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
 
-  const ipAddress = req.ip || req.connection.remoteAddress;
+  const ipAddress = requestIp.getClientIp(req) || req.ip || req.connection.remoteAddress;
+    app.set('trust proxy', 1);
   const userAgent = req.get('User-Agent');
 
   if (!email || !password) {
@@ -215,8 +230,34 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
         timestamp: new Date(),
       });
 
+
+      const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const recentFails = await LoginEvent.countDocuments({
+        userId: user._id,
+        success: false,
+        timestamp: { $gte: fiveMinAgo },
+        ipAddress,
+      });
+
+      if (recentFails >= 3) {
+        pushAlert(String(user._id), "suspiciousLogin", {
+          type: "bruteforce",
+          ip: ipAddress,
+          userAgent,
+          at: new Date().toISOString(),
+          message: `Multiple failed password attempts from ${ipAddress}.`,
+          count: recentFails
+        });
+        // Optional: also email
+        sendSuspiciousLoginEmail(ipAddress, user.email).catch(()=>{});
+      }
+
       return res.status(401).json({ field: 'email', error: 'Invalid password' });
     }
+
+
+
+     
 
     // ✅ Log successful login
     await LoginEvent.create({
@@ -226,6 +267,25 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
       userAgent,
       timestamp: new Date(),
     });
+
+
+     const isNewIp = user.lastIp && user.lastIp !== ipAddress;
+    const isNewUa = user.lastUa && user.lastUa !== userAgent;
+    if (isNewIp || isNewUa) {
+      pushAlert(String(user._id), "suspiciousLogin", {
+        type: "anomalous_session",
+        ip: ipAddress,
+        userAgent,
+        at: new Date().toISOString(),
+        message: `Sign-in from a new ${isNewIp ? "IP" : ""}${isNewIp && isNewUa ? " & " : ""}${isNewUa ? "device" : ""}.`,
+      });
+      // Optional: email as well
+      sendSuspiciousLoginEmail(ipAddress, user.email).catch(()=>{});
+    }
+
+    user.lastIp = ipAddress;
+    user.lastUa = userAgent;
+    await user.save();
 
     const payload = {
       id: user._id,
@@ -651,7 +711,7 @@ authRouter.post('/update-pin', async (req, res) => {
   }
 });
 
-authRouter.get('/profile', async (req, res) => {
+authRouter.get('/profile', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id; 
     const user = await User.findById(userId).select('-password'); // exclude password

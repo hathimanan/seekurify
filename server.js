@@ -6,6 +6,8 @@ import express from 'express';
 import session from 'express-session';
 import cors from 'cors';
 import helmet from 'helmet';
+import http from 'http';
+import { initSocket } from './src/realtime/socketHub.js';
 
 // --- Paths for __dirname in ES modules ---
 const __filename = fileURLToPath(import.meta.url);
@@ -47,16 +49,16 @@ const devCsp = {
   useDefaults: true,
   directives: {
     "default-src": ["'self'"],
-    "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-    "style-src": ["'self'", "'unsafe-inline'"],
-    "img-src": ["'self'", "data:", "blob:"],
-    "font-src": ["'self'", "data:"],
-    "connect-src": ["'self'", "ws:", "wss:"],
+    "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", "http://localhost:5173"],
+    "style-src": ["'self'", "'unsafe-inline'", "http://localhost:5173"],
+    "img-src": ["'self'", "data:", "blob:", "http://localhost:5173"],
+    "connect-src": ["'self'", "ws:", "wss:", "http://localhost:5173"],
     "frame-ancestors": ["'none'"],
     "object-src": ["'none'"],
     "base-uri": ["'self'"]
   }
 };
+
 
 
 const prodCsp = {
@@ -94,19 +96,19 @@ if (PROD) {
 }
 
 
-app.use(
-  helmet({
-    contentSecurityPolicy: {
-      useDefaults: true,
-      directives: {
-        defaultSrc: ["'self'"],
-        imgSrc: ["'self'", "data:", "http://localhost:5000"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-      },
-    },
-  })
-);
+// app.use(
+//   helmet({
+//     contentSecurityPolicy: {
+//       useDefaults: true,
+//       directives: {
+//         defaultSrc: ["'self'"],
+//         imgSrc: ["'self'", "data:", "http://localhost:5000"],
+//         scriptSrc: ["'self'", "'unsafe-inline'"],
+//         styleSrc: ["'self'", "'unsafe-inline'"],
+//       },
+//     },
+//   })
+// );
 
 
 // --- Trust proxy for secure cookies & HSTS ---
@@ -166,8 +168,13 @@ app.get(/^\/(?!api).*/, (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+const server = http.createServer(app);
+initSocket(server, { allowedOrigins });
+
+
+
 // --- Start server ---
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT} in ${NODE_ENV} mode`);
 });
 
