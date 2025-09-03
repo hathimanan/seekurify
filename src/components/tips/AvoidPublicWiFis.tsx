@@ -28,35 +28,70 @@ const AvoidPublicWiFi: React.FC = () => {
           className="w-full max-w-3xl bg-white rounded-2xl shadow-lg p-8 md:p-10"
         >
           {/* Back Button */}
-          <button
+          {/* <button
             onClick={() => navigate(-1)}
             className="flex items-center gap-2 text-sm text-gray-600 hover:text-orange-600 mb-4 transition"
           >
             <ArrowLeft size={18} /> Back
-          </button>
+          </button> */}
 
-          {/* Title */}
-          <h1 className="text-3xl md:text-4xl font-extrabold text-orange-600 mb-6 leading-tight">
-            Avoid Accessing Sensitive Information Over Public Wi-Fi
-          </h1>
+        {/* Title */}
+<h1 className="text-3xl md:text-4xl font-extrabold text-orange-600 mb-6 leading-tight">
+  Avoid Accessing Sensitive Information Over Public Wi-Fi
+</h1>
 
-          {/* Description */}
-          <p className="text-gray-700 text-lg leading-relaxed mb-6">
-            Public Wi-Fi networks are often <span className="font-semibold">unsecured</span>, making it easier for hackers to intercept your data. 
-            Using them for sensitive tasks like <span className="font-semibold">online banking</span> or 
-            <span className="font-semibold"> shopping</span> is highly risky.
-          </p>
+{/* Description */}
+<p className="text-gray-700 text-lg leading-relaxed mb-6">
+  Public Wi-Fi networks — like those in coffee shops, airports, libraries, or hotels — are often 
+  <span className="font-semibold"> unsecured</span>, meaning that anyone on the same network could potentially 
+  monitor your online activity. Hackers can perform <span className="font-semibold">man-in-the-middle (MITM) attacks</span> 
+  to intercept your data, putting sensitive information such as <span className="font-semibold">bank details, login credentials, 
+  and personal files</span> at serious risk. Always think twice before entering sensitive data over a public connection.
+</p>
 
-          {/* Subheading */}
-          <h2 className="text-2xl font-semibold text-gray-800 mb-4">Secure Practices</h2>
+{/* Subheading */}
+<h2 className="text-2xl font-semibold text-gray-800 mb-4">Secure Practices</h2>
 
-          {/* List of Tips */}
-          <ul className="list-disc pl-6 space-y-3 text-gray-700">
-            <li className="hover:text-orange-600 transition">Use a VPN when connected to public Wi-Fi.</li>
-            <li className="hover:text-orange-600 transition">Avoid logging into bank accounts or making online payments.</li>
-            <li className="hover:text-orange-600 transition">Disable file sharing and Bluetooth when not needed.</li>
-            <li className="hover:text-orange-600 transition">Use mobile data for sensitive activities instead of public Wi-Fi.</li>
-          </ul>
+{/* Expanded Tips List */}
+<ul className="list-disc pl-6 space-y-3 text-gray-700">
+  <li className="hover:text-orange-600 transition">
+    <span className="font-semibold">Use a VPN (Virtual Private Network)</span> to encrypt your traffic. 
+    This ensures that even if someone intercepts your connection, your data remains unreadable.
+  </li>
+  <li className="hover:text-orange-600 transition">
+    <span className="font-semibold">Avoid logging into sensitive accounts</span> such as 
+    banking, payment gateways, or confidential email accounts unless you're on a secure, private network.
+  </li>
+  <li className="hover:text-orange-600 transition">
+    <span className="font-semibold">Disable file sharing and Bluetooth</span> to prevent unauthorized access 
+    to your device while connected to an open network.
+  </li>
+  <li className="hover:text-orange-600 transition">
+    If possible, <span className="font-semibold">use your mobile data or a personal hotspot</span> for transactions 
+    or private communications instead of relying on public Wi-Fi.
+  </li>
+  <li className="hover:text-orange-600 transition">
+    Ensure the websites you visit use <span className="font-semibold">HTTPS</span> for secure, encrypted communication 
+    between your browser and the server.
+  </li>
+  <li className="hover:text-orange-600 transition">
+    Regularly <span className="font-semibold">update your antivirus and firewall settings</span> to defend against 
+    potential malware or phishing attempts while browsing on open networks.
+  </li>
+  <li className="hover:text-orange-600 transition">
+    Turn on <span className="font-semibold">two-factor authentication (2FA)</span> for all accounts to add an extra 
+    security layer even if your credentials are compromised.
+  </li>
+</ul>
+
+{/* Additional Info */}
+<div className="mt-6 p-4 bg-orange-50 border-l-4 border-orange-500 rounded-lg">
+  <p className="text-gray-800 text-base leading-relaxed">
+    <span className="font-semibold">Pro Tip:</span> Always "forget" the public network after use. 
+    This prevents your device from auto-connecting in the future without your knowledge, reducing 
+    the chances of unauthorized access.
+  </p>
+</div>
         </motion.div>
       </main>
 

@@ -28,48 +28,76 @@ const AvoidSuspiciousLinks: React.FC = () => {
           className="w-full max-w-3xl bg-white rounded-2xl shadow-lg p-8 md:p-10"
         >
           {/* Back Button */}
-          <button
+          {/* <button
             onClick={() => navigate(-1)}
             className="flex items-center gap-2 text-sm text-gray-600 hover:text-red-600 mb-4 transition"
           >
             <ArrowLeft size={18} /> Back
-          </button>
+          </button> */}
 
           {/* Title */}
-          <h1 className="text-3xl md:text-4xl font-extrabold text-red-600 mb-6 leading-tight">
-            Avoid Clicking on Suspicious Links or Attachments
-          </h1>
+<h1 className="text-3xl md:text-4xl font-extrabold text-red-600 mb-6 leading-tight">
+  Avoid Clicking on Suspicious Links or Attachments
+</h1>
 
-          {/* Description */}
-          <p className="text-gray-700 text-lg leading-relaxed mb-6">
-            Suspicious links and attachments are one of the most common entry points for 
-            <span className="font-semibold"> phishing</span> and 
-            <span className="font-semibold"> malware attacks</span>. 
-            Clicking on them can lead to <span className="font-semibold">data theft</span>, 
-            <span className="font-semibold"> malware installation</span>, or 
-            <span className="font-semibold"> financial fraud</span>.
-          </p>
+{/* Description */}
+<p className="text-gray-700 text-lg leading-relaxed mb-6">
+  Suspicious links and attachments are one of the most common gateways for 
+  <span className="font-semibold"> phishing</span> scams, 
+  <span className="font-semibold"> malware infections</span>, and 
+  <span className="font-semibold"> ransomware attacks</span>. 
+  Cybercriminals often disguise these malicious links to look legitimate, tricking users into clicking and unknowingly 
+  exposing their systems to threats. One careless click can result in 
+  <span className="font-semibold"> data breaches</span>, 
+  <span className="font-semibold"> identity theft</span>, or even 
+  <span className="font-semibold"> financial losses</span>.
+</p>
 
-          {/* Subheading */}
-          <h2 className="text-2xl font-semibold text-gray-800 mb-4">How to Stay Safe</h2>
+{/* Subheading */}
+<h2 className="text-2xl font-semibold text-gray-800 mb-4">
+  How to Stay Safe
+</h2>
 
-          {/* List of Tips */}
-          <ul className="list-disc pl-6 space-y-3 text-gray-700">
-            <li className="hover:text-red-600 transition">
-              Always check the sender's email address before clicking links.
-            </li>
-            <li className="hover:text-red-600 transition">
-              Hover over links to preview their URL before opening them.
-            </li>
-            <li className="hover:text-red-600 transition">
-              Never download attachments from unknown or untrusted sources.
-            </li>
-            <li className="hover:text-red-600 transition">
-              Use email filters and antivirus tools for added protection.
-            </li>
-          </ul>
-        </motion.div>
-      </main>
+{/* List of Tips */}
+<ul className="list-disc pl-6 space-y-3 text-gray-700">
+  <li className="hover:text-red-600 transition">
+    <strong>Verify the sender:</strong> Always double-check the sender’s email address or phone number. 
+    Cyber attackers often use addresses that look similar to trusted sources.
+  </li>
+  <li className="hover:text-red-600 transition">
+    <strong>Hover before you click:</strong> Place your cursor over links to preview the actual URL. 
+    If it looks suspicious or doesn’t match the context of the message, do not click it.
+  </li>
+  <li className="hover:text-red-600 transition">
+    <strong>Never download from untrusted sources:</strong> Attachments from unknown senders 
+    or unexpected emails can contain viruses or spyware. When in doubt, delete the message.
+  </li>
+  <li className="hover:text-red-600 transition">
+    <strong>Use security tools:</strong> Enable spam filters, email security tools, and antivirus programs 
+    to detect and block malicious links and attachments before they reach you.
+  </li>
+  <li className="hover:text-red-600 transition">
+    <strong>Look for red flags:</strong> Poor grammar, urgent language, or unexpected requests for personal 
+    information often indicate a phishing attempt.
+  </li>
+  <li className="hover:text-red-600 transition">
+    <strong>Report suspicious content:</strong> If you receive a suspicious email or message, 
+    report it to your IT or security team immediately to prevent others from falling victim.
+  </li>
+</ul>
+
+{/* Additional Section */}
+<h2 className="text-2xl font-semibold text-gray-800 mt-6 mb-4">
+  Real-Life Example
+</h2>
+<p className="text-gray-700 text-lg leading-relaxed">
+  In 2023, a major company suffered a data breach after an employee unknowingly clicked 
+  on a fake invoice link. This single mistake exposed sensitive customer data and cost 
+  the company millions in recovery and reputation damage. Always remember: 
+  <span className="font-semibold"> one click can compromise your entire system.</span>
+</p>
+</motion.div>
+</main>
 
       {/* Footer */}
       <Footer />
