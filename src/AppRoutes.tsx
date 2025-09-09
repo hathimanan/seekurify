@@ -23,7 +23,7 @@ import NeverShareOTP from "./components/tips/NeverShareOTP";
 import VerifyWebsiteURLs from "./components/tips/VerifyWebsiteURLs";
 import AvoidPublicWifi from "./components/tips/AvoidPublicWiFis";
 import BackupYourData from "./components/tips/BackupYourData";
-
+import WarningScreen from "./components/WarningScreen";
 
 
 const AppRoutes = () => {
@@ -77,7 +77,8 @@ const AppRoutes = () => {
 
           <Route path="/reset-password" element={<ForgotPasswordForm/>} />
 
-
+        <Route path="/warning" element={<WarningScreen />} />
+        
         <Route path="/profile" element={<Profile />} />
 
         <Route path="/change-password" element={<ChangePasswordForm />} />

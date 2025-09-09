@@ -62,6 +62,18 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode }) => {
 
     try {
       const loginRes = await apiService.login({ email, password });
+
+      if (loginRes.status === "suspicious") {
+  navigate("/warning", {
+    state: {
+      email,
+      ip: loginRes.details?.ip,
+      location: loginRes.details?.location,
+      reason: loginRes.details?.reason,
+    },
+  });
+  return;
+}
       localStorage.setItem('token', loginRes.token);
 
       const otpRes = await fetch('/api/auth/send-otp', {

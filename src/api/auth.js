@@ -156,7 +156,20 @@ handler: async (req, res, next, options) => {
       }
     }
 
-    return res.status(options.statusCode).json(options.message);
+return res.status(options.statusCode).json({
+  status: "suspicious",
+  error: "Too many login attempts. Please try again later.",
+  details: {
+    ip: clientIp,
+    org: ipDetails?.org || "Unknown",
+    location: ipDetails?.city
+      ? `${ipDetails.city}, ${ipDetails.region}, ${ipDetails.country}`
+      : "Unknown",
+    reason: isSuspicious
+      ? "Rate limit hit from suspected VPN/Proxy"
+      : "Rate limit hit",
+  },
+});
   } catch (err) {
     console.error('Login limiter handler error:', err);
     return res.status(500).json({ error: 'Internal Server Error' });

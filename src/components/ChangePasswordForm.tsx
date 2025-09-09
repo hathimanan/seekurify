@@ -7,6 +7,7 @@ import { jwtDecode } from 'jwt-decode';
 import Header from './ui/Header';
 import Footer from './ui/Footer';
 import { ArrowLeft } from 'lucide-react';
+import { set } from 'mongoose';
 const ChangePasswordForm: React.FC = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -16,6 +17,11 @@ const ChangePasswordForm: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState('');
+  const [currentPasswordError, setCurrentPasswordError] = useState('');
+const [newPasswordError, setNewPasswordError] = useState('');
+const [confirmPasswordError, setConfirmPasswordError] = useState('');
+const [generalError, setGeneralError] = useState('');
+
   const [isPinVerified, setIsPinVerified] = useState(false);
   const navigate = useNavigate();
 
@@ -89,55 +95,73 @@ const handleNumericInput = (
 };
 
 
-  const handleChangePassword = async (e: React.FormEvent) => {
+const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccessMessage('');
 
-    if (newPassword !== confirmPassword) {
-      setError('New passwords do not match');
-      return;
+  // reset errors
+  setCurrentPasswordError('');
+  setNewPasswordError('');
+  setConfirmPasswordError('');
+  setGeneralError('');
+  setSuccessMessage('');
+
+  let hasError = false;
+
+  if (!currentPassword) {
+    setCurrentPasswordError('Current password cannot be empty');
+    hasError = true;
+  }
+
+  if (!newPassword) {
+    setNewPasswordError('New password cannot be empty');
+    hasError = true;
+  } else if (/^\d+$/.test(newPassword)) {
+    setNewPasswordError('Password cannot be only numbers');
+    hasError = true;
+  } else if (newPassword.length < 6) {
+    setNewPasswordError('Password must be at least 6 characters');
+    hasError = true;
+  }
+
+  if (!confirmPassword) {
+    setConfirmPasswordError('Please confirm your password');
+    hasError = true;
+  } else if (newPassword !== confirmPassword) {
+    setConfirmPasswordError('Passwords do not match');
+    hasError = true;
+  }
+
+  if (hasError) return;
+  setIsLoading(true);
+  const token = localStorage.getItem('token');
+
+  try {
+    const res = await fetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to change password');
     }
 
-    if (newPassword.length < 6) {
-      setError('New password must be at least 6 characters');
-      return;
-    }
+    setSuccessMessage(data.message || 'Password changed successfully');
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Something went wrong');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
-    const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const res = await fetch('/api/auth/change-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to change password');
-      }
-
-      setSuccessMessage(data.message || 'Password changed successfully');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-100 relative">
@@ -212,50 +236,67 @@ const handleNumericInput = (
                       </div>
                     )}
 
-                    <form onSubmit={handleChangePassword} className="space-y-6">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Current Password</label>
-                        <input
-                          type="password"
-                          value={currentPassword}
-                          onChange={(e) => setCurrentPassword(e.target.value)}
-                          className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
+                   <form onSubmit={handleChangePassword} className="space-y-6">
+  <div>
+    <label className="block text-sm font-medium mb-2">Current Password</label>
+    <input
+      type="password"
+      value={currentPassword}
+      onChange={(e) => setCurrentPassword(e.target.value)}
+      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+    />
+    {currentPasswordError && (
+      <p className="text-red-500 text-sm mt-1">{currentPasswordError}</p>
+    )}
+  </div>
 
-                      <div>
-                        <label className="block text-sm font-medium mb-2">New Password</label>
-                        <input
-                          type="password"
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                          minLength={6}
-                        />
-                      </div>
+  <div>
+    <label className="block text-sm font-medium mb-2">New Password</label>
+    <input
+      type="password"
+      value={newPassword}
+      onChange={(e) => setNewPassword(e.target.value)}
+      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+    />
+    {newPasswordError && (
+      <p className="text-red-500 text-sm mt-1">{newPasswordError}</p>
+    )}
+  </div>
 
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Confirm New Password</label>
-                        <input
-                          type="password"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                          minLength={6}
-                        />
-                      </div>
+  <div>
+    <label className="block text-sm font-medium mb-2">Confirm New Password</label>
+    <input
+      type="password"
+      value={confirmPassword}
+      onChange={(e) => setConfirmPassword(e.target.value)}
+      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+    />
+    {confirmPasswordError && (
+      <p className="text-red-500 text-sm mt-1">{confirmPasswordError}</p>
+    )}
+  </div>
 
-                      <Button
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-md font-medium text-lg"
-                      >
-                        {isLoading ? 'Changing...' : 'Change Password'}
-                      </Button>
-                    </form>
+  {generalError && (
+    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+      {generalError}
+    </div>
+  )}
+
+  {successMessage && (
+    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+      {successMessage}
+    </div>
+  )}
+
+  <Button
+    type="submit"
+    disabled={isLoading}
+    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-md font-medium text-lg"
+  >
+    {isLoading ? 'Changing...' : 'Change Password'}
+  </Button>
+</form>
+
                   </CardContent>
                 </Card>
               </div>

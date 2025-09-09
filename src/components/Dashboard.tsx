@@ -95,7 +95,7 @@ const location = useLocation();
 
   const navigate = useNavigate();
 
-  const handleReverifyPinSubmit = async (e: React.FormEvent) => {
+const handleReverifyPinSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   try {
     const token = localStorage.getItem('token');
@@ -103,15 +103,16 @@ const location = useLocation();
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         email: user?.email,
-        pin: reverifyPinInput
-      })
+        pin: reverifyPinInput,
+      }),
     });
 
     const data = await response.json();
+    console.log("PIN verify response:", data);
 
     if (data.token) {
       setIsReverified(true);
@@ -119,7 +120,13 @@ const location = useLocation();
       setPinError(false);
       setReverifyPinInput("");
 
-      // ✅ Load passwords after successful PIN verification
+      // ✅ Call handleViewPassword automatically if a password was requested
+      if (confirmId) {
+        handleViewPassword(confirmId); // reuse your existing function
+        setConfirmId(null); // reset after use
+      }
+
+      // optional: refresh full password list if needed
       await loadPasswords(Date.now());
     } else {
       setPinError(true);
@@ -129,6 +136,7 @@ const location = useLocation();
     setPinError(true);
   }
 };
+
 
 
 
@@ -675,6 +683,9 @@ await loadPasswords(Date.now());
 
 
   const handleViewPassword = (passwordId: string) => {
+
+      setConfirmId(passwordId); // store which password user wants to view
+  // setShowReverifyPinModal(true); // open PIN modal
     const freshPassword = passwords.find(p => p._id === passwordId);
     if (freshPassword) {
       setViewingPassword(freshPassword);
@@ -757,16 +768,16 @@ await loadPasswords(Date.now());
                   </div>
 
                   <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition">
-                    <button
-                      onClick={() => {
-                        handleViewPassword(password._id);
-                        setShowPassword(true);
-                      }}
-                      className="hover:text-green-300"
-                      title="View"
-                    >
-                      👁️
-                    </button>
+<button
+  onClick={() => {
+    setConfirmId(password._id);       // store which password the user wants
+    setShowReverifyPinModal(true);    // open the Reverify PIN modal
+  }}
+  className="hover:text-green-300"
+  title="View"
+>
+  👁️
+</button>
                     <button
                       onClick={() => handleEditPassword(password)}
                       className="hover:text-yellow-300"

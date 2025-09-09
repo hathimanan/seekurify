@@ -141,17 +141,17 @@ export const SecurityAwareness: React.FC = () => {
           navigate("/login");
         }}
       />
+<div className="mt-6 ml-6 mb-6">
+  <button
+    onClick={() => navigate(-1)}
+    className="flex items-center gap-2 text-white bg-gradient-to-r from-red-500 to-red-600 px-6 py-3 rounded-lg shadow-md hover:scale-105 transition-transform duration-200"
+  >
+    <ArrowLeft className="w-5 h-5" /> Back
+  </button>
+</div>
 
-      <main className="flex-grow px-6 py-6 max-w-6xl mx-auto">
-        {/* Back Button */}
-        <div className="mb-6">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-white bg-gradient-to-r from-red-500 to-red-600 px-4 py-2 rounded-lg shadow-md hover:scale-105 transition-transform duration-200"
-          >
-            <ArrowLeft className="w-5 h-5" /> Back
-          </button>
-        </div>
+
+<main className="flex-grow px-6 py-6 max-w-6xl mx-auto">
 
         {/* Page Header */}
         <header className="text-center mb-12">
