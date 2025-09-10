@@ -4,10 +4,11 @@ import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { OTPForm } from './OTPForm';
 import { ForgotPasswordForm } from './ForgotPasswordForm';
-import { apiService } from '../services/api';
 import { PINForm } from './PINForm';
 import { GoogleSignInButton } from './GoogleSignInButton';
 import { useNavigate } from 'react-router-dom';
+import { apiService, API_BASE_URL } from '../services/api';
+
 
 interface LoginFormProps {
   onToggleMode: () => void;
@@ -28,81 +29,83 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode }) => {
   const navigate = useNavigate();
 
   // Step 1: Handle Login
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setEmailError('');
-    setPasswordError('');
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError('');
+  setEmailError('');
+  setPasswordError('');
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    let hasError = false;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  let hasError = false;
 
-    if (!email.trim()) {
-      setEmailError('Email is required');
-      hasError = true;
-    } else if (!emailRegex.test(email)) {
-      setEmailError('Invalid email format');
-      hasError = true;
-    }
+  if (!email.trim()) {
+    setEmailError('Email is required');
+    hasError = true;
+  } else if (!emailRegex.test(email)) {
+    setEmailError('Invalid email format');
+    hasError = true;
+  }
 
-    if (!password.trim()) {
-      setPasswordError('Password is required');
-      hasError = true;
-    } else if (password.length < 6) {
-      setPasswordError('Password length is too small');
-      hasError = true;
-    } else if (password.length > 18) {
-      setPasswordError('Password length is too large');
-      hasError = true;
-    }
+  if (!password.trim()) {
+    setPasswordError('Password is required');
+    hasError = true;
+  } else if (password.length < 6) {
+    setPasswordError('Password length is too small');
+    hasError = true;
+  } else if (password.length > 18) {
+    setPasswordError('Password length is too large');
+    hasError = true;
+  }
 
-    if (hasError) return;
+  if (hasError) return;
 
-    setIsLoading(true);
+  setIsLoading(true);
 
-    try {
-      const loginRes = await apiService.login({ email, password });
+  try {
+    // 🔹 Step 1: Login
+    const loginRes = await apiService.login({ email, password });
 
-      if (loginRes.status === "suspicious") {
-  navigate("/warning", {
-    state: {
-      email,
-      ip: loginRes.details?.ip,
-      location: loginRes.details?.location,
-      reason: loginRes.details?.reason,
-    },
-  });
-  return;
-}
-      localStorage.setItem('token', loginRes.token);
-
-      const otpRes = await fetch('/api/auth/send-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+    if (loginRes.status === "suspicious") {
+      navigate("/warning", {
+        state: {
+          email,
+          ip: loginRes.details?.ip,
+          location: loginRes.details?.location,
+          reason: loginRes.details?.reason,
+        },
       });
-
-      const { otpToken } = await otpRes.json();
-      setOtpPayload({ email, otpToken });
-    } catch (err: any) {
-      const backend = err?.response?.data;
-
-      if (backend?.field === 'email') {
-        setEmailError(backend.error);
-      } else if (backend?.field === 'password') {
-        setPasswordError(backend.error);
-      } else {
-        const message =
-          backend?.error ||
-          backend?.message ||
-          err?.message ||
-          'Login failed.';
-        setError(message);
-      }
-    } finally {
-      setIsLoading(false);
+      return;
     }
-  };
+
+    // Only store token if backend sends it
+    if (loginRes.token) {
+      localStorage.setItem('token', loginRes.token);
+    }
+    // 🔹 Step 2: Request OTP
+    const otpRes = await fetch(`${API_BASE_URL}/auth/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!otpRes.ok) {
+      const errorData = await otpRes.json();
+      throw new Error(errorData.error || 'Failed to send OTP.');
+    }
+
+    const { otpToken } = await otpRes.json();
+    setOtpPayload({ email, otpToken });
+
+  } catch (err: any) {
+    const message =
+      err?.message ||
+      'Login failed. Please try again.';
+    setError(message);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   useEffect(() => {
     if (success) {

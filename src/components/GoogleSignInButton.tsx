@@ -3,6 +3,8 @@ import React from 'react';
 import { Button } from './ui/button';
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { app } from '../firebaseConfig';
+import { API_BASE_URL } from '../services/api';
+
 
 interface GoogleSignInButtonProps {
   onSuccess: () => void; // callback from parent to handle redirect

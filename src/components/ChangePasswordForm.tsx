@@ -8,6 +8,8 @@ import Header from './ui/Header';
 import Footer from './ui/Footer';
 import { ArrowLeft } from 'lucide-react';
 import { set } from 'mongoose';
+import { API_BASE_URL } from '../services/api';
+
 const ChangePasswordForm: React.FC = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');

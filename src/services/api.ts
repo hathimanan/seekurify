@@ -2,9 +2,10 @@ import { get } from "http";
 import { authService } from './authService';
 import LoginEventSchema from '../models/LoginEvent.model.js';
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '/api' 
-  : 'http://localhost:5173/api';
+export const API_BASE_URL =
+  process.env.NODE_ENV === 'production'
+    ? '/api' // ✅ in production, API is usually proxied under the same domain
+    : 'http://localhost:5000/api'; // 👈 replace 5000 with your backend port
 
 interface LoginCredentials {
   email: string;
@@ -77,7 +78,6 @@ async onverifyOtp(email: string, otp: string, otpToken: string) {
   return await response.json(); // { success: true }
 }
 
-
 async verifyPin(email: string, pin: string) {
   const response = await fetch(`${API_BASE_URL}/auth/verify-pin`, {
     method: 'POST',
@@ -85,18 +85,19 @@ async verifyPin(email: string, pin: string) {
     body: JSON.stringify({ email, pin }),
   });
 
+  const data = await response.json(); // parse **once**
+
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Invalid PIN');
+    throw new Error(data.error || 'Invalid PIN');
   }
 
-  const data = await response.json();
   if (data.token) {
     localStorage.setItem('token', data.token);
   }
 
   return data;
 }
+
 
 
   async signup(credentials: SignupCredentials) {

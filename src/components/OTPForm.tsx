@@ -124,8 +124,10 @@ export const OTPForm: React.FC<OTPFormProps> = ({ email, otpToken, onBack, onSuc
               {otp.map((digit, index) => (
                 <input
                   key={index}
-                  ref={(el) => (inputRefs.current[index] = el)}
-                  type="text"
+                  ref={(el) => {
+                    inputRefs.current[index] = el;
+                  }}
+                                    type="text"
                   value={digit}
                   onChange={(e) => handleInputChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}

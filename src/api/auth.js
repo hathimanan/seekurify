@@ -195,9 +195,7 @@ function authenticateToken(req, res, next) {
 
 authRouter.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
-
-  const ipAddress = requestIp.getClientIp(req) || req.ip || req.connection.remoteAddress;
-    app.set('trust proxy', 1);
+  const ipAddress = requestIp.getClientIp(req) || req.ip;
   const userAgent = req.get('User-Agent');
 
   if (!email || !password) {
@@ -208,41 +206,16 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
     return res.status(400).json({ field: 'email', error: 'Invalid email format' });
   }
 
-  if (password.length < 6) {
-    return res.status(400).json({ field: 'email', error: 'Password length is too small' });
-  }
-
-  if (password.length > 18) {
-    return res.status(400).json({ field: 'email', error: 'Password length is too large' });
-  }
-
   try {
     const user = await User.findOne({ email });
-
     if (!user) {
-      // Log failed attempt: user not found
-      await LoginEvent.create({
-        userId: null,
-        success: false,
-        ipAddress,
-        userAgent,
-        timestamp: new Date(),
-      });
-
-      return res.status(401).json({ field: 'email', error: 'Incorrect email' });
+      await LoginEvent.create({ userId: null, success: false, ipAddress, userAgent, timestamp: new Date() });
+      return res.status(401).json({ field: 'email', error: 'Incorrect email or password' });
     }
 
-    const isPasswordValid = await bcryptjs.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      // Log failed attempt: wrong password
-      await LoginEvent.create({
-        userId: user._id,
-        success: false,
-        ipAddress,
-        userAgent,
-        timestamp: new Date(),
-      });
-
+      await LoginEvent.create({ userId: user._id, success: false, ipAddress, userAgent, timestamp: new Date() });
 
       const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
       const recentFails = await LoginEvent.countDocuments({
@@ -252,7 +225,7 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
         ipAddress,
       });
 
-      if (recentFails >= 3) {
+      if (recentFails >= 3 && typeof pushAlert === "function") {
         pushAlert(String(user._id), "suspiciousLogin", {
           type: "bruteforce",
           ip: ipAddress,
@@ -261,30 +234,18 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
           message: `Multiple failed password attempts from ${ipAddress}.`,
           count: recentFails
         });
-        // Optional: also email
-        sendSuspiciousLoginEmail(ipAddress, user.email).catch(()=>{});
+        sendSuspiciousLoginEmail?.(ipAddress, user.email).catch(()=>{});
       }
 
-      return res.status(401).json({ field: 'email', error: 'Invalid password' });
+      return res.status(401).json({ field: 'password', error: 'Incorrect email or password' });
     }
 
+    // Successful login
+    await LoginEvent.create({ userId: user._id, success: true, ipAddress, userAgent, timestamp: new Date() });
 
-
-     
-
-    // ✅ Log successful login
-    await LoginEvent.create({
-      userId: user._id,
-      success: true,
-      ipAddress,
-      userAgent,
-      timestamp: new Date(),
-    });
-
-
-     const isNewIp = user.lastIp && user.lastIp !== ipAddress;
+    const isNewIp = user.lastIp && user.lastIp !== ipAddress;
     const isNewUa = user.lastUa && user.lastUa !== userAgent;
-    if (isNewIp || isNewUa) {
+    if ((isNewIp || isNewUa) && typeof pushAlert === "function") {
       pushAlert(String(user._id), "suspiciousLogin", {
         type: "anomalous_session",
         ip: ipAddress,
@@ -292,24 +253,15 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
         at: new Date().toISOString(),
         message: `Sign-in from a new ${isNewIp ? "IP" : ""}${isNewIp && isNewUa ? " & " : ""}${isNewUa ? "device" : ""}.`,
       });
-      // Optional: email as well
-      sendSuspiciousLoginEmail(ipAddress, user.email).catch(()=>{});
+      sendSuspiciousLoginEmail?.(ipAddress, user.email).catch(()=>{});
     }
 
     user.lastIp = ipAddress;
     user.lastUa = userAgent;
+    user.passwordStrength = getPasswordStrength?.(req.body.password);
     await user.save();
 
-    const payload = {
-      id: user._id,
-      email: user.email,
-      pin: user.pin,
-    };
-user.passwordStrength = getPasswordStrength(req.body.password);
-    await user.save(); // optional if not updating anything
-
-    return res.json({ message: 'Login successful. Proceed to OTP.', user: payload });
-
+    return res.json({ message: 'Login successful. Proceed to OTP.', user: { id: user._id, email: user.email } });
   } catch (err) {
     console.error('Error during login:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -513,9 +465,7 @@ authRouter.post('/verify-otp', async (req, res) => {
 
 
 
-
 authRouter.post('/verify-pin', async (req, res) => {
-
   const { email, pin } = req.body;
 
   if (!email || !pin || typeof pin !== 'string' || pin.length !== 4) {
@@ -526,8 +476,7 @@ authRouter.post('/verify-pin', async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ error: 'User not found' });
 
-    const storedPin = user.pin;
-
+    const storedPin = user.pin; // assume hashed PIN
 
     const isValidPin = await bcryptjs.compare(pin, storedPin);
     if (!isValidPin) return res.status(400).json({ error: 'Invalid PIN' });
@@ -540,7 +489,7 @@ authRouter.post('/verify-pin', async (req, res) => {
 
     return res.json({ token });
   } catch (err) {
-    console.error('❌ Error verifying PIN:', err.message);
+    console.error('❌ Error verifying PIN:', err instanceof Error ? err.message : err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

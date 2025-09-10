@@ -1,20 +1,19 @@
 import react from "@vitejs/plugin-react";
-import tailwind from "tailwindcss";
 import { defineConfig } from "vite";
 
-// https://vite.dev/config/
+// https://vitejs.dev/config/
 export default defineConfig({
-    server: {
+  server: {
     proxy: {
-      '/api': 'http://localhost:5000',  // Proxy to backend server
+      "/api": {
+        target: "http://localhost:5000", // backend server
+        changeOrigin: true,              // handles CORS & virtual hosted sites
+        secure: false,                   // allow self-signed SSL if needed
+        rewrite: (path) => path.replace(/^\/api/, ""), // strip /api if backend doesn’t use it
+      },
     },
   },
   plugins: [react()],
-  base: "./",
-  css: {
-    postcss: {
-      plugins: [tailwind(),],
-    },
-  },
+  base: "/", // use "/" unless deploying under a subfolder
 });
 

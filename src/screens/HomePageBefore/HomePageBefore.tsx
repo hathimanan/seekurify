@@ -24,7 +24,9 @@ export const HomePageBefore = (): JSX.Element => {
   }
 
   return (
+    
     <div
+    
       className="min-h-screen flex flex-col justify-between text-black relative bg-black"
       style={{ backgroundImage: `url(${heroBackground})`, backgroundSize: "cover", backgroundPosition: "center" }}
     >

@@ -5,6 +5,8 @@ import { apiService } from '../services/api';
 import { Button } from './ui/button';
 import Header from "../components/ui/Header";
 import Footer from "../components/ui/Footer";
+import { API_BASE_URL } from '../services/api';
+
 import {
   Dialog,
   DialogContent,
@@ -99,7 +101,7 @@ const handleReverifyPinSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch('/api/auth/verify-pin', {
+    const response = await fetch(`${API_BASE_URL}/auth/verify-pin`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -237,7 +239,7 @@ const loadPasswords = async (cacheBuster?: number) => {
     const token = localStorage.getItem('token');
     if (!token) throw new Error('User not authenticated');
 
-    const response = await fetch('/api/auth/check-payment', {
+    const response = await fetch(`${API_BASE_URL}/auth/check-payment`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     });
@@ -306,7 +308,7 @@ const loadPasswords = async (cacheBuster?: number) => {
     const token = localStorage.getItem('token');
     if (!token) throw new Error('User not authenticated');
 
-    const response = await fetch('/api/auth/start-trial/', {
+    const response = await fetch(`${API_BASE_URL}/auth/start-trial/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -364,7 +366,7 @@ const handleTrialModalOk = () => {
       const token = localStorage.getItem('token');
       if (!token) throw new Error('User not authenticated');
 
-      const orderResponse = await fetch('/api/auth/create-order', {
+      const orderResponse = await fetch(`${API_BASE_URL}/auth/create-order`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -393,7 +395,7 @@ const handleTrialModalOk = () => {
         theme: { color: '#0f172a' },
         handler: async (response: any) => {
           try {
-            const res = await fetch('/api/auth/payment-success', {
+            const res = await fetch(`${API_BASE_URL}/auth/payment-success`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
