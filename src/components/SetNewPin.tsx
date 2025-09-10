@@ -4,6 +4,7 @@ import { jwtDecode } from 'jwt-decode';
 import { ArrowLeft } from 'lucide-react';
 import Header from './ui/Header';
 import Footer from './ui/Footer';
+import { API_BASE_URL } from '../services/api';
 
 
 interface DecodedToken {
@@ -91,7 +92,7 @@ export const SetNewPin: React.FC = () => {
 
 
       setIsLoading(true);
-      const res = await fetch('/api/auth/update-pin', {
+      const res = await fetch(`${API_BASE_URL}/auth/update-pin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, newPin }),
@@ -187,7 +188,7 @@ export const SetNewPin: React.FC = () => {
             setError('');
             try {
               const token = localStorage.getItem('token');
-              const res = await fetch('/api/auth/verify-pin', {
+              const res = await fetch(`${API_BASE_URL}/auth/verify-pin`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',

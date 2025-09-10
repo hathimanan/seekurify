@@ -65,7 +65,7 @@ const handleVerifyPin = async (e: React.FormEvent) => {
   }
 
   try {
-    const res = await fetch('/api/auth/verify-pin', {
+    const res = await fetch(`${API_BASE_URL}/auth/verify-pin`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -138,7 +138,7 @@ const handleChangePassword = async (e: React.FormEvent) => {
   const token = localStorage.getItem('token');
 
   try {
-    const res = await fetch('/api/auth/change-password', {
+    const res = await fetch(`${API_BASE_URL}/auth/change-password`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

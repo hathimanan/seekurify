@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import Header from "../components/ui/Header";
 import Footer from "../components/ui/Footer";
 import { ArrowLeft } from "lucide-react";
+import { API_BASE_URL } from '../services/api';
 
 interface EventData {
   date: string;
@@ -22,7 +23,7 @@ const SystemEventsPage: React.FC = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const res = await fetch("/api/siem-dashboard", {
+        const res = await fetch(`${API_BASE_URL}/siem-dashboard`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
