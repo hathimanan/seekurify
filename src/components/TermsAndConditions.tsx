@@ -3,19 +3,36 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import Header from "../components/ui/Header";
 import Footer from "../components/ui/Footer";
+import { API_BASE_URL } from '../services/api';
+
 
 const TermsAndConditions: React.FC = () => {
   const navigate = useNavigate();
+
+const handleLogout = async () => {
+  try {
+    // Call backend to clear cookies (if using httpOnly or session cookies)
+    await fetch(`${API_BASE_URL}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include', // important to include cookies
+    });
+  } catch (err) {
+    console.error('Failed to call logout endpoint', err);
+  } finally {
+    // Remove token from localStorage
+    localStorage.removeItem('token');
+    // Redirect to login
+    navigate('/login');
+  }
+};
+
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 to-purple-100 flex flex-col">
       {/* Header */}
       <Header
         token={localStorage.getItem("token") || ""}
-        handleLogout={() => {
-          localStorage.removeItem("token");
-          navigate("/login");
-        }}
+        handleLogout={handleLogout}
       />
 <div className="w-full max-w-lg mb-6 ml-4 sm:ml-6 mt-4 sm:mt-6">
           <button

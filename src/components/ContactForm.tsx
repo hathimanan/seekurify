@@ -5,6 +5,7 @@ import Header from "./ui/Header";
 import Footer from "./ui/Footer";
 import { ArrowLeft } from "lucide-react";
 import { API_BASE_URL } from '../services/api';
+import { useEffect } from "react";
 
 interface FormData {
   name: string;
@@ -12,6 +13,13 @@ interface FormData {
   subject: string;
   message: string;
 }
+
+interface HeaderProps { 
+  token: string;
+  handleLogout: () => void;
+  profileImage?: string; // ✅ new prop
+}
+
 
 const ContactForm: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({
@@ -23,6 +31,45 @@ const ContactForm: React.FC = () => {
   const [errors, setErrors] = useState<Partial<FormData>>({});
   const [status, setStatus] = useState<string>("");
   const navigate = useNavigate();
+  const [profileImage, setProfileImage] = useState<string>(""); // ✅ state for header
+
+
+  useEffect(() => {
+    let isMounted = true; // prevent state updates after unmount
+  
+    // Fetch profile image safely
+    const fetchProfileImage = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+  
+        const res = await fetch(`${API_BASE_URL}/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+  
+        if (!res.ok) {
+          console.error("Failed to fetch profile:", res.status, res.statusText);
+          return;
+        }
+  
+        const data = await res.json();
+        if (isMounted && data?.profileImage) {
+          setProfileImage(data.profileImage); // ✅ update state safely
+        }
+      } catch (err) {
+        console.error("Error fetching profile image:", err);
+      }
+    };
+  
+    fetchProfileImage();
+  
+    return () => {
+      isMounted = false;
+    };
+  }, []); // no token dependency needed, read it directly inside effect
+  
+
+
 
   const validate = () => {
     const newErrors: Partial<FormData> = {};
@@ -67,14 +114,29 @@ if (!formData.email.trim()) {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      // Call backend to clear cookies (if using httpOnly or session cookies)
+      await fetch(`${API_BASE_URL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include', // important to include cookies
+      });
+    } catch (err) {
+      console.error('Failed to call logout endpoint', err);
+    } finally {
+      // Remove token from localStorage
+      localStorage.removeItem('token');
+      // Redirect to login
+      navigate('/login');
+    }
+  };
+
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 to-purple-100 flex flex-col">
       <Header
         token={localStorage.getItem("token") || ""}
-        handleLogout={() => {
-          localStorage.removeItem("token");
-          navigate("/login");
-        }}
+        handleLogout={handleLogout}
+        profileImage={profileImage} // ✅ pass state
       />
 
       <div className="w-full max-w-lg mb-6 ml-4 sm:ml-6 mt-4 sm:mt-6">

@@ -13,36 +13,108 @@ export const SignupForm: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
+  const [emailError, setEmailError] = useState('');
+const [usernameError, setUsernameError] = useState('');
+const [passwordError, setPasswordError] = useState('');
+const [confirmPasswordError, setConfirmPasswordError] = useState('');
+const [passwordStrength, setPasswordStrength] = useState<'weak' | 'medium' | 'strong' | ''>('');
+
   const { signup } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccessMessage('');
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError('');
+  setSuccessMessage('');
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
+  let hasError = false;
+
+  // Email validation
+  if (!email.trim()) {
+    setEmailError('Email is required');
+    hasError = true;
+  } else {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError('Enter a valid email address');
+      hasError = true;
+    } else {
+      setEmailError('');
     }
+  }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      return;
-    }
+  // Username validation
+  if (!username.trim()) {
+    setUsernameError('Username is required');
+    hasError = true;
+  } else {
+    setUsernameError('');
+  }
 
-    setIsLoading(true);
+  // Password validation
+  if (!password.trim()) {
+    setPasswordError('Password is required');
+    hasError = true;
+  } else if (password.length < 8 || password.length > 16) {
+    setPasswordError('Password must be 8–16 characters long');
+    hasError = true;
+  } else if (!/[A-Z]/.test(password)) {
+    setPasswordError('Password must contain at least one uppercase letter');
+    hasError = true;
+  } else if (!/[a-z]/.test(password)) {
+    setPasswordError('Password must contain at least one lowercase letter');
+    hasError = true;
+  } else if (!/[0-9]/.test(password)) {
+    setPasswordError('Password must contain at least one number');
+    hasError = true;
+  } else if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    setPasswordError('Password must contain at least one symbol');
+    hasError = true;
+  } else {
+    setPasswordError('');
+  }
 
-    try {
-      await signup(email, username, password);
-      setSuccessMessage(`A verification email has been sent to ${email}`);
-      setTimeout(() => window.close(), 3000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Signup failed');
-    }
+  // Confirm password validation
+  if (!confirmPassword.trim()) {
+    setConfirmPasswordError('Confirm Password is required');
+    hasError = true;
+  } else if (confirmPassword !== password) {
+    setConfirmPasswordError('Passwords do not match');
+    hasError = true;
+  } else {
+    setConfirmPasswordError('');
+  }
 
-    setIsLoading(false);
-  };
+  if (hasError) return; // stop submission if any field fails
+
+  setIsLoading(true);
+
+  try {
+    await signup(email, username, password);
+    setSuccessMessage(`A verification email has been sent to ${email}`);
+    setTimeout(() => window.close(), 3000);
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Signup failed');
+  }
+
+  setIsLoading(false);
+};
+
+
+const checkPasswordStrength = (pwd: string) => {
+  if (!pwd) return '';
+  if (pwd.length < 8) return 'weak';
+
+  const hasNumbers = /\d/.test(pwd);
+  const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(pwd);
+  const hasUpper = /[A-Z]/.test(pwd);
+
+  if (pwd.length >= 12 && hasNumbers && hasSpecial && hasUpper) {
+    return 'strong';
+  }
+  return 'medium';
+};
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-50 p-4">
@@ -75,14 +147,15 @@ export const SignupForm: React.FC = () => {
                 Email
               </label>
               <input
-                type="email"
+                type="text"
                 id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your@example.com"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200"
-                required
+                
               />
+                {emailError && <p className="text-red-500 text-sm mt-1">{emailError}</p>}
             </div>
 
             {/* Username */}
@@ -100,8 +173,10 @@ export const SignupForm: React.FC = () => {
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter your username"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200"
-                required
+                
               />
+
+                {usernameError && <p className="text-red-500 text-sm mt-1">{usernameError}</p>}
             </div>
 
             {/* Password */}
@@ -116,11 +191,29 @@ export const SignupForm: React.FC = () => {
                 type="password"
                 id="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value);
+                  setPasswordStrength(checkPasswordStrength(e.target.value));}}
                 placeholder="At least 6 characters"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200"
-                required
+                
               />
+                {passwordError && <p className="text-red-500 text-sm mt-1">{passwordError}</p>}
+
+                  {password && (
+    <div className="mt-2 h-2 w-full bg-gray-200 rounded">
+      <div
+        className={`h-2 rounded ${
+          passwordStrength === 'weak'
+            ? 'bg-red-500 w-1/3'
+            : passwordStrength === 'medium'
+            ? 'bg-yellow-400 w-2/3'
+            : passwordStrength === 'strong'
+            ? 'bg-green-500 w-full'
+            : ''
+        }`}
+      ></div>
+    </div>
+  )}
             </div>
 
             {/* Confirm Password */}
@@ -138,8 +231,9 @@ export const SignupForm: React.FC = () => {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Repeat your password"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200"
-                required
+                
               />
+                {confirmPasswordError && <p className="text-red-500 text-sm mt-1">{confirmPasswordError}</p>}
             </div>
 
             <Button

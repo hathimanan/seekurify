@@ -12,6 +12,12 @@ interface EventData {
   value: number;
 }
 
+interface HeaderProps {
+  token: string;
+  handleLogout: () => void;
+  profileImage?: string; // ✅ new prop
+}
+
 const SystemEventsPage: React.FC = () => {
   const navigate = useNavigate();
   const [loginEvents, setLoginEvents] = useState<EventData[]>([]);
@@ -19,33 +25,38 @@ const SystemEventsPage: React.FC = () => {
   const [suspiciousLogins, setSuspiciousLogins] = useState<EventData[]>([]);
   const [passwordHealth, setPasswordHealth] = useState<EventData[]>([]);
     const [prevRoute, setPrevRoute] = useState("/homePageAfterLogin"); // default route
-
+const [profileImage, setProfileImage] = useState<string>(""); // ✅ state for header
   useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const res = await fetch(`${API_BASE_URL}/siem-dashboard`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
-        const data = await res.json();
+  let isMounted = true;
 
+  const fetchEventsAndProfile = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      // Fetch SIEM events
+      const resEvents = await fetch(`${API_BASE_URL}/siem-dashboard`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const dataEvents = await resEvents.json();
+
+      if (isMounted) {
         setLoginEvents(
-          (data.loginEvents || []).map((event: any) => ({
+          (dataEvents.loginEvents || []).map((event: any) => ({
             date: String(event.date),
             value: Number(event.count ?? 0),
           }))
         );
 
         setPasswordChanges(
-          (data.passwordChanges || []).map((event: any) => ({
+          (dataEvents.passwordChanges || []).map((event: any) => ({
             date: String(event.date),
             value: Number(event.count ?? 0),
           }))
         );
 
         setSuspiciousLogins(
-          (data.suspiciousLogins || []).map((event: any) => {
+          (dataEvents.suspiciousLogins || []).map((event: any) => {
             const start = new Date(event.intervalStart);
             const label = start.toLocaleTimeString([], {
               hour: "2-digit",
@@ -56,18 +67,53 @@ const SystemEventsPage: React.FC = () => {
         );
 
         setPasswordHealth(
-          (data.passwordHealth || []).map((entry: any) => ({
+          (dataEvents.passwordHealth || []).map((entry: any) => ({
             date: String(entry.category),
             value: Number(entry.count ?? 0),
           }))
         );
-      } catch (err) {
-        console.error("Failed to load event data", err);
       }
-    };
 
-    fetchEvents();
-  }, []);
+      // Fetch profile image
+      const resProfile = await fetch(`${API_BASE_URL}/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!resProfile.ok) throw new Error("Failed to fetch profile");
+      const dataProfile = await resProfile.json();
+
+      if (isMounted && dataProfile?.profileImage) {
+        setProfileImage(dataProfile.profileImage); // ✅ update state safely
+      }
+    } catch (err) {
+      console.error("Failed to load SIEM dashboard or profile", err);
+    }
+  };
+
+  fetchEventsAndProfile();
+
+  return () => {
+    isMounted = false;
+  };
+}, []);
+
+
+
+const handleLogout = async () => {
+  try {
+    // Call backend to clear cookies (if using httpOnly or session cookies)
+    await fetch(`${API_BASE_URL}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include', // important to include cookies
+    });
+  } catch (err) {
+    console.error('Failed to call logout endpoint', err);
+  } finally {
+    // Remove token from localStorage
+    localStorage.removeItem('token');
+    // Redirect to login
+    navigate('/login');
+  }
+};
 
 return (
   <div className="bg-gradient-to-br from-gray-900 via-black to-gray-800 min-h-screen flex flex-col text-white">
@@ -75,10 +121,8 @@ return (
     {/* Header */}
     <Header
       token={localStorage.getItem("token") || ""}
-      handleLogout={() => {
-        localStorage.removeItem("token");
-        navigate("/login");
-      }}
+      handleLogout={handleLogout}
+      profileImage={profileImage} // ✅ pass state
     />
 
     {/* Main Content */}

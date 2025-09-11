@@ -857,4 +857,12 @@ authRouter.post("/start-trial", authenticateToken, async (req, res) => {
   }
 });
 
+
+authRouter.post('/logout', (req, res) => {
+  // Clear cookies
+  res.clearCookie('token'); // name of your cookie
+  res.status(200).json({ message: 'Logged out successfully' });
+});
+
+
 export default authRouter;

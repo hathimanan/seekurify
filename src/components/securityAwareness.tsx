@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import Header from "../components/ui/Header";
 import Footer from "../components/ui/Footer";
 import { ArrowLeft } from "lucide-react";
-
+import { API_BASE_URL } from '../services/api';
 interface Attack {
   title: string;
   date: string;
@@ -17,6 +17,13 @@ interface MediumArticle {
   date: string;
   description: string;
   link: string;
+}
+
+
+interface HeaderProps {
+  token: string;
+  handleLogout: () => void;
+  profileImage?: string; // ✅ new prop
 }
 
 // Update tips to include links
@@ -124,22 +131,72 @@ export const SecurityAwareness: React.FC = () => {
   const [current, setCurrent] = useState(0);
   const navigate = useNavigate();
   const carouselRef = useRef<HTMLDivElement>(null);
+const [profileImage, setProfileImage] = useState<string>(""); // ✅ state for header
+const token = localStorage.getItem('token');
+useEffect(() => {
+  let isMounted = true; // prevent state updates after unmount
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrent((prev) => (prev + 1) % mockRecentAttacks.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
+  // Interval for rotating attacks
+  const interval = setInterval(() => {
+    setCurrent((prev) => (prev + 1) % mockRecentAttacks.length);
+  }, 4000);
+
+  // Fetch profile image safely
+  const fetchProfileImage = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        console.error("Failed to fetch profile:", res.status, res.statusText);
+        return;
+      }
+
+      const data = await res.json();
+      if (isMounted && data?.profileImage) {
+        setProfileImage(data.profileImage); // ✅ update state safely
+      }
+    } catch (err) {
+      console.error("Error fetching profile image:", err);
+    }
+  };
+
+  fetchProfileImage();
+
+  return () => {
+    clearInterval(interval);
+    isMounted = false;
+  };
+}, []); // no token dependency needed, read it directly inside effect
+
+
+const handleLogout = async () => {
+  try {
+    // Call backend to clear cookies (if using httpOnly or session cookies)
+    await fetch(`${API_BASE_URL}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include', // important to include cookies
+    });
+  } catch (err) {
+    console.error('Failed to call logout endpoint', err);
+  } finally {
+    // Remove token from localStorage
+    localStorage.removeItem('token');
+    // Redirect to login
+    navigate('/login');
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-pink-100 flex flex-col">
       <Header
         token={localStorage.getItem("token") || ""}
-        handleLogout={() => {
-          localStorage.removeItem("token");
-          navigate("/login");
-        }}
+        handleLogout={handleLogout}
+        profileImage={profileImage} // ✅ pass state
       />
 <div className="mt-6 ml-6 mb-6">
   <button

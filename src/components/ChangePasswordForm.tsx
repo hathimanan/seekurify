@@ -164,16 +164,30 @@ const handleChangePassword = async (e: React.FormEvent) => {
   }
 };
 
+const handleLogout = async () => {
+  try {
+    // Call backend to clear cookies (if using httpOnly or session cookies)
+    await fetch(`${API_BASE_URL}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include', // important to include cookies
+    });
+  } catch (err) {
+    console.error('Failed to call logout endpoint', err);
+  } finally {
+    // Remove token from localStorage
+    localStorage.removeItem('token');
+    // Redirect to login
+    navigate('/login');
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gray-100 relative">
       {/* Back Button */}
       <Header
         token={localStorage.getItem("token") || ""}
-        handleLogout={() => {
-          localStorage.removeItem("token");
-          navigate("/login");
-        }}
+        handleLogout={handleLogout}
       />
 
       <main className="flex-grow p-6 bg-gradient-to-br from-indigo-50 to-blue-100 rounded-lg">

@@ -30,6 +30,11 @@ interface PasswordEntry {
   // for payment
 }
 
+interface HeaderProps { 
+  token: string;
+  handleLogout: () => void;
+  profileImage?: string; // ✅ new prop
+}
 
 interface PaymentEntry {
   name?: string | '';
@@ -93,7 +98,7 @@ const [showOnlyPayModal, setShowOnlyPayModal] = useState(false);
 const [isTrialExpired, setTrialExpired] = useState(false);
 const [trialAcknowledged, setTrialAcknowledged] = useState(false);
 const location = useLocation();
-
+const [profileImage, setProfileImage] = useState<string>(""); // ✅ state for header
 
   const navigate = useNavigate();
 
@@ -168,12 +173,34 @@ useEffect(() => {
   const initialize = async () => {
     if (!isMounted) return;
 
+    // ✅ 1. Check payment status
     await checkPaymentStatus();
+
+    // ✅ 2. Fetch profile image
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) throw new Error("Failed to fetch profile");
+
+      const data = await res.json();
+      if (isMounted && data.profileImage) {
+        setProfileImage(data.profileImage); // make sure you have `const [profileImage, setProfileImage] = useState<string>("");`
+      }
+    } catch (err) {
+      console.error("Failed to fetch profile image:", err);
+    }
   };
 
   initialize();
 
-  return () => { isMounted = false; };
+  return () => {
+    isMounted = false;
+  };
 }, [location.pathname]);
 
 
@@ -708,15 +735,31 @@ await loadPasswords(Date.now());
   };
 
 
+const handleLogout = async () => {
+  try {
+    // Call backend to clear cookies (if using httpOnly or session cookies)
+    await fetch(`${API_BASE_URL}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include', // important to include cookies
+    });
+  } catch (err) {
+    console.error('Failed to call logout endpoint', err);
+  } finally {
+    // Remove token from localStorage
+    localStorage.removeItem('token');
+    // Redirect to login
+    navigate('/login');
+  }
+};
 
-
-
+const token = localStorage.getItem('token');
   return (
   <div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300">
-<Header
-      token={localStorage.getItem("token") || ""}
-      handleLogout={() => { throw new Error("Function not implemented."); }}
-    />
+      <Header
+        token={token || ""}
+        handleLogout={handleLogout}
+        profileImage={profileImage} // ✅ pass state
+      />
         <main className="flex-1 px-6 py-4 md:py-6 lg:py-8">
           {/* Back Button */}
             <div className="mb-6">

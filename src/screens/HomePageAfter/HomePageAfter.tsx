@@ -1,51 +1,45 @@
 import React, { JSX, useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { apiService } from "../../services/api";
+import { API_BASE_URL, apiService } from "../../services/api";
 import { motion } from "framer-motion";
 import Header from "../../components/ui/Header";
 import Footer from "../../components/ui/Footer";
+
 // import defaultProfileIcon from "../../../src/assets/default-profile.png"; // fallback image
 
 export const HomePageAfter = (): JSX.Element => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [profileIconUrl, setProfileIconUrl] = useState<string>("");
+  const token = localStorage.getItem("token");
+
+  const [profileImage, setProfileImage] = useState<string>(""); // ✅ state for header
   const [showPinModal, setShowPinModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pinChecked, setPinChecked] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const token = localStorage.getItem("token");
 
-  useEffect(() => {
-    const fetchProfileIcon = async () => {
-      try {
-        if (user?.id) {
-          setProfileIconUrl(`/api/profile/profile-icon/${user.id}`);
-        }
-      } catch (error) {
-        console.error("Error fetching profile icon:", error);
-      }
-    };
+useEffect(() => {
+  const fetchProfileImage = async () => {
+    if (!token) return;
 
-    const checkUserPin = async () => {
-      try {
-        if (user?.email && !pinChecked) {
-          const userData = await apiService.getUserDetails(user.email);
-          // if (userData.pin === "0000") {
-          //   setShowPinModal(true);
-          // }
-          setPinChecked(true);
-        }
-      } catch (err) {
-        console.error("Failed to fetch user PIN:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProfileIcon();
-    checkUserPin();
-  }, [user, pinChecked]);
+    try {
+      const res = await fetch(`${API_BASE_URL}/profile`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) throw new Error("Failed to fetch profile");
+
+      const data = await res.json();
+      if (data.profileImage) setProfileImage(data.profileImage);
+    } catch (err) {
+      console.error("Failed to load profile image:", err);
+    }
+  };
+
+  fetchProfileImage();
+}, [token]);
 
   const handleLogout = () => {
     logout();
@@ -57,54 +51,27 @@ export const HomePageAfter = (): JSX.Element => {
     navigate(`/set-new-pin?token=${token}`);
   };
 
-  const handleCloseModal = () => {
-    setShowPinModal(false);
-  };
+  const handleCloseModal = () => setShowPinModal(false);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-xl font-semibold">
-        Loading...
-      </div>
-    );
-  }
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-xl font-semibold">Loading...</div>;
 
   return (
-    
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50">
-          <Header token={"token"} handleLogout={function (): void {
-        throw new Error("Function not implemented.");
-      } } />
-     
+      <Header
+        token={token || ""}
+        handleLogout={handleLogout}
+        profileImage={profileImage} // ✅ pass state
+      />
 
       {/* PIN Modal */}
       {showPinModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-white p-6 rounded-2xl shadow-2xl text-center max-w-sm w-full"
-          >
-            <h2 className="text-2xl font-bold mb-4 text-gray-900">
-              Set a New PIN
-            </h2>
-            <p className="text-gray-700 mb-6">
-              You are using the default PIN. For your security, please change
-              it.
-            </p>
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-6 rounded-2xl shadow-2xl text-center max-w-sm w-full">
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">Set a New PIN</h2>
+            <p className="text-gray-700 mb-6">You are using the default PIN. For your security, please change it.</p>
             <div className="flex justify-center gap-4">
-              <button
-                onClick={handleChangePin}
-                className="bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 shadow"
-              >
-                Change PIN
-              </button>
-              <button
-                onClick={handleCloseModal}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                Later
-              </button>
+              <button onClick={handleChangePin} className="bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 shadow">Change PIN</button>
+              <button onClick={handleCloseModal} className="text-gray-500 hover:text-gray-700">Later</button>
             </div>
           </motion.div>
         </div>
