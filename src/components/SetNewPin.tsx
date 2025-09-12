@@ -1,17 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { jwtDecode } from 'jwt-decode';
-import { ArrowLeft } from 'lucide-react';
-import Header from './ui/Header';
-import Footer from './ui/Footer';
-import { API_BASE_URL } from '../services/api';
-
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { jwtDecode } from "jwt-decode";
+import { ArrowLeft } from "lucide-react";
+import Header from "./ui/Header";
+import Footer from "./ui/Footer";
+import { API_BASE_URL } from "../services/api";
 
 interface DecodedToken {
   email: string;
   exp: number;
   iat: number;
-  newUser?: boolean; // <- added
+  newUser?: boolean;
 }
 
 interface UserProfile {
@@ -20,131 +19,143 @@ interface UserProfile {
   username: string;
 }
 
+interface HeaderProps {
+  token: string;
+  handleLogout: () => void;
+  profileImage?: string; // ✅ new prop
+}
+
 export const SetNewPin: React.FC = () => {
-  const [newPin, setNewPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
-  const [error, setError] = useState('');
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [email, setEmail] = useState('');
-  const [success, setSuccess] = useState('');
+  const [email, setEmail] = useState("");
+  const [success, setSuccess] = useState("");
   const [user, setUser] = useState<UserProfile | null>(null);
+
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [profileImage, setProfileImage] = useState<string>(""); // ✅ state for header
 
   const navigate = useNavigate();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
-  const token = queryParams.get('token');
-
-  const [showPinModal, setShowPinModal] = useState(false);
-  const [pinInput, setPinInput] = useState('');
-  const [isVerifying, setIsVerifying] = useState(false);
-
+  const token = queryParams.get("token");
 
   useEffect(() => {
-    if (token) {
-      const decoded = jwtDecode<DecodedToken>(token);
-      if (decoded?.email) {
-        setEmail(decoded.email);
-        if (!decoded.newUser) {
-          setShowPinModal(true);
+    const fetchUserProfile = async (decodedEmail: string) => {
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/user/profile?email=${decodedEmail}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!res.ok) {
+          throw new Error("Failed to fetch user profile");
         }
 
-      } else {
-        setError('Invalid token. Please try again.');
-        return;
+        const data = await res.json();
+        setUser(data);
+        setProfileImage(data.profileImage); // ✅ safe fallback
+      } catch (err: any) {
+        setError(err.message || "Error fetching user profile");
       }
-    }
-    else if (!token) {
-      setError('Token not found. Please check your email link.');
-      return;
-    }
+    };
 
+    if (token) {
+      try {
+        const decoded = jwtDecode<DecodedToken>(token);
 
+        if (decoded?.email) {
+          setEmail(decoded.email);
 
-    try {
-      const decoded = jwtDecode<DecodedToken>(token); // ✅ Provide type
-      const decodedEmail = decoded?.email;
+          if (!decoded.newUser) {
+            setShowPinModal(true);
+          }
 
-      if (decodedEmail) {
-        setEmail(decodedEmail);
-      } else {
-        setError('Email not found in token. Please sign up again.');
+          fetchUserProfile(decoded.email);
+        } else {
+          setError("Invalid token. Please try again.");
+        }
+      } catch (err) {
+        setError("Invalid or expired token.");
       }
-    } catch (err) {
-      setError('Invalid or expired token.');
+    } else {
+      setError("Token not found. Please check your email link.");
     }
   }, [token]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     if (newPin.length !== 4 || confirmPin.length !== 4) {
-      setError('PIN must be 4 digits');
+      setError("PIN must be 4 digits");
       return;
     }
 
     if (newPin !== confirmPin) {
-      setError('PINs do not match');
+      setError("PINs do not match");
       return;
     }
 
     try {
-
-
-
       setIsLoading(true);
       const res = await fetch(`${API_BASE_URL}/auth/update-pin`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, newPin }),
       });
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Failed to update PIN');
+        throw new Error(data.error || "Failed to update PIN");
       }
 
-      // ✅ Redirect to login after setting PIN
-      navigate('/login');
+      navigate("/login");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setIsLoading(false);
     }
   };
 
-
-  const handleNumericInput = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string) => void) => {
+  const handleNumericInput = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setter: (val: string) => void
+  ) => {
     const value = e.target.value;
-    // Allow only digits and limit to 4 characters
     if (/^\d{0,4}$/.test(value)) {
       setter(value);
     }
   };
 
-
   const handleLogout = async () => {
     try {
-      // Call backend to clear cookies (if using httpOnly or session cookies)
       await fetch(`${API_BASE_URL}/auth/logout`, {
-        method: 'POST',
-        credentials: 'include', // important to include cookies
+        method: "POST",
+        credentials: "include",
       });
     } catch (err) {
-      console.error('Failed to call logout endpoint', err);
+      console.error("Failed to call logout endpoint", err);
     } finally {
-      // Remove token from localStorage
-      localStorage.removeItem('token');
-      // Redirect to login
-      navigate('/login');
+      localStorage.removeItem("token");
+      navigate("/login");
     }
   };
-
 
   return (
     <div className="p-0">
       <Header
         token={localStorage.getItem("token") || ""}
         handleLogout={handleLogout}
+        profileImage={profileImage} // ✅ pass state
       />
 
       <main className="flex-grow p-6 bg-gradient-to-br from-indigo-50 to-blue-100 rounded-lg">
@@ -157,7 +168,7 @@ export const SetNewPin: React.FC = () => {
               <ArrowLeft className="w-5 h-5" /> Back
             </button>
           </div>
-          {/* 🔧 FIXED CLASSNAME HERE */}
+
           <div className="flex items-center justify-center">
             <form
               onSubmit={handleSubmit}
@@ -169,137 +180,102 @@ export const SetNewPin: React.FC = () => {
 
               {error && <div className="text-red-600 mb-4">{error}</div>}
 
-              {/* Modal to verify PIN */}
-              {showPinModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm">
-      <h2 className="text-lg font-semibold mb-4">Verify PIN</h2>
+              {/* ✅ PIN modal */}
+              {showPinModal ? (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                  <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm">
+                    <h2 className="text-lg font-semibold mb-4">Verify PIN</h2>
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      pattern="\d*"
+                      maxLength={4}
+                      placeholder="Enter your PIN"
+                      value={pinInput}
+                      onChange={(e) => handleNumericInput(e, setPinInput)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <div className="mt-4 flex justify-end space-x-2">
+                      <button
+                        onClick={async () => {
+                          if (pinInput.length !== 4) {
+                            setError("PIN must be 4 digits.");
+                            return;
+                          }
+                          setIsVerifying(true);
+                          try {
+                            const token = localStorage.getItem("token");
+                            const res = await fetch(
+                              `${API_BASE_URL}/auth/verify-pin`,
+                              {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                  Authorization: `Bearer ${token}`,
+                                },
+                                body: JSON.stringify({ email, pin: pinInput }),
+                              }
+                            );
+                            const data = await res.json();
+                            if (data.token) {
+                              setShowPinModal(false);
+                            } else {
+                              setError("Incorrect PIN.");
+                            }
+                          } catch {
+                            setError("Error verifying PIN.");
+                          } finally {
+                            setIsVerifying(false);
+                          }
+                        }}
+                        disabled={isVerifying}
+                        className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                      >
+                        {isVerifying ? "Verifying..." : "Verify & Proceed"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    placeholder="New PIN"
+                    className="w-full border p-2 rounded mb-4"
+                    value={newPin}
+                    onChange={(e) => handleNumericInput(e, setNewPin)}
+                    disabled={isLoading}
+                  />
 
-      {/* Verify PIN input */}
-      <input
-        type="password"
-        inputMode="numeric"
-        pattern="\d*"
-        maxLength={4}
-        placeholder="Enter your PIN"
-        value={pinInput}
-        onChange={(e) => handleNumericInput(e, setPinInput)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
-      {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    placeholder="Confirm New PIN"
+                    className="w-full border p-2 rounded mb-4"
+                    value={confirmPin}
+                    onChange={(e) => handleNumericInput(e, setConfirmPin)}
+                    disabled={isLoading}
+                  />
 
-      <div className="mt-4 flex justify-end space-x-2">
-        <button
-          onClick={async () => {
-            if (!pinInput) {
-              setError('PIN field cannot be empty.');
-              return;
-            }
-            if (pinInput.length !== 4) {
-              setError('PIN must be exactly 4 digits.');
-              return;
-            }
-
-            setIsVerifying(true);
-            setError('');
-            try {
-              const token = localStorage.getItem('token');
-              const res = await fetch(`${API_BASE_URL}/auth/verify-pin`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                  email,
-                  pin: pinInput,
-                }),
-              });
-
-              const data = await res.json();
-              if (data.token) {
-                setShowPinModal(false); // Close modal after successful verification
-              } else {
-                setError('Incorrect PIN. Please try again.');
-              }
-            } catch (err) {
-              setError('Error verifying PIN.');
-            } finally {
-              setIsVerifying(false);
-            }
-          }}
-          disabled={isVerifying}
-          className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-        >
-          {isVerifying ? 'Verifying...' : 'Verify & Proceed'}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
-{!showPinModal && (
-  <>
-    <input
-      type="password"
-      inputMode="numeric"
-      pattern="\d*"
-      maxLength={4}
-      placeholder="New PIN"
-      className="w-full border p-2 rounded mb-4"
-      value={newPin}
-      onChange={(e) => handleNumericInput(e, setNewPin)}
-      disabled={isLoading}
-    />
-
-    <input
-      type="password"
-      inputMode="numeric"
-      pattern="\d*"
-      maxLength={4}
-      placeholder="Confirm New PIN"
-      className="w-full border p-2 rounded mb-4"
-      value={confirmPin}
-      onChange={(e) => handleNumericInput(e, setConfirmPin)}
-      disabled={isLoading}
-    />
-
-    <button
-      type="submit"
-      onClick={(e) => {
-        e.preventDefault();
-
-        if (!newPin || !confirmPin) {
-          setError('Both PIN fields are required.');
-          return;
-        }
-        if (newPin.length !== 4 || confirmPin.length !== 4) {
-          setError('PIN must be exactly 4 digits.');
-          return;
-        }
-        if (newPin !== confirmPin) {
-          setError('New PIN and Confirm PIN do not match.');
-          return;
-        }
-
-        setIsLoading(true);
-        setError('');
-        setSuccess('');
-        handleSubmit(e);
-      }}
-      className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-      disabled={isLoading || !email}
-    >
-      {isLoading ? 'Updating...' : 'Set PIN'}
-    </button>
-  </>
-)}
-
+                  <button
+                    type="submit"
+                    className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+                    disabled={isLoading || !email}
+                  >
+                    {isLoading ? "Updating..." : "Set PIN"}
+                  </button>
+                </>
+              )}
             </form>
           </div>
-    </div>
+        </div>
       </main>
+
       <Footer />
     </div>
   );
-}
+};
+

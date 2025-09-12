@@ -10,6 +10,12 @@ import { ArrowLeft } from 'lucide-react';
 import { set } from 'mongoose';
 import { API_BASE_URL } from '../services/api';
 
+interface HeaderProps {
+  token: string;
+  handleLogout: () => void;
+  profileImage?: string; // ✅ new prop
+}
+
 const ChangePasswordForm: React.FC = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -25,12 +31,44 @@ const [confirmPasswordError, setConfirmPasswordError] = useState('');
 const [generalError, setGeneralError] = useState('');
 
   const [isPinVerified, setIsPinVerified] = useState(false);
+  const [profileImage, setProfileImage] = useState<string>(''); // ✅ state for header
   const navigate = useNavigate();
 
-  useEffect(() => {
-    // Show PIN modal on mount
-    setIsPinVerified(false);
-  }, []);
+useEffect(() => {
+  const fetchUserProfile = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        console.error("Token not found");
+        return;
+      }
+
+      const res = await fetch(`${API_BASE_URL}/user/profile`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to fetch user profile");
+      }
+
+      const data = await res.json();
+      if (data?.profileImage) {
+        setProfileImage(data.profileImage); // ✅ Set profileImage in state
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    }
+  };
+
+  // Show PIN modal on mount
+  setIsPinVerified(false);
+
+  // Fetch user profile on mount
+  fetchUserProfile();
+}, []);
+
 
 // Handle PIN verification
 const handleVerifyPin = async (e: React.FormEvent) => {
@@ -188,6 +226,7 @@ const handleLogout = async () => {
       <Header
         token={localStorage.getItem("token") || ""}
         handleLogout={handleLogout}
+        profileImage={profileImage} // ✅ pass state
       />
 
       <main className="flex-grow p-6 bg-gradient-to-br from-indigo-50 to-blue-100 rounded-lg">

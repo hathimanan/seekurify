@@ -24,6 +24,7 @@ import VerifyWebsiteURLs from "./components/tips/VerifyWebsiteURLs";
 import AvoidPublicWifi from "./components/tips/AvoidPublicWiFis";
 import BackupYourData from "./components/tips/BackupYourData";
 import WarningScreen from "./components/WarningScreen";
+import { FeaturesPage } from "./components/FeaturesPage";
 
 
 const AppRoutes = () => {
@@ -78,6 +79,8 @@ const AppRoutes = () => {
           <Route path="/reset-password" element={<ForgotPasswordForm/>} />
 
         <Route path="/warning" element={<WarningScreen />} />
+
+        <Route path="/features" element={<FeaturesPage />} />
         
         <Route path="/profile" element={<Profile />} />
 
