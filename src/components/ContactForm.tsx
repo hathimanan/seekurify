@@ -12,6 +12,7 @@ interface FormData {
   email: string;
   subject: string;
   message: string;
+  attachment?: File | null;
 }
 
 interface HeaderProps { 
@@ -20,19 +21,28 @@ interface HeaderProps {
   profileImage?: string; // ✅ new prop
 }
 
+interface FormErrors {
+  name?: string;
+  email?: string;
+  subject?: string;
+  message?: string;
+  attachment?: string;
+}
+
+
 
 const ContactForm: React.FC = () => {
-  const [formData, setFormData] = useState<FormData>({
-    name: "",
-    email: "",
-    subject: "",
-    message: "",
-  });
-  const [errors, setErrors] = useState<Partial<FormData>>({});
+const [formData, setFormData] = useState<FormData>({
+  name: "",
+  email: "",
+  subject: "",
+  message: "",
+  attachment: null, // ✅ initialize
+});
+  const [errors, setErrors] = useState<FormErrors>({});
   const [status, setStatus] = useState<string>("");
   const navigate = useNavigate();
   const [profileImage, setProfileImage] = useState<string>(""); // ✅ state for header
-
 
   useEffect(() => {
     let isMounted = true; // prevent state updates after unmount
@@ -71,21 +81,35 @@ const ContactForm: React.FC = () => {
 
 
 
-  const validate = () => {
-    const newErrors: Partial<FormData> = {};
+const validate = () => {
+  const newErrors: FormErrors = {};
 
-    if (!formData.name.trim()) newErrors.name = "Name is required.";
-if (!formData.email.trim()) {
+  if (!formData.name.trim()) newErrors.name = "Name is required.";
+  if (!formData.email.trim()) {
     newErrors.email = "Email is required.";
-  } else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(formData.email)) {
+  } else if (
+    !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(formData.email)
+  ) {
     newErrors.email = "Enter a valid email address (e.g., test@gmail.com).";
   }
-    if (!formData.subject.trim()) newErrors.subject = "Subject is required.";
-    if (!formData.message.trim()) newErrors.message = "Message cannot be empty.";
+  if (!formData.subject.trim()) newErrors.subject = "Subject is required.";
+  if (!formData.message.trim()) newErrors.message = "Message cannot be empty.";
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  // optional file validation (example: max 5MB, only PDF/JPG/PNG)
+  if (formData.attachment) {
+    const validTypes = ["application/pdf", "image/png", "image/jpeg"];
+    if (!validTypes.includes(formData.attachment.type)) {
+      newErrors.attachment = "Only PDF, PNG, or JPG files are allowed.";
+    }
+    if (formData.attachment.size > 5 * 1024 * 1024) {
+      newErrors.attachment = "File size must be under 5MB.";
+    }
+  }
+
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
+
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -95,24 +119,44 @@ if (!formData.email.trim()) {
     setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!validate()) return;
+const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  if (!validate()) return;
 
-    setStatus("Sending...");
-    const token = localStorage.getItem("token");
+  setStatus("Sending...");
+  const token = localStorage.getItem("token");
 
-    try {
-      const res = await axios.post("/api/contact", formData, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setStatus(res.data.message);
-      setFormData({ name: "", email: "", subject: "", message: "" });
-    } catch (err) {
-      console.error("Contact form error:", err);
-      setStatus("Error sending message.");
+  try {
+    const formDataToSend = new FormData();
+    formDataToSend.append("name", formData.name);
+    formDataToSend.append("email", formData.email);
+    formDataToSend.append("subject", formData.subject);
+    formDataToSend.append("message", formData.message);
+    if (formData.attachment) {
+      formDataToSend.append("attachment", formData.attachment);
     }
-  };
+
+    const res = await axios.post(`${API_BASE_URL}/contact`, formDataToSend, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "multipart/form-data", // ✅ required for file upload
+      },
+    });
+
+    setStatus(res.data.message);
+    setFormData({
+      name: "",
+      email: "",
+      subject: "",
+      message: "",
+      attachment: null,
+    });
+  } catch (err) {
+    console.error("Contact form error:", err);
+    setStatus("Error sending message.");
+  }
+};
+
 
   const handleLogout = async () => {
     try {
@@ -180,7 +224,7 @@ if (!formData.email.trim()) {
             ))}
 
             <div>
-              <label className="block text-sm font-semibold text-gray-600 mb-1">Message</label>
+              <label className="block text-sm font-semibold text-gray-600 mb-1">Message*</label>
               <textarea
                 name="message"
                 value={formData.message}
@@ -194,6 +238,27 @@ if (!formData.email.trim()) {
                 <p className="text-sm text-red-600 mt-1">{errors.message}</p>
               )}
             </div>
+
+<div>
+  <label className="block text-sm font-semibold text-gray-600 mb-1">Attachment</label>
+  <input
+    type="file"
+    name="attachment"
+    onChange={(e) =>
+      setFormData((prev) => ({
+        ...prev,
+        attachment: e.target.files?.[0] || null,
+      }))
+    }
+    className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 border-gray-300 focus:ring-blue-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100"
+  />
+  {errors.attachment && (
+    <p className="text-sm text-red-600 mt-1">{errors.attachment}</p>
+  )}
+</div>
+
+
+
 
             <button
               type="submit"

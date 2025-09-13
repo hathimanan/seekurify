@@ -4,6 +4,10 @@ import Contact from '../models/Contact.js'; // ✅ Ensure correct model path
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import { google } from 'googleapis';
+import multer from "multer";
+
+const upload = multer({ dest: "uploads/" }); // or use memoryStorage if you want in-memory files
+
 dotenv.config({ path: '.env.development' });
 const contactRouter = express.Router();
 const OAuth2 = google.auth.OAuth2;
@@ -19,7 +23,7 @@ oauth2Client.setCredentials({
 });
 
 
-async function sendEmail({ to, subject, text }) {
+async function sendEmail({ to, subject, text, attachments = [], formData = {} }) {
   try {
     const { token } = await oauth2Client.getAccessToken();
 
@@ -27,7 +31,7 @@ async function sendEmail({ to, subject, text }) {
       service: "gmail",
       auth: {
         type: "OAuth2",
-        user: process.env.GMAIL_USER,          // ✅ Admin account
+        user: process.env.GMAIL_USER,
         clientId: process.env.GMAIL_CLIENT_ID,
         clientSecret: process.env.GMAIL_CLIENT_SECRET,
         refreshToken: process.env.GMAIL_REFRESH_TOKEN,
@@ -35,11 +39,48 @@ async function sendEmail({ to, subject, text }) {
       },
     });
 
+    // ✅ Safe destructuring with defaults
+    const { name = "N/A", email = "N/A", subject: formSubject = "N/A", message = "" } = formData || {};
+
     const mailOptions = {
-      from: `Vaultence <${process.env.GMAIL_USER}>`, // ✅ Sender is always admin
+      from: `Vaultence <${process.env.GMAIL_USER}>`,
       to,
       subject,
-      text,
+      text, // plain-text fallback
+      html: `
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; background-color: #f9fafb; padding: 24px;">
+          <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            
+            <h2 style="color: #1e3a8a; font-size: 20px; font-weight: 700; margin-bottom: 16px;">
+              📩 New Contact Form Submission
+            </h2>
+
+            <div style="margin-bottom: 16px;">
+              <p style="margin: 4px 0; font-size: 14px; color: #374151;"><strong>Name:</strong> ${name}</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #374151;"><strong>Email:</strong> ${email}</p>
+              <p style="margin: 4px 0; font-size: 14px; color: #374151;"><strong>Subject:</strong> ${formSubject}</p>
+            </div>
+
+            <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; color: #111827; font-size: 14px; line-height: 1.5;">
+              ${(message || "").replace(/\n/g, "<br>")}
+            </div>
+
+            ${
+              attachments.length > 0
+                ? `<p style="margin-top: 16px; font-size: 14px; color: #374151;">
+                    📎 Attachment included: <em>${attachments[0].filename}</em>
+                  </p>`
+                : ""
+            }
+
+            <hr style="margin: 24px 0; border: none; border-top: 1px solid #e5e7eb;" />
+            <p style="font-size: 12px; color: #6b7280; text-align: center;">
+              Sent securely via <strong>Vaultence</strong>
+            </p>
+          </div>
+        </div>
+      `,
+      attachments,
     };
 
     const result = await transporter.sendMail(mailOptions);
@@ -47,9 +88,12 @@ async function sendEmail({ to, subject, text }) {
     return result;
   } catch (err) {
     console.error("❌ Email error:", err.message || err);
-    throw err; // Optional: propagate error to route
+    throw err;
   }
 }
+
+
+
 
 // 🔐 JWT Authentication Middleware
 function authenticateToken(req, res, next) {
@@ -76,9 +120,10 @@ function authenticateToken(req, res, next) {
 }
 
 // 📩 POST /contact - Submit a contact message (protected route)
-contactRouter.post('/contact', authenticateToken, async (req, res) => {
+contactRouter.post('/contact', authenticateToken, upload.single("attachment"), async (req, res) => {
   try {
     const { name, email, subject, message } = req.body;
+    const file = req.file; // ✅ multer gives you file info
 
     if (!name || !email || !subject || !message) {
       return res.status(400).json({ error: 'All fields are required' });
@@ -87,19 +132,28 @@ contactRouter.post('/contact', authenticateToken, async (req, res) => {
     const newMessage = new Contact({ name, email, subject, message });
     await newMessage.save();
 
-    // ✉️ Use the OAuth2 sendEmail helper
-    await sendEmail({
-      to: process.env.GMAIL_USER, // Your inbox
-      subject: `Contact Form: ${subject}`,
-      text: `
-        You have a new message from the contact form:
+    // 📎 Prepare attachment if uploaded
+    const attachments = file ? [
+      {
+        filename: file.originalname,
+        path: file.path,          // ✅ Full path from multer (e.g. ./uploads/filename.pdf)
+      }
+    ] : [];
 
-        Name: ${name}
-        Email: ${email}
-        Subject: ${subject}
-        Message: ${message}
-      `
-    });
+    // 📩 Send email with optional attachment
+   await sendEmail({
+  to: process.env.GMAIL_USER,
+  subject: `Contact Form: ${subject}`,
+  text: `New message from ${name} <${email}>: ${message}`,
+  attachments: file ? [
+    {
+      filename: file.originalname,
+      path: file.path
+    }
+  ] : [],
+  formData: { name, email, subject, message } // ✅ ensure values passed
+});
+
 
     res.status(200).json({ message: 'Message received and email sent successfully' });
   } catch (error) {
@@ -107,5 +161,7 @@ contactRouter.post('/contact', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Server error while submitting contact' });
   }
 });
+
+
 
 export default contactRouter;

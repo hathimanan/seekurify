@@ -23,7 +23,7 @@ export const FeaturesPage: FC = () => {
       icon: <Link2 className="w-10 h-10 text-green-400" />,
     },
     {
-      title: "File & Link Malware Analyzer",
+      title: "Malware Analyzer",
       description:
         "Upload files and scan for malware or viruses using reliable detection methods.",
       icon: <FileSearch className="w-10 h-10 text-red-400" />,

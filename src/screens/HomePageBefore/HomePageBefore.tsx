@@ -3,6 +3,9 @@ import { useAuth } from "../../context/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 import { HomePageAfter } from "../HomePageAfter/HomePageAfter";
 import heroBackground from "../../assets/hero-bg.png";
+import VaultIcon from "../../assets/Vaul.png";
+import { icons, Image } from "lucide-react";
+import Footer from "../../components/ui/Footer";
 
 export const HomePageBefore: FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -38,18 +41,38 @@ export const HomePageBefore: FC = () => {
       {/* Navigation - must be higher than overlay */}
       <nav className="w-full px-6 py-6 flex justify-between items-center absolute top-0 z-50">
         {/* Brand: keep as button/Link for semantic navigation */}
-        <h2
-          onClick={() => navigate("/")}
-          className="text-white font-bold text-2xl cursor-pointer hover:text-blue-400 transition-colors"
-          role="button"
-          tabIndex={0}
-          aria-label="Go to home"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") navigate("/");
-          }}
-        >
-          Vaultence
-        </h2>
+<h2
+  onClick={() => navigate("/")}
+  className="cursor-pointer flex items-center space-x-3"
+  role="button"
+  tabIndex={0}
+  aria-label="Go to home"
+  onKeyDown={(e) => {
+    if (e.key === "Enter" || e.key === " ") navigate("/");
+  }}
+>
+  {/* Minimalistic Vault Icon */}
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-10 w-10 text-blue-400"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    {/* Vault outer circle */}
+    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+    {/* Vault handle (cross handle) */}
+    <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" strokeWidth="2" />
+    <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" strokeWidth="2" />
+    {/* Optional: small inner circle to mimic hub */}
+    <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+  </svg>
+
+  {/* Brand Name */}
+  <span className="text-blue-400 font-bold text-2xl">Vaultence</span>
+</h2>
+
 
         <div className="flex gap-4">
           {/* Using type="button" prevents accidental form submit if this nav is ever inside a form */}
@@ -105,23 +128,8 @@ export const HomePageBefore: FC = () => {
           </button>
         </div>
       </div>
-
-      <footer className="relative z-40 text-gray-400 text-sm text-center py-6 border-t border-gray-700">
-        <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
-          <p>&copy; {new Date().getFullYear()} Vaultence. All rights reserved.</p>
-          <div className="flex gap-4">
-            <button type="button" onClick={() => navigate("/privacy")} className="hover:text-gray-200 transition-colors">
-              Privacy Policy
-            </button>
-            <button type="button" onClick={() => navigate("/terms")} className="hover:text-gray-200 transition-colors">
-              Terms
-            </button>
-            <button type="button" onClick={() => navigate("/contact")} className="hover:text-gray-200 transition-colors">
-              Contact
-            </button>
-          </div>
-        </div>
-      </footer>
+      {/* Footer */}
+<Footer />
     </div>
   );
 };

@@ -857,6 +857,28 @@ authRouter.post("/start-trial", authenticateToken, async (req, res) => {
   }
 });
 
+authRouter.post("/check-user", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ exists: false, error: "Email required" });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (user) {
+      return res.json({ exists: true });
+    } else {
+      return res.status(404).json({ exists: false });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ exists: false, error: "Server error" });
+  }
+});
+
+
 
 authRouter.post('/logout', (req, res) => {
   // Clear cookies

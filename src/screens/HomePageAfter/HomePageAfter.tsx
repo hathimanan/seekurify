@@ -110,63 +110,64 @@ useEffect(() => {
           <section className="bg-white py-12 px-6 md:px-20 rounded-xl shadow-lg">
             <div className="max-w-5xl mx-auto text-center">
               <div className="w-12 h-12 bg-yellow-400 rotate-45 mx-auto mb-6 rounded-md shadow-md"></div>
+<h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-7 leading-snug">
+  Secure passwords. Smarter protection. Full control.
+</h2>
 
-              <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-6">
-                We believe in security awareness, protection, <br />
-                and user control — all in one place.
-              </h2>
 
-              <div className="w-28 h-3 bg-indigo-200 mx-auto mb-8 rounded-full"></div>
 
-              {/* Full Original Content */}
-              <p className="text-gray-700 text-justify leading-relaxed space-y-4 text-base">
-                <strong>Vaultence</strong> is an all-in-one cybersecurity platform
-                built to empower users with advanced tools and essential
-                knowledge to stay secure in the digital world. The core mission
-                of Vaultence is twofold: to enhance user security through robust
-                features and to promote cybersecurity awareness through
-                accessible information and insights.
-                <br />
-                <br />
-                At the heart of the platform is a secure password manager,
-                enabling users to store, manage, and organize their passwords
-                within an encrypted environment. All passwords are securely
-                stored using hashing techniques to ensure maximum protection.
-                Users also have the flexibility to generate strong, random
-                passwords tailored to their preferences, promoting better
-                password hygiene.
-                <br />
-                <br />
-                Vaultence goes beyond password protection by integrating multiple
-                real-time security utilities, including:
-                <ul className="list-disc list-inside mt-2 text-gray-800">
-                  <li>
-                    <strong>Link Checker:</strong> Quickly determine if a URL is
-                    safe or potentially malicious before clicking.
-                  </li>
-                  <li>
-                    <strong>File & Malware Scanner:</strong> Upload and scan
-                    files to detect viruses or malware using reliable detection
-                    APIs.
-                  </li>
-                  <li>
-                    <strong>System Information & Event Log Dashboard:</strong>{" "}
-                    Monitor system activities, track events, and gain insights
-                    into potential threats through a well-organized dashboard.
-                  </li>
-                </ul>
-                <br />
-                In addition to these features, the platform includes educational
-                content and real-time alerts to keep users informed about the
-                latest threats, scams, and best practices in cybersecurity.
-                <br />
-                <br />
-                Whether you're an individual looking to improve your digital
-                safety or a developer interested in integrating secure
-                practices, Vaultence offers a modern, user-centric approach to
-                personal and professional cybersecurity—all from a single,
-                intuitive interface.
-              </p>
+    <div className="max-w-3xl mx-auto text-center px-6">
+  {/* Decorative line */}
+  <div className="w-28 h-1.5 bg-gradient-to-r from-indigo-400 to-indigo-600 mx-auto mb-10 rounded-full shadow-md"></div>
+
+  {/* Main Content */}
+  <p className="text-gray-700 text-lg leading-relaxed tracking-wide space-y-6 text-justify">
+    <span className="font-extrabold text-indigo-600">Vaultence</span> is an 
+    all-in-one cybersecurity platform designed to empower users with advanced 
+    tools and essential knowledge to stay secure in the digital world. Our core 
+    mission is twofold: strengthen security through robust features and promote 
+    cybersecurity awareness with accessible insights.
+  </p>
+
+  <p className="text-gray-700 text-lg leading-relaxed tracking-wide space-y-6 text-justify mt-6">
+    At the heart of the platform lies a 
+    <span className="font-semibold text-indigo-500"> secure password manager</span>, 
+    enabling users to store, manage, and organize their credentials in an 
+    encrypted vault. With built-in strong password generation and advanced 
+    hashing techniques, Vaultence promotes better password hygiene and maximum 
+    protection.
+  </p>
+
+  {/* Features List */}
+  <div className="mt-8 text-left bg-gray-50 border border-gray-200 rounded-2xl p-6 shadow-sm">
+    <h3 className="text-xl font-bold text-gray-900 mb-4">Key Security Utilities</h3>
+    <ul className="list-disc list-inside space-y-3 text-gray-800 text-base">
+      <li>
+        <span className="font-semibold text-indigo-600">Link Checker:</span> 
+        Instantly verify if a URL is safe or malicious before clicking.
+      </li>
+      <li>
+        <span className="font-semibold text-indigo-600">File & Malware Scanner:</span> 
+        Upload and scan files to detect viruses or malware using trusted detection logic.
+      </li>
+      <li>
+        <span className="font-semibold text-indigo-600">System Dashboard:</span> 
+        Monitor system events, track logs, and gain insights into potential threats.
+      </li>
+    </ul>
+  </div>
+
+  <p className="text-gray-700 text-lg leading-relaxed tracking-wide mt-8 text-justify">
+    Beyond tools, Vaultence provides real-time alerts and educational content 
+    to keep users updated on the latest threats, scams, and cybersecurity best practices.
+  </p>
+
+  <p className="text-gray-700 text-lg leading-relaxed tracking-wide mt-6 text-justify">
+    Whether you’re an individual strengthening personal safety or a developer 
+    embedding secure practices, <span className="font-extrabold text-indigo-600">Vaultence</span>  
+    <> </>delivers a modern, user-focused approach to cybersecurity—all in one seamless interface.
+  </p>
+</div>
 
               <div className="flex justify-center flex-wrap gap-4 mt-10">
                 <motion.button
