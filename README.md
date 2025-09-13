@@ -132,9 +132,6 @@ Build for Production
 Build the project for release:
 
 npm run build
-
-## Security Policy
-
-Please see our SECURITY.md for guidelines on reporting vulnerabilities, supported versions, and best security practices.
+```
 
 Vaultence is designed to protect users’ digital life with a modern, user-focused approach to cybersecurity—all in one seamless interface.
