@@ -41,8 +41,8 @@ Install dependencies:
 ```bash
 npm install
 
-**Environment Setup
-**
+##Environment Setup
+
 
 Create a .env file in the root directory with the following variables:
 
@@ -57,7 +57,7 @@ GMAIL_CLIENT_SECRET=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
 GMAIL_REFRESH_TOKEN=1//04Uqw3zze3zJoCgYIARAAGAQSNwF-L9IrrIyxAaZtJCExp3_3C_6Un3S8JZfMk_zJDBfd4e-OJSPHUA6fH1mzBh8xjlD9fhhPnwI
 
 
-Running the Application
+## Running the Application
 Development Mode (Frontend + Backend)
 
 Run both the React frontend and Express backend:
@@ -70,7 +70,7 @@ npm run dev:frontend
 **Backend Only**:
 npm run dev
 
-**Features**:
+## Features:
 
 User authentication (signup/login)
 
@@ -91,8 +91,8 @@ Link checker and malware scanning
 System dashboard with event logs
 
 
-**Security Features
-**
+## Security Features:
+
 Vaultence implements industry-standard security practices:
 
 Password hashing with bcrypt
@@ -109,12 +109,12 @@ Optional strong password generation
 
 Real-time monitoring of system events
 
-**Database
-**
+## Database
+
 Vaultence uses MongoDB for data storage. Ensure MongoDB is installed and running locally, or update the MONGODB_URI in .env to point to your database instance.
 
-**API Endpoints
-**
+## API Endpoints
+
 POST /api/auth/signup – Create new user account
 
 POST /api/auth/login – User login
@@ -133,8 +133,8 @@ Build the project for release:
 
 npm run build
 
-**Security Policy
-**
+## Security Policy
+
 Please see our SECURITY.md for guidelines on reporting vulnerabilities, supported versions, and best security practices.
 
 Vaultence is designed to protect users’ digital life with a modern, user-focused approach to cybersecurity—all in one seamless interface.
