@@ -63,8 +63,7 @@ Development Mode (Frontend + Backend)
 
 Run both the React frontend and Express backend:
 
-**
-Frontend Only**:
+**Frontend Only**:
 npm run dev:frontend
 
 
