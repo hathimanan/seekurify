@@ -42,7 +42,7 @@ Install dependencies:
 npm install
 ```````
 
-##Environment Setup
+## Environment Setup
 
 
 Create a .env file in the root directory with the following variables:
