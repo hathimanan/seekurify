@@ -40,6 +40,7 @@ Install dependencies:
 
 ```bash
 npm install
+```````
 
 ##Environment Setup
 
