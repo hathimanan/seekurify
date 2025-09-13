@@ -139,9 +139,3 @@ Please see our SECURITY.md for guidelines on reporting vulnerabilities, supporte
 
 Vaultence is designed to protect users’ digital life with a modern, user-focused approach to cybersecurity—all in one seamless interface.
 
-
----
-
-If you want, I can also **add badges** for React, Node.js, MongoDB, and GitHub security to make your README look more **professional and polished** for GitHub.  
-
-Do you want me to do that?
