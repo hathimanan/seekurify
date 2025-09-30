@@ -174,6 +174,21 @@ async getPasswords(cacheBuster?: number) {
 }
 
 
+async getSIEMEvents() {
+  const response = await fetch(`${API_BASE_URL}/siem/events`, {
+    method: "GET",
+    headers: this.getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to fetch SIEM events");
+  }
+
+  return response.json();
+}
+
+
   async addPassword(passwordData: PasswordEntry) {
 const response = await fetch(`${API_BASE_URL}/passwords`, {
     method: 'POST',

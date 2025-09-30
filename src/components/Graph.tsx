@@ -10,6 +10,7 @@ import {
   BarChart,
   Bar,
   Legend,
+  Cell,
 } from 'recharts';
 
 const FixedResponsiveContainer = ResponsiveContainer as unknown as React.FC<any>;
@@ -25,8 +26,14 @@ const FixedBar = Bar as unknown as React.FC<any>;
 
 interface GraphProps {
   title: string;
-  data: { date: string; value: number }[];
-  type?: 'line' | 'bar';
+  data: { date?: string; category?: string; value: number }[];
+    type?: 'line' | 'bar';
+  category?: string;
+  xKey?: string;
+  yKey?: string;
+  valueKey?: string;
+  dateKey?: string;
+  value?: number;
 }
 
 const Graph: React.FC<GraphProps> = ({ title, data, type = 'line' }) => {
@@ -52,12 +59,23 @@ const Graph: React.FC<GraphProps> = ({ title, data, type = 'line' }) => {
         ) : (
           <FixedBarChart data={data}>
             <CartesianGrid stroke="#ccc" strokeDasharray="3 3" />
-            <FixedXAxis dataKey="date" />
+            <FixedXAxis dataKey="category" />
             <FixedYAxis />
             <Tooltip />
             <FixedLegend />
-            <FixedBar dataKey="value" fill="#82ca9d" />
-          </FixedBarChart>
+      <FixedBar dataKey="value">
+        {data.map((entry, index) => {
+          let fillColor = "#82ca9d"; // default
+          if (entry.category === "Poor") fillColor = "red";
+          else if (entry.category === "Medium") fillColor = "orange";
+          else if (entry.category === "Good") fillColor = "yellow";
+          else if (entry.category === "Strong") fillColor = "green";
+
+          return <Cell key={`cell-${index}`} fill={fillColor} />;
+        })}
+      </FixedBar>
+                
+      </FixedBarChart>
         )}
       </FixedResponsiveContainer>
     </div>

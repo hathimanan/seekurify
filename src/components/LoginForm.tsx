@@ -187,10 +187,26 @@ const handleSubmit = async (e: React.FormEvent) => {
           <Card className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200 transition hover:shadow-2xl">
             <CardContent className="p-8">
               <div className="text-center mb-6">
+                <div className="flex flex-col items-center mb-4">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-16 w-16 text-blue-400 mb-2"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+            <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" strokeWidth="2" />
+            <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" strokeWidth="2" />
+            <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+          </svg>
+          <span className="text-blue-400 font-bold text-2xl">Vaultence</span>
+        </div>
                 <h1 className="text-4xl font-extrabold text-indigo-700 drop-shadow-sm">
-                  Welcome Back
+                  Login to Vaultence
                 </h1>
-                <p className="text-gray-500 mt-1">Sign in to continue your journey</p>
+                <p className="text-gray-500 mt-1">Sign in to your Vaultence account</p>
               </div>
 
               {error && (

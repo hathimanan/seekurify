@@ -7,6 +7,7 @@ import mongoose from 'mongoose';
 
 import db from './db.js';
 import User from '../models/User.ts';
+import Password,{ decrypt } from '../models/Password.js';
 import LoginEvent from '../models/LoginEvent.model.js';
 import PasswordChangeEvent from '../models/PasswordChangeEvent.model.js';
 
@@ -72,10 +73,10 @@ const passwordChanges = passwordChangeData.map(entry => ({
 // intervalMinutes = size of bucket in minutes (e.g. 3, 5, 15, 60)
 const intervalMinutes = 15;
 
-const suspiciousLoginAgg = await LoginEvent.aggregate([
+const invalidLoginAgg = await LoginEvent.aggregate([
   {
     $match: {
-      success: false, // only suspicious/failed logins
+      success: false, // only invalid/failed logins
     },
   },
   {
@@ -94,7 +95,7 @@ const suspiciousLoginAgg = await LoginEvent.aggregate([
   { $sort: { _id: 1 } }
 ]);
 
-const suspiciousLogins = suspiciousLoginAgg.map(entry => {
+const invalidLogins = invalidLoginAgg.map(entry => {
   const start = new Date(entry._id);
   const end = new Date(start.getTime() + intervalMinutes * 60000);
   return {
@@ -105,35 +106,41 @@ const suspiciousLogins = suspiciousLoginAgg.map(entry => {
 });
 
 
-const users = await User.find({_id: userId }); // or all users if global dashboard
-
+// Assuming you have a Password model with fields: userId, passwordStrength
+const savedPasswords = await Password.find({ userId }).lean();
 let poor = 0, medium = 0, good = 0, strong = 0;
 
-users.forEach(user => {
-  const strength = user.passwordStrength;
-  if (strength === 'Poor') poor++;
-  else if (strength === 'Medium') medium++;
-  else if (strength === 'Good') good++;
-  else if (strength === 'Strong') strong++;
+
+savedPasswords.forEach(pw => {
+  const plainPassword = decrypt(pw.password); // manually decrypt
+    console.log("Fetched passwords for health check:", plainPassword);
+  const length = plainPassword?.length || 0;
+
+  if (length <= 5) poor++;
+  else if (length <= 10) medium++;
+  else if (length <= 15) good++;
+  else strong++;
 });
 
+
 const passwordHealth = [
-  { category: 'Poor', count: poor },
-  { category: 'Medium', count: medium },
-  { category: 'Good', count: good },
-  { category: 'Strong', count: strong },
+  { category: "Poor", count: poor },
+  { category: "Medium", count: medium },
+  { category: "Good", count: good },
+  { category: "Strong", count: strong },
 ];
 
+res.json({
+  message: `Welcome back, ${email}`,
+  email,
+  loginEvents,
+  passwordChanges,
+  invalidLogins,
+  passwordHealth,
+});
 
 
-    res.json({
-      message: `Welcome back, ${email}`,
-      email,
-      loginEvents,
-      passwordChanges,
-      suspiciousLogins,
-      passwordHealth,
-    });
+
   } catch (err) {
     console.error('Dashboard fetch error:', err);
     res.status(500).json({ error: 'Failed to load dashboard data' });

@@ -785,6 +785,7 @@ authRouter.post("/payment-success", authenticateToken, async (req, res) => {
 authRouter.post("/check-payment", authenticateToken, async (req, res) => {
   try {
     const userId = req.user?._id;
+    console.log("Decoded user:", req.user?._id);
     if (!userId) {
       return res.status(401).json({ hasPaid: false, message: "Unauthorized" });
     }
