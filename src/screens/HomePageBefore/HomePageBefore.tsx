@@ -168,7 +168,7 @@ const useProtectedNavigation = () => {
           A Dashboard Built for Security
         </h2>
         <p className="text-gray-400 max-w-2xl mx-auto mb-12">
-          Monitor system logs, check vulnerabilities, and manage credentials — all within a clean, intuitive interface.
+          Monitor system logs, check vulnerabilities, and manage password health — all within a clean, intuitive interface.
         </p>
         <div className="max-w-5xl mx-auto rounded-2xl overflow-hidden shadow-xl border border-gray-700">
           <img src={dashboardPreview} alt="Vaultence Dashboard" />

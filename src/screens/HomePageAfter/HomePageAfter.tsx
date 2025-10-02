@@ -5,7 +5,14 @@ import { API_BASE_URL, apiService } from "../../services/api";
 import { motion } from "framer-motion";
 import Header from "../../components/ui/Header";
 import Footer from "../../components/ui/Footer";
-
+import { ChevronRight } from "lucide-react";
+import {
+  FileSearch,
+  KeyRound,
+  BarChart3,
+  ShieldCheck,
+  Phone,
+} from "lucide-react";
 // import defaultProfileIcon from "../../../src/assets/default-profile.png"; // fallback image
 
 export const HomePageAfter = (): JSX.Element => {
@@ -17,6 +24,7 @@ export const HomePageAfter = (): JSX.Element => {
   const [showPinModal, setShowPinModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pinChecked, setPinChecked] = useState(false);
+    const [sidebarExpanded, setSidebarExpanded] = useState(true); // ✅ sidebar toggle state
 
 useEffect(() => {
   const fetchProfileImage = async () => {
@@ -74,6 +82,8 @@ useEffect(() => {
         token={token || ""}
         handleLogout={handleLogout}
         profileImage={profileImage} // ✅ pass state
+        sidebarExpanded={sidebarExpanded}
+        setSidebarExpanded={setSidebarExpanded}
       />
 
       {/* PIN Modal */}
@@ -90,26 +100,52 @@ useEffect(() => {
         </div>
       )}
 
-      <div className="flex flex-1">
-        {/* Sidebar */}
-        <div className="bg-gradient-to-b from-gray-800 to-gray-900 text-white w-64 p-6 space-y-6 font-medium shadow-lg">
-          {[
-            ["Analyze Malware", "/malware-analysis"],
-            ["Password Manager", "/dashboard"],
-            ["SIEM Dashboard", "/siem-dashboard"],
-            ["Security Awareness", "/securityAwareness"],
-            ["Contact Us", "/contact"],
-          ].map(([label, path]) => (
-            <motion.div
-              key={path}
-              onClick={() => useProtectedNavigation(path)}
-              className="cursor-pointer px-3 py-2 rounded-lg hover:bg-indigo-600 transition"
-              whileHover={{ x: 5 }}
-            >
+        <div className="flex flex-1 overflow-hidden">
+    {/* Sidebar */}
+    <motion.aside
+      initial={false}
+      animate={{ width: sidebarExpanded ? "16rem" : "4rem" }}
+      transition={{ type: "spring", stiffness: 260, damping: 30 }}
+      className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col"
+    >
+      {[
+        { label: "Analyze Malware", path: "/malware-analysis", icon: <FileSearch className="w-5 h-5" /> },
+        { label: "Password Manager", path: "/dashboard", icon: <KeyRound className="w-5 h-5" /> },
+        { label: "SIEM Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
+        { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
+        { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
+      ].map(({ label, path, icon }) => (
+        <div
+          key={path}
+          onClick={() => navigate(path)}
+          className="relative group flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-indigo-600 transition cursor-pointer"
+        >
+          {icon}
+          {sidebarExpanded && <span className="truncate">{label}</span>}
+
+          {!sidebarExpanded && (
+            <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
               {label}
-            </motion.div>
-          ))}
+            </span>
+          )}
         </div>
+      ))}
+
+      {/* Expand/Collapse */}
+      <div
+        onClick={() => setSidebarExpanded((s) => !s)}
+        className="flex items-center justify-center mt-auto cursor-pointer bg-white/10 hover:bg-white/20 px-2 py-2 rounded-md transition relative group"
+      >
+        {sidebarExpanded ? "Collapse" : "Expand"}
+        {!sidebarExpanded && (
+          <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
+            {sidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+          </span>
+        )}
+      </div>
+    </motion.aside>
+
+
 
         {/* Main Content */}
         <div className="flex-1 p-10">

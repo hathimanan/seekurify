@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import Header from "../components/ui/Header";
 import Footer from "../components/ui/Footer";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, BarChart3, FileSearch, KeyRound, Phone, ShieldCheck } from "lucide-react";
 import { API_BASE_URL } from '../services/api';
 interface Attack {
   title: string;
@@ -132,6 +132,7 @@ export const SecurityAwareness: React.FC = () => {
   const navigate = useNavigate();
   const carouselRef = useRef<HTMLDivElement>(null);
 const [profileImage, setProfileImage] = useState<string>(""); // ✅ state for header
+const [sidebarExpanded,setSidebarExpanded] = useState(true);
 const token = localStorage.getItem('token');
 useEffect(() => {
   let isMounted = true; // prevent state updates after unmount
@@ -197,7 +198,56 @@ const handleLogout = async () => {
         token={localStorage.getItem("token") || ""}
         handleLogout={handleLogout}
         profileImage={profileImage} // ✅ pass state
+        sidebarExpanded={sidebarExpanded}
+        setSidebarExpanded={setSidebarExpanded}
       />
+
+        <div className="flex flex-1 overflow-hidden">
+    {/* Sidebar */}
+    <motion.aside
+      initial={false}
+      animate={{ width: sidebarExpanded ? "16rem" : "4rem" }}
+      transition={{ type: "spring", stiffness: 260, damping: 30 }}
+      className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col"
+    >
+      {[
+        { label: "Analyze Malware", path: "/malware-analysis", icon: <FileSearch className="w-5 h-5" /> },
+        { label: "Password Manager", path: "/dashboard", icon: <KeyRound className="w-5 h-5" /> },
+        { label: "SIEM Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
+        { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
+        { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
+      ].map(({ label, path, icon }) => (
+        <div
+          key={path}
+          onClick={() => navigate(path)}
+          className="relative group flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-indigo-600 transition cursor-pointer"
+        >
+          {icon}
+          {sidebarExpanded && <span className="truncate">{label}</span>}
+
+          {!sidebarExpanded && (
+            <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
+              {label}
+            </span>
+          )}
+        </div>
+      ))}
+
+      {/* Expand/Collapse */}
+      <div
+        onClick={() => setSidebarExpanded((s) => !s)}
+        className="flex items-center justify-center mt-auto cursor-pointer bg-white/10 hover:bg-white/20 px-2 py-2 rounded-md transition relative group"
+      >
+        {sidebarExpanded ? "Collapse" : "Expand"}
+        {!sidebarExpanded && (
+          <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
+            {sidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+          </span>
+        )}
+      </div>
+    </motion.aside>
+
+
 <div className="mt-6 ml-6 mb-6">
   <button
     onClick={() => navigate(-1)}
@@ -336,7 +386,7 @@ const handleLogout = async () => {
           </p>
         </section>
       </main>
-
+</div>
       <Footer />
     </div>
   );

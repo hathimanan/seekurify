@@ -1,7 +1,7 @@
 import React, { FC } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import Footer from "./ui/Footer";
+import Footer from "./ui/FooterBeforeLogin";
 import { ArrowLeft } from "lucide-react";
 import { Lock, Link2, FileSearch, Activity, Bell } from "lucide-react";
 

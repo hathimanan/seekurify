@@ -3,9 +3,10 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import Header from "./ui/Header";
 import Footer from "./ui/Footer";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, BarChart3, FileSearch, KeyRound, Phone, ShieldCheck } from "lucide-react";
 import { API_BASE_URL } from '../services/api';
 import { useEffect } from "react";
+import { motion } from "framer-motion";
 
 interface FormData {
   name: string;
@@ -43,6 +44,7 @@ const [formData, setFormData] = useState<FormData>({
   const [status, setStatus] = useState<string>("");
   const navigate = useNavigate();
   const [profileImage, setProfileImage] = useState<string>(""); // ✅ state for header
+  const [sidebarExpanded,setSidebarExpanded] = useState(true);
 
   useEffect(() => {
     let isMounted = true; // prevent state updates after unmount
@@ -176,26 +178,74 @@ const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 to-purple-100 flex flex-col">
+    <div className="flex-items min-h-screen w-full bg-gradient-to-br from-blue-50 to-purple-100 flex flex-col">
       <Header
         token={localStorage.getItem("token") || ""}
         handleLogout={handleLogout}
         profileImage={profileImage} // ✅ pass state
+        sidebarExpanded={sidebarExpanded}
+        setSidebarExpanded={setSidebarExpanded}
       />
 
-      <div className="w-full max-w-lg mb-6 ml-4 sm:ml-6 mt-4 sm:mt-6">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-white bg-gradient-to-r from-red-500 to-red-600 px-4 py-2 rounded-full shadow-lg hover:scale-105 transition-transform duration-200"
+        <div className="flex flex-1 overflow-hidden">
+    {/* Sidebar */}
+    <motion.aside
+      initial={false}
+      animate={{ width: sidebarExpanded ? "16rem" : "4rem" }}
+      transition={{ type: "spring", stiffness: 260, damping: 30 }}
+      className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col"
+    >
+      {[
+        { label: "Analyze Malware", path: "/malware-analysis", icon: <FileSearch className="w-5 h-5" /> },
+        { label: "Password Manager", path: "/dashboard", icon: <KeyRound className="w-5 h-5" /> },
+        { label: "SIEM Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
+        { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
+        { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
+      ].map(({ label, path, icon }) => (
+        <div
+          key={path}
+          onClick={() => navigate(path)}
+          className="relative group flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-indigo-600 transition cursor-pointer"
         >
-          <ArrowLeft className="w-5 h-5" /> Back
-        </button>
-      </div>
+          {icon}
+          {sidebarExpanded && <span className="truncate">{label}</span>}
 
-      <main className="flex-grow px-4 sm:px-6 md:px-12 py-8 flex flex-col items-center">
-        <div className="w-full max-w-lg bg-white shadow-xl rounded-3xl p-8 border border-gray-200">
-          <div className="text-center mb-6">
-            <h2 className="text-3xl font-extrabold text-gray-800">Contact Us</h2>
+          {!sidebarExpanded && (
+            <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
+              {label}
+            </span>
+          )}
+        </div>
+      ))}
+
+      {/* Expand/Collapse */}
+      <div
+        onClick={() => setSidebarExpanded((s) => !s)}
+        className="flex items-center justify-center mt-auto cursor-pointer bg-white/10 hover:bg-white/20 px-2 py-2 rounded-md transition relative group"
+      >
+        {sidebarExpanded ? "Collapse" : "Expand"}
+        {!sidebarExpanded && (
+          <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
+            {sidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+          </span>
+        )}
+      </div>
+    </motion.aside>
+
+     <main className="flex-grow px-4 sm:px-6 md:px-12 py-8 flex flex-col">
+  {/* Back Button */}
+  <div className="w-full max-w-lg mb-6 mt-4 sm:mt-6 flex justify-start">
+    <button
+      onClick={() => navigate(-1)}
+      className="flex items-center gap-2 text-white bg-gradient-to-r from-red-500 to-red-600 px-4 py-2 rounded-full shadow-lg hover:scale-105 transition-transform duration-200"
+    >
+      <ArrowLeft className="w-5 h-5" /> Back
+    </button>
+  </div>
+
+ <div className="w-full max-w-lg bg-white shadow-xl rounded-3xl p-8 border border-gray-200 mx-auto">
+    <div className="text-center mb-6">
+      <h2 className="text-3xl font-extrabold text-gray-800">Contact Us</h2>
             <p className="text-gray-500 mt-1">We’ll get back to you shortly!</p>
           </div>
 
@@ -273,7 +323,7 @@ const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
           )}
         </div>
       </main>
-
+</div>
       <Footer />
     </div>
   );

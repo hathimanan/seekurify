@@ -6,7 +6,7 @@ import { Button } from './ui/button';
 import Header from "../components/ui/Header";
 import Footer from "../components/ui/Footer";
 import { API_BASE_URL } from '../services/api';
-
+import { Logo } from './ui/logo';
 // import  from "../components/ui/use-toast";
 import {
   Dialog,
@@ -15,11 +15,12 @@ import {
   DialogTitle,
 } from "../components/ui/dialog";
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, Copy } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Copy, FileSearch, BarChart3, KeyRound, ShieldCheck, Phone } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
 import { Eye, Pencil } from "lucide-react";
 import { set } from 'mongoose';
 import { reload } from 'firebase/auth';
+import { motion } from 'framer-motion';
 
 interface PasswordEntry {
   _id: string;
@@ -108,6 +109,7 @@ export const Dashboard: React.FC = () => {
   const [showDeleteConfirmationModal, setShowDeleteConfirmationModal] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showCopyModal, setShowCopyModal] = useState(false);
+  const [sidebarExpanded,setSidebarExpanded] = useState(true);
   const navigate = useNavigate();
 
   const handleReverifyPinSubmit = async (e: React.FormEvent) => {
@@ -796,7 +798,57 @@ const handleCopy = async (text: string) => {
         token={token || ""}
         handleLogout={handleLogout}
         profileImage={profileImage} // ✅ pass state
+        sidebarExpanded={sidebarExpanded}
+        setSidebarExpanded={setSidebarExpanded}
       />
+
+<div className="flex flex-1 overflow-hidden">
+      {/* Sidebar */}
+      <motion.aside
+        initial={false}
+        animate={{ width: sidebarExpanded ? "16rem" : "4rem" }}
+        transition={{ type: "spring", stiffness: 260, damping: 30 }}
+        className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col"
+      >
+        {[
+          { label: "Analyze Malware", path: "/malware-analysis", icon: <FileSearch className="w-5 h-5" /> },
+          { label: "Password Manager", path: "/dashboard", icon: <KeyRound className="w-5 h-5" /> },
+          { label: "SIEM Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
+          { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
+          { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
+        ].map(({ label, path, icon }) => (
+          <div
+            key={path}
+            onClick={() => navigate(path)}
+            className="relative group flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-indigo-600 transition cursor-pointer"
+          >
+            {icon}
+            {sidebarExpanded && <span className="truncate">{label}</span>}
+
+            {!sidebarExpanded && (
+              <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                {label}
+              </span>
+            )}
+          </div>
+        ))}
+
+        {/* Expand/Collapse */}
+        <div
+          onClick={() => setSidebarExpanded((s) => !s)}
+          className="flex items-center justify-center mt-auto cursor-pointer bg-white/10 hover:bg-white/20 px-2 py-2 rounded-md transition relative group"
+        >
+          {sidebarExpanded ? "Collapse" : "Expand"}
+          {!sidebarExpanded && (
+            <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
+              {sidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+            </span>
+          )}
+        </div>
+      </motion.aside>
+
+
+
       <main className="flex-1 px-6 py-4 md:py-6 lg:py-8">
         {/* Back Button */}
         <div className="mb-6">
@@ -1018,24 +1070,7 @@ const handleCopy = async (text: string) => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-lg flex flex-col items-center">
 
-        {/* Vaultence Logo */}
-        <div className="flex flex-col items-center mb-4">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-16 w-16 text-blue-400 mb-2"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-            <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" strokeWidth="2" />
-            <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" strokeWidth="2" />
-            <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-          </svg>
-          <span className="text-blue-400 font-bold text-2xl">Vaultence</span>
-        </div>
-
+        <Logo />
         {/* Modal Title */}
         <h3 className="text-xl font-bold text-black mb-4 text-center">
           Re-enter PIN to Confirm
@@ -1083,22 +1118,7 @@ const handleCopy = async (text: string) => {
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-red-200">
 
-        <div className="flex flex-col items-center mb-4">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-16 w-16 text-blue-400 mb-2"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-            <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" strokeWidth="2" />
-            <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" strokeWidth="2" />
-            <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-          </svg>
-          <span className="text-blue-400 font-bold text-2xl">Vaultence</span>
-        </div>
+        <Logo />
 
         <h3 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2 flex items-center gap-2">
           ⚠️ Incorrect PIN
@@ -1149,22 +1169,8 @@ const handleCopy = async (text: string) => {
   showPassword && viewingPassword && (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white p-6 rounded-lg w-full max-w-md">
-        <div className="flex flex-col items-center mb-4">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-16 w-16 text-blue-400 mb-2"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-            <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" strokeWidth="2" />
-            <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" strokeWidth="2" />
-            <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-          </svg>
-          <span className="text-blue-400 font-bold text-2xl">Vaultence</span>
-        </div>
+
+        <Logo />
         <h3 className="text-xl font-bold text-black mb-4">View Password Details</h3>
         <div className="space-y-4">
           <div>
@@ -1466,6 +1472,7 @@ const handleCopy = async (text: string) => {
 }
       </div >
       </main >
+      </div>
   <Footer />
     </div >
   );
