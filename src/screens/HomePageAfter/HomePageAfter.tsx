@@ -51,6 +51,19 @@ useEffect(() => {
     navigate(`/set-new-pin?token=${token}`);
   };
 
+  const useProtectedNavigation = (path: any) => {
+    const navigate = useNavigate();
+  
+    const goToPage = () => {
+      const token = localStorage.getItem("token");
+      if (token) {
+        navigate(path); // user is logged in
+      } else {
+        navigate("/homepagebeforelogin"); // user not logged in
+      }
+    };
+    return goToPage;};
+
   const handleCloseModal = () => setShowPinModal(false);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-xl font-semibold">Loading...</div>;
@@ -70,7 +83,7 @@ useEffect(() => {
             <h2 className="text-2xl font-bold mb-4 text-gray-900">Set a New PIN</h2>
             <p className="text-gray-700 mb-6">You are using the default PIN. For your security, please change it.</p>
             <div className="flex justify-center gap-4">
-              <button onClick={handleChangePin} className="bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 shadow">Change PIN</button>
+              <button onClick={  () => useProtectedNavigation(handleChangePin)} className="bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 shadow">Change PIN</button>
               <button onClick={handleCloseModal} className="text-gray-500 hover:text-gray-700">Later</button>
             </div>
           </motion.div>
@@ -89,7 +102,7 @@ useEffect(() => {
           ].map(([label, path]) => (
             <motion.div
               key={path}
-              onClick={() => navigate(path)}
+              onClick={() => useProtectedNavigation(path)}
               className="cursor-pointer px-3 py-2 rounded-lg hover:bg-indigo-600 transition"
               whileHover={{ x: 5 }}
             >
@@ -173,14 +186,14 @@ useEffect(() => {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   className="bg-red-600 text-white py-3 px-6 rounded-xl hover:bg-red-700 shadow-lg"
-                  onClick={() => navigate("/malware-analysis")}
+                  onClick={() => useProtectedNavigation("/malware-analysis")}
                 >
                   Analyze Malware
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   className="bg-indigo-600 text-white py-3 px-6 rounded-xl hover:bg-indigo-700 shadow-lg"
-                  onClick={() => navigate("/siem-dashboard")}
+                  onClick={() => useProtectedNavigation("/siem-dashboard")}
                 >
                   Explore SIEM Dashboard
                 </motion.button>

@@ -92,7 +92,7 @@ export const OTPForm: React.FC<OTPFormProps> = ({ email, otpToken, onBack, onSuc
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-gradient-to-tr from-blue-50 via-white to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-100 to-purple-200 flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md transform transition-all duration-300 hover:scale-[1.01]">
         <div className="text-center mb-6">
           <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">🔒 Secure Sign In</h1>
@@ -117,6 +117,24 @@ export const OTPForm: React.FC<OTPFormProps> = ({ email, otpToken, onBack, onSuc
         )}
 
         <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl px-6 py-8 border border-gray-200">
+                      <div className="text-center mb-6">
+                <div className="flex flex-col items-center mb-4">
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-16 w-16 text-blue-400 mb-2"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+            <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" strokeWidth="2" />
+            <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" strokeWidth="2" />
+            <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+          </svg>
+          <span className="text-blue-400 font-bold text-2xl">Vaultence</span>
+</div>
+</div>
           <h2 className="text-2xl font-semibold text-center text-gray-800 mb-6">Enter OTP</h2>
 
           <form onSubmit={handleSubmit}>

@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
+import { ArrowLeft } from 'lucide-react';
 
 export const SignupForm: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -100,6 +101,9 @@ const handleSubmit = async (e: React.FormEvent) => {
   setIsLoading(false);
 };
 
+const handleBackToHome = () => {
+    navigate('/');
+  };
 
 const checkPasswordStrength = (pwd: string) => {
   if (!pwd) return '';
@@ -117,12 +121,48 @@ const checkPasswordStrength = (pwd: string) => {
 
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-50 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-100 to-purple-200 flex items-center justify-center px-4 py-10">
       <Card className="w-full max-w-md bg-white shadow-xl rounded-2xl border border-gray-100">
         <CardContent className="p-8">
-          <h2 className="text-3xl font-extrabold text-center text-gray-800 mb-6">
+ <div className="text-center mb-6">
+                <div className="flex flex-col items-center mb-4">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-16 w-16 text-blue-400 mb-2"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+            <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" strokeWidth="2" />
+            <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" strokeWidth="2" />
+            <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+          </svg>
+          <span className="text-blue-400 font-bold text-2xl">Vaultence</span>
+        </div>
+                <h1 className="text-4xl font-extrabold text-indigo-700 drop-shadow-sm">
+                  Join Vaultence
+                </h1>
+                <p className="text-gray-500 mt-1">Sign Up to your Vaultence account</p>
+              </div>
+
+              {error && (
+                <div className="flex items-start space-x-2 text-sm text-red-700 bg-red-50 border border-red-300 rounded-xl px-4 py-3 mb-6 shadow-sm">
+                  <svg
+                    className="h-5 w-5 mt-0.5 text-red-500 animate-shake"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path d="M18 10c0 4.418-3.582 8-8 8s-8-3.582-8-8 3.582-8 8-8 8 3.582 8 8zm-8-1V5h2v4h-2zm0 4v-2h2v2h-2z"/>
+                  </svg>
+                  <span>{error}</span>
+                </div>
+              )}
+
+          {/* <h2 className="text-3xl font-extrabold text-center text-gray-800 mb-6">
             Create Account
-          </h2>
+          </h2> */}
 
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md mb-4 animate-fadeIn">
@@ -256,6 +296,17 @@ const checkPasswordStrength = (pwd: string) => {
               </button>
             </p>
           </div>
+
+
+                                <div className="mt-6 text-center">
+          <button
+            onClick={handleBackToHome}
+            className="text-gray-600 hover:text-gray-800 flex items-center justify-center space-x-1"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to home</span>
+          </button>
+        </div>
         </CardContent>
       </Card>
     </div>

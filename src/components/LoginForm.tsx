@@ -8,6 +8,7 @@ import { PINForm } from './PINForm';
 import { GoogleSignInButton } from './GoogleSignInButton';
 import { useNavigate } from 'react-router-dom';
 import { apiService, API_BASE_URL } from '../services/api';
+import { ArrowLeft } from 'lucide-react';
 
 
 interface LoginFormProps {
@@ -139,6 +140,10 @@ const handleSubmit = async (e: React.FormEvent) => {
     setError('');
   };
 
+  const handleBackToHome = () => {
+    navigate('/');
+  };
+
   // OTP screen
   if (otpPayload && !showPIN) {
     return (
@@ -233,6 +238,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-md bg-white/80 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition shadow-sm"
+                    placeholder='Enter your email here'
                   />
                   {emailError && <p className="text-red-600 text-sm mt-1">{emailError}</p>}
                 </div>
@@ -247,6 +253,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-md bg-white/80 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition shadow-sm"
+                    placeholder='Enter your password here'
                   />
                   <div className="text-right mt-2">
                     <button
@@ -296,6 +303,17 @@ const handleSubmit = async (e: React.FormEvent) => {
                   </button>
                 </p>
               </div>
+
+
+                      <div className="mt-6 text-center">
+          <button
+            onClick={handleBackToHome}
+            className="text-gray-600 hover:text-gray-800 flex items-center justify-center space-x-1"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to home</span>
+          </button>
+        </div>
             </CardContent>
           </Card>
         )}

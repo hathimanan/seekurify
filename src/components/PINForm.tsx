@@ -90,7 +90,7 @@ export const PINForm: React.FC<PINFormProps> = ({ email, onBack, onVerifyPIN }) 
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-100 to-purple-200 flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md animate-fadeIn">
         {/* Title */}
         <div className="text-center mb-6">
@@ -117,6 +117,25 @@ export const PINForm: React.FC<PINFormProps> = ({ email, onBack, onVerifyPIN }) 
 
         {/* Card */}
         <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-lg px-8 py-10 border border-gray-100">
+
+                              <div className="text-center mb-6">
+                <div className="flex flex-col items-center mb-4">
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-16 w-16 text-blue-400 mb-2"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+            <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" strokeWidth="2" />
+            <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" strokeWidth="2" />
+            <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+          </svg>
+          <span className="text-blue-400 font-bold text-2xl">Vaultence</span>
+</div>
+</div>
           <h2 className="text-2xl font-bold text-center text-gray-900 mb-8">Enter Your PIN</h2>
 
           <form onSubmit={handleSubmit}>

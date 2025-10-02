@@ -29,6 +29,16 @@ const Header: React.FC<HeaderProps> = ({ profileImage, token, handleLogout }) =>
     handleLogout();
   };
 
+const useProtectedNavigation = (path: string) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    navigate(path);
+  } else {
+    navigate("/homepageBefore");
+  }
+};
+
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -52,16 +62,16 @@ const Header: React.FC<HeaderProps> = ({ profileImage, token, handleLogout }) =>
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex space-x-8">
-          {navItems.map((item) => (
-            <Link
-              key={item.name}
-              to={item.path}
-              className={`relative font-semibold text-white transition-colors duration-300 hover:text-cyan-300 ${location.pathname === item.path ? "text-cyan-300" : ""}`}
-            >
-              {item.name}
-              {location.pathname === item.path && <span className="absolute -bottom-1 left-0 w-full h-1 bg-cyan-300 rounded-full" />}
-            </Link>
-          ))}
+ {navItems.map((item) => (
+  <button
+    key={item.name}
+    onClick={() => useProtectedNavigation(item.path)}
+    className={`font-semibold text-white transition-colors duration-300 hover:text-cyan-300 ${location.pathname === item.path ? "text-cyan-300" : ""}`}
+  >
+    {item.name}
+  </button>
+))}
+
         </nav>
 
         {/* Right Side */}
@@ -89,9 +99,9 @@ const Header: React.FC<HeaderProps> = ({ profileImage, token, handleLogout }) =>
                 animate={{ opacity: 1, y: 0 }}
                 className="absolute right-0 top-14 w-52 bg-white text-gray-700 shadow-lg rounded-xl overflow-hidden"
               >
-                <button className="w-full px-4 py-2 hover:bg-indigo-50 text-left" onClick={() => navigate("/profile")}>Profile</button>
-                <button className="w-full px-4 py-2 hover:bg-indigo-50 text-left" onClick={() => navigate(`/set-new-pin?token=${localStorage.getItem("token")}`)}>Change PIN</button>
-                <button className="w-full px-4 py-2 hover:bg-indigo-50 text-left" onClick={() => navigate("/change-password")}>Change Password</button>
+                <button className="w-full px-4 py-2 hover:bg-indigo-50 text-left" onClick={() => useProtectedNavigation("/profile")}>Profile</button>
+                <button className="w-full px-4 py-2 hover:bg-indigo-50 text-left" onClick={() => useProtectedNavigation(`/set-new-pin?token=${localStorage.getItem("token")}`)}>Change PIN</button>
+                <button className="w-full px-4 py-2 hover:bg-indigo-50 text-left" onClick={() => useProtectedNavigation("/change-password")}>Change Password</button>
                 <button className="w-full px-4 py-2 text-red-600 hover:bg-red-50 text-left" onClick={logout}>Logout</button>
               </motion.div>
             )}
@@ -103,9 +113,9 @@ const Header: React.FC<HeaderProps> = ({ profileImage, token, handleLogout }) =>
       {mobileMenuOpen && (
         <div className="md:hidden bg-indigo-700">
           {navItems.map((item) => (
-            <Link key={item.name} to={item.path} onClick={() => setMobileMenuOpen(false)} className={`block px-4 py-2 font-medium hover:bg-indigo-600 ${location.pathname === item.path ? "bg-indigo-600" : ""}`}>
+            <button key={item.name} onClick={() => setMobileMenuOpen(false)} className={`block px-4 py-2 font-medium hover:bg-indigo-600 ${location.pathname === item.path ? "bg-indigo-600" : ""}`}>
               {item.name}
-            </Link>
+            </button>
           ))}
         </div>
       )}
