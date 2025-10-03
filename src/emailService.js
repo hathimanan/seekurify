@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 import { google } from 'googleapis';
 import dotenv from 'dotenv';
-dotenv.config({ path: '.env.development' });
+// dotenv.config({ path: '.env.development' });
 import express from 'express';
 const router = express.Router();
 
@@ -29,7 +29,7 @@ async function sendResetEmail(email, resetCode) {
   });
 
   const mailOptions = {
-    from: `Vaultence Reset <${process.env.GMAIL_USER}>`,
+    from: `SEEKurify Reset <${process.env.GMAIL_USER}>`,
     to: email,
     subject: 'Your Password Reset Code',
     text: `Your password reset code is: ${resetCode}`,

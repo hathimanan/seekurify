@@ -128,11 +128,20 @@ const checkPasswordStrength = (pwd: string) => {
  <div className="text-center mb-6">
           <Logo />
                 <h1 className="text-4xl font-extrabold text-indigo-700 drop-shadow-sm">
-                  Join Vaultence
+                  Join SEEKurify
                 </h1>
-                <p className="text-gray-500 mt-1">Sign Up to your Vaultence account</p>
+                <p className="text-gray-500 mt-1">Sign Up to your SEEKurify account</p>
               </div>
-
+                               <div className="mt-6 text-center">
+          <button
+            onClick={handleBackToHome}
+            className="text-gray-600 hover:text-gray-800 flex items-center justify-center space-x-1"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to home</span>
+          </button>
+        </div>
+        <br></br>
               {error && (
                 <div className="flex items-start space-x-2 text-sm text-red-700 bg-red-50 border border-red-300 rounded-xl px-4 py-3 mb-6 shadow-sm">
                   <svg
@@ -284,15 +293,7 @@ const checkPasswordStrength = (pwd: string) => {
           </div>
 
 
-                                <div className="mt-6 text-center">
-          <button
-            onClick={handleBackToHome}
-            className="text-gray-600 hover:text-gray-800 flex items-center justify-center space-x-1"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back to home</span>
-          </button>
-        </div>
+ 
         </CardContent>
       </Card>
     </div>

@@ -11,7 +11,7 @@ import Password,{ decrypt } from '../models/Password.js';
 import LoginEvent from '../models/LoginEvent.model.js';
 import PasswordChangeEvent from '../models/PasswordChangeEvent.model.js';
 
-dotenv.config({ path: '.env.development' });
+// dotenv.config({ path: '.env.development' });
 const SIEMDashboard = express.Router();
 
 SIEMDashboard.use(cors());

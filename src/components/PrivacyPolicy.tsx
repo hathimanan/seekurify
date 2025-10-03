@@ -46,7 +46,7 @@ const handleLogout = async () => {
         <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-200">
 <h1 className="text-3xl font-extrabold text-gray-800 mb-4">Privacy Policy</h1>
 <p className="text-gray-700 mb-4">
-  At Vaultence, your privacy and security are our top priorities. This Privacy Policy explains how we collect, use, and protect your information when you use our platform, including our password manager, link checker, file & malware scanner, and system dashboard.
+  At SEEKurify, your privacy and security are our top priorities. This Privacy Policy explains how we collect, use, and protect your information when you use our platform, including our password manager, link checker, file & malware scanner, and system dashboard.
 </p>
 
 <h2 className="text-xl font-semibold text-gray-800 mt-4 mb-2">Information We Collect</h2>
@@ -81,7 +81,7 @@ const handleLogout = async () => {
 
 <h2 className="text-xl font-semibold text-gray-800 mt-4 mb-2">Contact Us</h2>
 <p className="text-gray-700">
-  If you have any questions about this Privacy Policy or need assistance with your account, please contact us at <a href="mailto:support@vaultence.com" className="text-blue-600 underline">support@vaultence.com</a>.
+  If you have any questions about this Privacy Policy or need assistance with your account, please contact us at <a href="mailto:support@seekurify.com" className="text-blue-600 underline">support@seekurify.com</a>.
 </p>
 
         </div>

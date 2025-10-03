@@ -23,6 +23,8 @@ dotenv.config({
     : ".env.development"
 });
 
+
+
 // --- Determine if production ---
 const PROD = NODE_ENV === "production";
 
@@ -125,7 +127,6 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    maxAge: 5 * 60 * 1000,
     httpOnly: true,
     sameSite: 'lax',
     secure: PROD,
@@ -161,12 +162,17 @@ app.use('/api/profile', profileRoute);
 app.use('/api/user', userSchema);
 
 // --- Serve static files from Vite build ---
-app.use(express.static(path.join(__dirname, 'vaultence')));
+app.use(express.static(path.join(__dirname, 'seekurify')));
 
 // --- SPA fallback (non-API routes) ---
 app.get(/^\/(?!api).*/, (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
+  req.session.destroy(err => {
+  res.clearCookie("connect.sid"); // default cookie name
+  res.send("Logged out");
 });
+});
+
 
 const server = http.createServer(app);
 initSocket(server, { allowedOrigins });

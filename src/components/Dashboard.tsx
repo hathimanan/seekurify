@@ -448,7 +448,7 @@ export const Dashboard: React.FC = () => {
         key,
         amount: paymentFormData.amount * 100, // dynamic
         currency: 'INR',
-        name: 'Vaultence',
+        name: 'SEEKurify',
         description: 'Secure Payment Gateway',
         order_id: orderId,
         prefill: paymentFormData,

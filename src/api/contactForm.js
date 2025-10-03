@@ -8,7 +8,7 @@ import multer from "multer";
 
 const upload = multer({ dest: "uploads/" }); // or use memoryStorage if you want in-memory files
 
-dotenv.config({ path: '.env.development' });
+// dotenv.config({ path: '.env.development' });
 const contactRouter = express.Router();
 const OAuth2 = google.auth.OAuth2;
 
@@ -43,7 +43,7 @@ async function sendEmail({ to, subject, text, attachments = [], formData = {} })
     const { name = "N/A", email = "N/A", subject: formSubject = "N/A", message = "" } = formData || {};
 
     const mailOptions = {
-      from: `Vaultence <${process.env.GMAIL_USER}>`,
+      from: `SEEKurify <${process.env.GMAIL_USER}>`,
       to,
       subject,
       text, // plain-text fallback
@@ -75,7 +75,7 @@ async function sendEmail({ to, subject, text, attachments = [], formData = {} })
 
             <hr style="margin: 24px 0; border: none; border-top: 1px solid #e5e7eb;" />
             <p style="font-size: 12px; color: #6b7280; text-align: center;">
-              Sent securely via <strong>Vaultence</strong>
+              Sent securely via <strong>SEEKurify</strong>
             </p>
           </div>
         </div>

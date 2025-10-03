@@ -81,7 +81,7 @@ const useProtectedNavigation = () => {
               <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" strokeWidth="2" />
               <circle cx="12" cy="12" r="1.5" fill="currentColor" />
             </svg>
-            Vaultence
+            SEEKurify
 
           </h2>
 
@@ -89,7 +89,7 @@ const useProtectedNavigation = () => {
             Secure. Smart. Simple.
           </h1>
           <p className="mt-6 text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto">
-            Vaultence empowers you with a password vault, malware scanner, and real-time threat insights — all in one seamless interface.
+            SEEKurify empowers you with a password vault, malware scanner, and real-time threat insights — all in one seamless interface.
           </p>
 
           <div className="mt-10 flex flex-wrap justify-center gap-4">
@@ -125,7 +125,7 @@ const useProtectedNavigation = () => {
       {/* Features Section */}
       <section className="relative z-20 py-20 px-8 text-center bg-black/70 backdrop-blur-sm">
         <h2 className="text-3xl sm:text-4xl font-bold text-white mb-12">
-          Why Choose Vaultence?
+          Why Choose SEEKurify?
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
           {[
@@ -170,8 +170,8 @@ const useProtectedNavigation = () => {
         <p className="text-gray-400 max-w-2xl mx-auto mb-12">
           Monitor system logs, check vulnerabilities, and manage password health — all within a clean, intuitive interface.
         </p>
-        <div className="max-w-5xl mx-auto rounded-2xl overflow-hidden shadow-xl border border-gray-700">
-          <img src={dashboardPreview} alt="Vaultence Dashboard" />
+        <div className="max-w-7xl mx-auto rounded-2xl overflow-hidden shadow-xl border border-gray-700">
+          <img src={dashboardPreview} alt="SEEKurify Dashboard" />
         </div>
       </section>
 
@@ -181,7 +181,7 @@ const useProtectedNavigation = () => {
           Stay Ahead of Threats
         </h2>
         <p className="text-gray-400 max-w-3xl mx-auto mb-10">
-          Get the latest updates on scams, cyber attacks, and security tips through Vaultence Insights.
+          Get the latest updates on scams, cyber attacks, and security tips through SEEKurify Insights.
         </p>
         <button
           onClick={() => {
@@ -199,7 +199,7 @@ const useProtectedNavigation = () => {
       <section className="relative z-20 py-20 px-6 text-center">
         <h2 className="text-4xl font-bold text-white mb-6">Your Security, Simplified.</h2>
         <p className="text-gray-400 max-w-2xl mx-auto mb-8">
-          Start protecting your digital life today with Vaultence.
+          Start protecting your digital life today with SEEKurify.
         </p>
         <button
           onClick={() => navigate("/signup")}

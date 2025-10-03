@@ -1,4 +1,11 @@
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+// Only disable TLS certificate verification in development
+if (process.env.NODE_ENV === "development") {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+  console.log("⚠️ TLS certificate verification is disabled in development");
+} else {
+  // Production / Staging: keep TLS checks enabled
+  console.log("🔒 TLS certificate verification is enabled");
+}
 
 import express from 'express';
 import jwt from 'jsonwebtoken';
@@ -24,13 +31,13 @@ import { pushAlert } from '../realtime/socketHub.js';
 
 
 import sendResetEmail from '../emailService.js' ;
+const NODE_ENV = process.env.NODE_ENV || "development";
 dotenv.config({
-  path:
-    process.env.NODE_ENV === 'production'
-      ? '.env.production'
-      : process.env.NODE_ENV === 'test'
-      ? '.env.test'
-      : '.env.development',
+  path: NODE_ENV === "production"
+    ? ".env.production"
+    : NODE_ENV === "test"
+    ? ".env.test"
+    : ".env.development"
 });
 const OAuth2 = google.auth.OAuth2;
 const app = express();
@@ -59,7 +66,7 @@ async function sendSuspiciousLoginEmail(ip, email) {
    const htmlContent = `
   <div style="font-family: Arial, sans-serif; color: #333;">
     <h2 style="color: #d9534f;">⚠️ Suspicious Login Detected</h2>
-    <p>We noticed multiple failed login attempts to your <strong>Vaultence</strong> account from the following IP address:</p>
+    <p>We noticed multiple failed login attempts to your <strong>SEEKurify</strong> account from the following IP address:</p>
     <p style="background-color: #f8d7da; padding: 10px; border-radius: 5px; font-weight: bold;">${ip}</p>
     <p>If this wasn’t you, we strongly recommend you:</p>
     <ul>
@@ -80,13 +87,13 @@ async function sendSuspiciousLoginEmail(ip, email) {
     </a>
     <p style="font-size: 12px; color: #666;">If you did attempt to login, you can safely ignore this message.</p>
     <hr style="border: none; border-top: 1px solid #eee;" />
-    <p style="font-size: 12px; color: #999;">&copy; ${new Date().getFullYear()} Vaultence. All rights reserved.</p>
+    <p style="font-size: 12px; color: #999;">&copy; ${new Date().getFullYear()} SEEKurify. All rights reserved.</p>
   </div>
 `;
 
 
     await transporter.sendMail({
-      from: 'Vaultence <no-reply@Vaultence.com>',
+      from: 'SEEKurify <no-reply@SEEKurify.com>',
       to: email,
       subject: 'Suspicious Login Attempts Detected',
       html: htmlContent
@@ -394,14 +401,14 @@ authRouter.post('/send-otp', async (req, res) => {
     });
 
 const mailOptions = {
-  from: `Vaultence 🔐 <${process.env.GMAIL_USER}>`,
+  from: `SEEKurify 🔐 <${process.env.GMAIL_USER}>`,
   to: email,
   subject: '🔒 Your One-Time Password (OTP)',
   text: `Your OTP code is: ${otp}. It expires in 10 minutes.`,
   html: `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 10px; overflow: hidden;">
       <div style="background-color: #4a90e2; color: white; text-align: center; padding: 20px;">
-        <h2>Vaultence</h2>
+        <h2>SEEKurify</h2>
         <p style="margin: 0;">Your Secure OTP</p>
       </div>
       <div style="padding: 30px; text-align: center;">
@@ -413,7 +420,7 @@ const mailOptions = {
         <p style="font-size: 12px; color: #999;">If you did not request this OTP, please ignore this email.</p>
       </div>
       <div style="background-color: #f7f7f7; text-align: center; padding: 15px; font-size: 12px; color: #999;">
-        © ${new Date().getFullYear()} Vaultence. All rights reserved.
+        © ${new Date().getFullYear()} SEEKurify. All rights reserved.
       </div>
     </div>
   `
@@ -617,11 +624,11 @@ const transporter = nodemailer.createTransport({
   },
 });
     await transporter.sendMail({
-      from: `"Vaultence" <${process.env.GMAIL_USER}>`,
+      from: `"SEEKurify" <${process.env.GMAIL_USER}>`,
       to: email,
-      subject: 'Verify Your Email & Set Your PIN - Vaultence',
+      subject: 'Verify Your Email & Set Your PIN - SEEKurify',
       html: `
-        <h2>Welcome to Vaultence, ${username}!</h2>
+        <h2>Welcome to SEEKurify, ${username}!</h2>
         <p>Click the button below to verify your email and set your secure 4-digit PIN:</p>
         <a href="${verifyLink}" style="background-color:#007bff;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">Set Your PIN</a>
         <p>This link is valid for 15 minutes.</p>

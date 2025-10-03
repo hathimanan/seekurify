@@ -1,8 +1,8 @@
-# Security Policy for Vaultence
+# Security Policy for SEEKurify
 
 ## Supported Versions
 
-Vaultence actively maintains security updates for the following versions:
+SEEKurify actively maintains security updates for the following versions:
 
 | Version | Supported          |
 | ------- | ----------------- |
@@ -12,10 +12,10 @@ We recommend all users upgrade to the latest supported version to ensure maximum
 
 ## Reporting a Vulnerability
 
-Vaultence takes security seriously. If you discover a potential vulnerability, please follow these steps:
+SEEKurify takes security seriously. If you discover a potential vulnerability, please follow these steps:
 
 1. **Contact Method:**  
-   Email our security team at **security@vaultence.com** with a clear description of the vulnerability, steps to reproduce it, and any supporting files if necessary.
+   Email our security team at **security@seekurify.com** with a clear description of the vulnerability, steps to reproduce it, and any supporting files if necessary.
 
 2. **Response Time:**  
    We aim to acknowledge all reports within **48 hours** and provide updates on the resolution process.
@@ -28,7 +28,7 @@ Vaultence takes security seriously. If you discover a potential vulnerability, p
    - Any functionality that could expose user data or system integrity.
 
 4. **Resolution:**  
-   Once a vulnerability is confirmed, Vaultence will:
+   Once a vulnerability is confirmed, SEEKurify will:
    - Develop and test a fix.
    - Release an updated version with security patches.
    - Notify affected users if necessary.
@@ -38,13 +38,13 @@ Vaultence takes security seriously. If you discover a potential vulnerability, p
 
 ## Security Best Practices
 
-For users of Vaultence, we recommend:
+For users of SEEKurify, we recommend:
 - Using strong, unique passwords and updating them regularly.
 - Enabling two-factor authentication (2FA) wherever possible.
 - Regularly scanning files and links using the built-in security tools.
-- Staying informed on the latest cybersecurity threats and updates provided within the Vaultence platform.
+- Staying informed on the latest cybersecurity threats and updates provided within the SEEKurify platform.
 
 ---
 
-Thank you for helping us keep Vaultence safe and secure!
+Thank you for helping us keep SEEKurify safe and secure!
 

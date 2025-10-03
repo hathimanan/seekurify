@@ -16,11 +16,11 @@ interface FormData {
   attachment?: File | null;
 }
 
-interface HeaderProps { 
-  token: string;
-  handleLogout: () => void;
-  profileImage?: string; // ✅ new prop
-}
+// interface HeaderProps { 
+//   token: string;
+//   handleLogout: () => void;
+//   profileImage?: string; // ✅ new prop
+// }
 
 interface FormErrors {
   name?: string;

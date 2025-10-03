@@ -195,10 +195,21 @@ const handleSubmit = async (e: React.FormEvent) => {
               <div className="text-center mb-6">
                <Logo />
                 <h1 className="text-4xl font-extrabold text-indigo-700 drop-shadow-sm">
-                  Login to Vaultence
+                  Login to SEEKurify
                 </h1>
-                <p className="text-gray-500 mt-1">Sign in to your Vaultence account</p>
+                <p className="text-gray-500 mt-1">Sign in to your SEEKurify account</p>
               </div>
+
+                                    <div className="mt-6 text-center">
+          <button
+            onClick={handleBackToHome}
+            className="text-gray-600 hover:text-gray-800 flex items-center justify-center space-x-1"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to home</span>
+          </button>
+        </div>
+        <br></br>
 
               {error && (
                 <div className="flex items-start space-x-2 text-sm text-red-700 bg-red-50 border border-red-300 rounded-xl px-4 py-3 mb-6 shadow-sm">
@@ -291,15 +302,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               </div>
 
 
-                      <div className="mt-6 text-center">
-          <button
-            onClick={handleBackToHome}
-            className="text-gray-600 hover:text-gray-800 flex items-center justify-center space-x-1"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back to home</span>
-          </button>
-        </div>
+
             </CardContent>
           </Card>
         )}

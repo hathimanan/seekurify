@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, BarChart3, FileSearch, KeyRound, Phone, ShieldCheck } from "lucide-react";
 import Header from "./ui/Header";
 import Footer from "./ui/Footer";
 import { API_BASE_URL } from "../services/api";
+import { motion } from "framer-motion";
 
 interface DecodedToken {
   email: string;
@@ -38,7 +39,7 @@ export const SetNewPin: React.FC = () => {
   const [pinInput, setPinInput] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [profileImage, setProfileImage] = useState<string>(""); // ✅ state for header
-
+const [sidebarExpanded,setSidebarExpanded] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
@@ -156,7 +157,55 @@ export const SetNewPin: React.FC = () => {
         token={localStorage.getItem("token") || ""}
         handleLogout={handleLogout}
         profileImage={profileImage} // ✅ pass state
+        sidebarExpanded={sidebarExpanded}
+        setSidebarExpanded={setSidebarExpanded}
       />
+
+
+        <div className="flex flex-1 overflow-hidden">
+    {/* Sidebar */}
+    <motion.aside
+      initial={false}
+      animate={{ width: sidebarExpanded ? "16rem" : "4rem" }}
+      transition={{ type: "spring", stiffness: 260, damping: 30 }}
+      className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col"
+    >
+      {[
+        { label: "Analyze Malware", path: "/malware-analysis", icon: <FileSearch className="w-5 h-5" /> },
+        { label: "Password Manager", path: "/dashboard", icon: <KeyRound className="w-5 h-5" /> },
+        { label: "SIEM Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
+        { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
+        { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
+      ].map(({ label, path, icon }) => (
+        <div
+          key={path}
+          onClick={() => navigate(path)}
+          className="relative group flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-indigo-600 transition cursor-pointer"
+        >
+          {icon}
+          {sidebarExpanded && <span className="truncate">{label}</span>}
+
+          {!sidebarExpanded && (
+            <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
+              {label}
+            </span>
+          )}
+        </div>
+      ))}
+
+      {/* Expand/Collapse */}
+      <div
+        onClick={() => setSidebarExpanded((s) => !s)}
+        className="flex items-center justify-center mt-auto cursor-pointer bg-white/10 hover:bg-white/20 px-2 py-2 rounded-md transition relative group"
+      >
+        {sidebarExpanded ? "Collapse" : "Expand"}
+        {!sidebarExpanded && (
+          <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
+            {sidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+          </span>
+        )}
+      </div>
+    </motion.aside>
 
       <main className="flex-grow p-6 bg-gradient-to-br from-indigo-50 to-blue-100 rounded-lg">
         <div className="p-6 bg-gradient-to-br from-indigo-50 to-blue-100 min-h-screen rounded-lg">
@@ -178,102 +227,113 @@ export const SetNewPin: React.FC = () => {
                 Set New PIN
               </h2>
 
-              {error && <div className="text-red-600 mb-4">{error}</div>}
+             {!showPinModal && (
+        <>
+          <input
+            type="password"
+            inputMode="numeric"
+            maxLength={4}
+            placeholder="New PIN"
+            className="w-full border p-2 rounded mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={newPin}
+            onChange={(e) => handleNumericInput(e, setNewPin)}
+            disabled={isLoading}
+          />
+          <input
+            type="password"
+            inputMode="numeric"
+            maxLength={4}
+            placeholder="Confirm New PIN"
+            className="w-full border p-2 rounded mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={confirmPin}
+            onChange={(e) => handleNumericInput(e, setConfirmPin)}
+            disabled={isLoading}
+          />
 
-              {/* ✅ PIN modal */}
-              {showPinModal ? (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                  <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm">
-                    <h2 className="text-lg font-semibold mb-4">Verify PIN</h2>
-                    <input
-                      type="password"
-                      inputMode="numeric"
-                      pattern="\d*"
-                      maxLength={4}
-                      placeholder="Enter your PIN"
-                      value={pinInput}
-                      onChange={(e) => handleNumericInput(e, setPinInput)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <div className="mt-4 flex justify-end space-x-2">
-                      <button
-                        onClick={async () => {
-                          if (pinInput.length !== 4) {
-                            setError("PIN must be 4 digits.");
-                            return;
-                          }
-                          setIsVerifying(true);
-                          try {
-                            const token = localStorage.getItem("token");
-                            const res = await fetch(
-                              `${API_BASE_URL}/auth/verify-pin`,
-                              {
-                                method: "POST",
-                                headers: {
-                                  "Content-Type": "application/json",
-                                  Authorization: `Bearer ${token}`,
-                                },
-                                body: JSON.stringify({ email, pin: pinInput }),
-                              }
-                            );
-                            const data = await res.json();
-                            if (data.token) {
-                              setShowPinModal(false);
-                            } else {
-                              setError("Incorrect PIN.");
-                            }
-                          } catch {
-                            setError("Error verifying PIN.");
-                          } finally {
-                            setIsVerifying(false);
-                          }
-                        }}
-                        disabled={isVerifying}
-                        className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                      >
-                        {isVerifying ? "Verifying..." : "Verify & Proceed"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <input
-                    type="password"
-                    inputMode="numeric"
-                    maxLength={4}
-                    placeholder="New PIN"
-                    className="w-full border p-2 rounded mb-4"
-                    value={newPin}
-                    onChange={(e) => handleNumericInput(e, setNewPin)}
-                    disabled={isLoading}
-                  />
+          {/* Error message for main inputs */}
+          {error && <div className="text-red-600 mb-4">{error}</div>}
 
-                  <input
-                    type="password"
-                    inputMode="numeric"
-                    maxLength={4}
-                    placeholder="Confirm New PIN"
-                    className="w-full border p-2 rounded mb-4"
-                    value={confirmPin}
-                    onChange={(e) => handleNumericInput(e, setConfirmPin)}
-                    disabled={isLoading}
-                  />
+          <button
+  type="button"
+  onClick={() => {
+    setNewPin(confirmPin);
+    navigate("/login");
+  }}
+  className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+>
+  Set PIN
+</button>
+        </>
+      )}
 
-                  <button
-                    type="submit"
-                    className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-                    disabled={isLoading || !email}
-                  >
-                    {isLoading ? "Updating..." : "Set PIN"}
-                  </button>
-                </>
-              )}
-            </form>
+      {/* PIN Verification Modal */}
+      {showPinModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm">
+            <h2 className="text-lg font-semibold mb-4">Verify PIN</h2>
+            <input
+              type="password"
+              inputMode="numeric"
+              pattern="\d*"
+              maxLength={4}
+              placeholder="Enter your PIN"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+              value={pinInput}
+              onChange={(e) => handleNumericInput(e, setPinInput)}
+            />
+
+            {/* Error message inside modal */}
+            {error && <div className="text-red-600 mb-2">{error}</div>}
+
+            <div className="mt-4 flex justify-end space-x-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (pinInput.length !== 4) {
+                    setError("PIN must be 4 digits.");
+                    return;
+                  }
+                  setIsVerifying(true);
+                  try {
+                    const token = localStorage.getItem("token");
+                    const res = await fetch(
+                      `${API_BASE_URL}/auth/verify-pin`,
+                      {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({ email, pin: pinInput }),
+                      }
+                    );
+                    const data = await res.json();
+                    if (data.token) {
+                      setShowPinModal(false);
+                      setError(""); // clear error after success
+                    } else {
+                      setError("Incorrect PIN.");
+                    }
+                  } catch {
+                    setError("Error verifying PIN.");
+                  } finally {
+                    setIsVerifying(false);
+                  }
+                }}
+                disabled={isVerifying}
+                className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+              >
+                {isVerifying ? "Verifying..." : "Verify & Proceed"}
+              </button>
+            </div>
           </div>
-        </div>
+          </div>
+      )}
+      </form>
+      </div>
+      </div>
       </main>
-
+</div>
       <Footer />
     </div>
   );

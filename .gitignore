@@ -27,3 +27,5 @@ dist-ssr
 .env
 .env
 .env.development
+.env.test
+.env.production

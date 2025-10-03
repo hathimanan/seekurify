@@ -284,7 +284,7 @@ try {
         key,
         amount: paymentFormData.amount * 100, // dynamic
         currency: 'INR',
-        name: 'Vaultence',
+        name: 'SEEKurify',
         description: 'Secure Payment Gateway',
         order_id: orderId,
         prefill: paymentFormData,
@@ -344,7 +344,7 @@ if (!pinVerified && currentModal === "verifyPin") {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 px-4">
       <div className="bg-gray-800 p-8 rounded-3xl shadow-2xl w-full max-w-md flex flex-col items-center">
-        {/* Vaultence Icon */}
+        {/* SEEKurify Icon */}
         <Logo />
 
         {/* Modal Title */}

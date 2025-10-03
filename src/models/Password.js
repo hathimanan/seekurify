@@ -3,10 +3,10 @@ import mongoose from 'mongoose';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 
-dotenv.config({ path: '.env.development' });
+// dotenv.config({ path: '.env.development' });
 // Ensure encryption key is provided
 const SECRET_HEX = process.env.PASSWORD_ENCRYPTION_KEY;
-if (!SECRET_HEX) {
+if (!SECRET_HEX) { 
   throw new Error('Missing PASSWORD_ENCRYPTION_KEY in environment');
 }
 const SECRET_KEY = Buffer.from(SECRET_HEX, 'hex'); // 32-byte key
