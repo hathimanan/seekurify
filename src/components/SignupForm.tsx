@@ -128,9 +128,9 @@ const checkPasswordStrength = (pwd: string) => {
  <div className="text-center mb-6">
           <Logo />
                 <h1 className="text-4xl font-extrabold text-indigo-700 drop-shadow-sm">
-                  Join SEEKurify
+                  Join Seekurify
                 </h1>
-                <p className="text-gray-500 mt-1">Sign Up to your SEEKurify account</p>
+                <p className="text-gray-500 mt-1">Sign Up to your Seekurify account</p>
               </div>
                                <div className="mt-6 text-center">
           <button

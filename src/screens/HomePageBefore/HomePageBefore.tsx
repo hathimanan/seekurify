@@ -81,15 +81,15 @@ const useProtectedNavigation = () => {
               <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" strokeWidth="2" />
               <circle cx="12" cy="12" r="1.5" fill="currentColor" />
             </svg>
-            SEEKurify
+            Seekurify
 
           </h2>
 
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-blue-500 leading-tight max-w-4xl mx-auto">
             Secure. Smart. Simple.
           </h1>
-          <p className="mt-6 text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto">
-            SEEKurify empowers you with a password vault, malware scanner, and real-time threat insights — all in one seamless interface.
+          <p className="mt-6 text-lg sm:text-4xl text-gray-300 max-w-2xl mx-auto">
+            Security for everything you seek.
           </p>
 
           <div className="mt-10 flex flex-wrap justify-center gap-4">
@@ -125,7 +125,7 @@ const useProtectedNavigation = () => {
       {/* Features Section */}
       <section className="relative z-20 py-20 px-8 text-center bg-black/70 backdrop-blur-sm">
         <h2 className="text-3xl sm:text-4xl font-bold text-white mb-12">
-          Why Choose SEEKurify?
+          Why Choose Seekurify?
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
           {[
@@ -171,7 +171,7 @@ const useProtectedNavigation = () => {
           Monitor system logs, check vulnerabilities, and manage password health — all within a clean, intuitive interface.
         </p>
         <div className="max-w-7xl mx-auto rounded-2xl overflow-hidden shadow-xl border border-gray-700">
-          <img src={dashboardPreview} alt="SEEKurify Dashboard" />
+          <img src={dashboardPreview} alt="Seekurify Dashboard" />
         </div>
       </section>
 
@@ -181,13 +181,11 @@ const useProtectedNavigation = () => {
           Stay Ahead of Threats
         </h2>
         <p className="text-gray-400 max-w-3xl mx-auto mb-10">
-          Get the latest updates on scams, cyber attacks, and security tips through SEEKurify Insights.
+          Get the latest updates on scams, cyber attacks, and security tips through Seekurify Insights.
         </p>
         <button
           onClick={() => {
-            const token = localStorage.getItem("token");
-            if (token) navigate("/securityAwareness");
-            else navigate("/login");
+            navigate("/insights");
           }}
           className="px-8 py-3 rounded-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold shadow-lg hover:scale-105 transition-transform"
         >
@@ -199,7 +197,7 @@ const useProtectedNavigation = () => {
       <section className="relative z-20 py-20 px-6 text-center">
         <h2 className="text-4xl font-bold text-white mb-6">Your Security, Simplified.</h2>
         <p className="text-gray-400 max-w-2xl mx-auto mb-8">
-          Start protecting your digital life today with SEEKurify.
+          Start protecting your digital life today with Seekurify.
         </p>
         <button
           onClick={() => navigate("/signup")}

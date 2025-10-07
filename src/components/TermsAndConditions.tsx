@@ -52,12 +52,12 @@ const handleLogout = async () => {
   <h1 className="text-3xl font-extrabold text-gray-800 mb-4">Terms & Conditions</h1>
 
   <p className="text-gray-700 mb-4">
-    Welcome to <strong>SEEKurify</strong>. By accessing or using our platform, you agree to comply with and be bound by these Terms & Conditions and our Privacy Policy. If you do not agree, please do not use our services.
+    Welcome to <strong>Seekurify</strong>. By accessing or using our platform, you agree to comply with and be bound by these Terms & Conditions and our Privacy Policy. If you do not agree, please do not use our services.
   </p>
 
   <h2 className="text-xl font-semibold text-gray-800 mt-4 mb-2">Platform Overview</h2>
   <p className="text-gray-700 mb-4">
-    SEEKurify is an all-in-one cybersecurity platform designed to provide users with tools and knowledge to enhance digital security. Key features include:
+    Seekurify is an all-in-one cybersecurity platform designed to provide users with tools and knowledge to enhance digital security. Key features include:
   </p>
   <ul className="list-disc list-inside text-gray-700 mb-4">
     <li><strong>Secure Password Manager:</strong> Store, manage, and generate strong passwords in a secure, encrypted environment.</li>
@@ -74,32 +74,32 @@ const handleLogout = async () => {
 
   <h2 className="text-xl font-semibold text-gray-800 mt-4 mb-2">Security & Data Protection</h2>
   <p className="text-gray-700 mb-4">
-    All passwords are hashed and encrypted to ensure maximum protection. While SEEKurify implements multiple security measures, no system is completely secure. Users acknowledge and accept the inherent risks of using online services.
+    All passwords are hashed and encrypted to ensure maximum protection. While Seekurify implements multiple security measures, no system is completely secure. Users acknowledge and accept the inherent risks of using online services.
   </p>
 
   <h2 className="text-xl font-semibold text-gray-800 mt-4 mb-2">User Responsibilities</h2>
   <p className="text-gray-700 mb-4">
-    Users agree to use SEEKurify in compliance with applicable laws, not attempt unauthorized access, and accept responsibility for any files or links scanned using the platform.
+    Users agree to use Seekurify in compliance with applicable laws, not attempt unauthorized access, and accept responsibility for any files or links scanned using the platform.
   </p>
 
   <h2 className="text-xl font-semibold text-gray-800 mt-4 mb-2">Intellectual Property</h2>
   <p className="text-gray-700 mb-4">
-    All content, software, trademarks, and services provided by SEEKurify are the intellectual property of SEEKurify or its licensors. Users may not reproduce, distribute, or create derivative works without prior written consent.
+    All content, software, trademarks, and services provided by Seekurify are the intellectual property of Seekurify or its licensors. Users may not reproduce, distribute, or create derivative works without prior written consent.
   </p>
 
   <h2 className="text-xl font-semibold text-gray-800 mt-4 mb-2">Third-Party Services</h2>
   <p className="text-gray-700 mb-4">
-    Some features may rely on third-party APIs or services for malware detection, file scanning, or link checking. SEEKurify is not responsible for the performance or accuracy of these third-party services.
+    Some features may rely on third-party APIs or services for malware detection, file scanning, or link checking. Seekurify is not responsible for the performance or accuracy of these third-party services.
   </p>
 
   <h2 className="text-xl font-semibold text-gray-800 mt-4 mb-2">Limitation of Liability</h2>
   <p className="text-gray-700 mb-4">
-    SEEKurify provides tools and educational content “as-is.” We are not liable for any damages, losses, or security breaches arising from your use of the platform. Users acknowledge that no cybersecurity tool can guarantee absolute protection.
+    Seekurify provides tools and educational content “as-is.” We are not liable for any damages, losses, or security breaches arising from your use of the platform. Users acknowledge that no cybersecurity tool can guarantee absolute protection.
   </p>
 
   <h2 className="text-xl font-semibold text-gray-800 mt-4 mb-2">Changes to Terms</h2>
   <p className="text-gray-700 mb-4">
-    SEEKurify may update these Terms & Conditions from time to time. Your continued use of the platform constitutes acceptance of the updated terms.
+    Seekurify may update these Terms & Conditions from time to time. Your continued use of the platform constitutes acceptance of the updated terms.
   </p>
 
   <h2 className="text-xl font-semibold text-gray-800 mt-4 mb-2">Contact Us</h2>

@@ -78,6 +78,7 @@ useEffect(() => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50">
+      <title> Seekurify Home</title>
       <Header
         token={token || ""}
         handleLogout={handleLogout}
@@ -153,7 +154,7 @@ useEffect(() => {
             className="bg-gradient-to-r from-blue-100 to-indigo-100 text-center py-4 rounded-2xl text-2xl font-bold text-indigo-800 mb-8 shadow-lg"
             whileHover={{ scale: 1.02 }}
           >
-            About SEEKurify
+            About Seekurify
           </motion.div>
 
           <section className="bg-white py-12 px-6 md:px-20 rounded-xl shadow-lg">
@@ -171,7 +172,7 @@ useEffect(() => {
 
   {/* Main Content */}
   <p className="text-gray-700 text-lg leading-relaxed tracking-wide space-y-6 text-justify">
-    <span className="font-extrabold text-indigo-600">SEEKurify</span> is an 
+    <span className="font-extrabold text-indigo-600">Seekurify</span> is an 
     all-in-one cybersecurity platform designed to empower users with advanced 
     tools and essential knowledge to stay secure in the digital world. Our core 
     mission is twofold: strengthen security through robust features and promote 
@@ -183,7 +184,7 @@ useEffect(() => {
     <span className="font-semibold text-indigo-500"> secure password manager</span>, 
     enabling users to store, manage, and organize their credentials in an 
     encrypted vault. With built-in strong password generation and advanced 
-    hashing techniques, SEEKurify promotes better password hygiene and maximum 
+    hashing techniques, Seekurify promotes better password hygiene and maximum 
     protection.
   </p>
 
@@ -207,13 +208,13 @@ useEffect(() => {
   </div>
 
   <p className="text-gray-700 text-lg leading-relaxed tracking-wide mt-8 text-justify">
-    Beyond tools, SEEKurify provides real-time alerts and educational content 
+    Beyond tools, Seekurify provides real-time alerts and educational content 
     to keep users updated on the latest threats, scams, and cybersecurity best practices.
   </p>
 
   <p className="text-gray-700 text-lg leading-relaxed tracking-wide mt-6 text-justify">
     Whether you’re an individual strengthening personal safety or a developer 
-    embedding secure practices, <span className="font-extrabold text-indigo-600">SEEKurify</span>  
+    embedding secure practices, <span className="font-extrabold text-indigo-600">Seekurify</span>  
     <> </>delivers a modern, user-focused approach to cybersecurity—all in one seamless interface.
   </p>
 </div>

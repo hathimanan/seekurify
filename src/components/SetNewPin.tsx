@@ -254,15 +254,13 @@ const [sidebarExpanded,setSidebarExpanded] = useState(true);
           {error && <div className="text-red-600 mb-4">{error}</div>}
 
           <button
-  type="button"
-  onClick={() => {
-    setNewPin(confirmPin);
-    navigate("/login");
-  }}
+  type="submit" // ← submit the form
   className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+  disabled={isLoading}
 >
-  Set PIN
+  {isLoading ? "Setting PIN..." : "Set PIN"}
 </button>
+
         </>
       )}
 
@@ -287,7 +285,7 @@ const [sidebarExpanded,setSidebarExpanded] = useState(true);
 
             <div className="mt-4 flex justify-end space-x-2">
               <button
-                type="button"
+                type="submit"
                 onClick={async () => {
                   if (pinInput.length !== 4) {
                     setError("PIN must be 4 digits.");

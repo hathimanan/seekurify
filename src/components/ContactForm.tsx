@@ -179,6 +179,7 @@ const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
 
   return (
     <div className="flex-items min-h-screen w-full bg-gradient-to-br from-blue-50 to-purple-100 flex flex-col">
+      <title>Contact Us</title>
       <Header
         token={localStorage.getItem("token") || ""}
         handleLogout={handleLogout}

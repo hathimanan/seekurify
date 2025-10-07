@@ -9,7 +9,6 @@ import { Button } from "./ui/button";
 import { useAuth } from "../context/AuthContext";
 import { Logo } from "./ui/logo";
 import { motion } from "framer-motion";
-
 interface EventData {
   date: string;
   count: number;
@@ -284,7 +283,7 @@ try {
         key,
         amount: paymentFormData.amount * 100, // dynamic
         currency: 'INR',
-        name: 'SEEKurify',
+        name: 'Seekurify',
         description: 'Secure Payment Gateway',
         order_id: orderId,
         prefill: paymentFormData,
@@ -343,8 +342,9 @@ try {
 if (!pinVerified && currentModal === "verifyPin") {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 px-4">
+      <title>SIEM Dashboard</title>
       <div className="bg-gray-800 p-8 rounded-3xl shadow-2xl w-full max-w-md flex flex-col items-center">
-        {/* SEEKurify Icon */}
+        {/* Seekurify Icon */}
         <Logo />
 
         {/* Modal Title */}
@@ -459,7 +459,7 @@ if (!pinVerified && currentModal === "verifyPin") {
   return (
     <div className="bg-gradient-to-br from-gray-900 via-black to-gray-800 min-h-screen flex flex-col text-white">
       <Header token={localStorage.getItem("token") || ""} handleLogout={handleLogout} profileImage={profileImage} sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
-
+<title> SIEM Dashboard</title>
 <div className="flex flex-1 overflow-hidden">
     {/* Sidebar */}
     <motion.aside

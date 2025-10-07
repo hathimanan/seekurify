@@ -194,6 +194,7 @@ const handleLogout = async () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-pink-100 flex flex-col">
+      <title> Security Awareness </title>
       <Header
         token={localStorage.getItem("token") || ""}
         handleLogout={handleLogout}

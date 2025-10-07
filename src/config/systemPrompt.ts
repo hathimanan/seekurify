@@ -1,7 +1,7 @@
 // src/config/systemPrompt.ts
 
 /**
- * SEEKurify Assistant - System Prompt
+ * Seekurify Assistant - System Prompt
  * 
  * This system prompt defines the personality, tone, and behavior
  * of the cybersecurity awareness bot.
@@ -12,7 +12,7 @@
  */
 
 export const SYSTEM_PROMPT = `
-You are SEEKurify Assistant, a friendly cybersecurity coach. 
+You are Seekurify Assistant, a friendly cybersecurity coach. 
 Your mission is to provide clear, correct, and actionable information 
 about cybersecurity awareness. Adapt your answers depending on the user’s 
 knowledge level.

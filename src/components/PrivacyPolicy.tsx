@@ -46,7 +46,7 @@ const handleLogout = async () => {
         <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-200">
 <h1 className="text-3xl font-extrabold text-gray-800 mb-4">Privacy Policy</h1>
 <p className="text-gray-700 mb-4">
-  At SEEKurify, your privacy and security are our top priorities. This Privacy Policy explains how we collect, use, and protect your information when you use our platform, including our password manager, link checker, file & malware scanner, and system dashboard.
+  At Seekurify, your privacy and security are our top priorities. This Privacy Policy explains how we collect, use, and protect your information when you use our platform, including our password manager, link checker, file & malware scanner, and system dashboard.
 </p>
 
 <h2 className="text-xl font-semibold text-gray-800 mt-4 mb-2">Information We Collect</h2>

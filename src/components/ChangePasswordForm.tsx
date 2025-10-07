@@ -32,6 +32,7 @@ const [generalError, setGeneralError] = useState('');
 
   const [isPinVerified, setIsPinVerified] = useState(false);
   const [profileImage, setProfileImage] = useState<string>(''); // ✅ state for header
+  const [sidebarExpanded,setSidebarExpanded] = useState(true);
   const navigate = useNavigate();
 
 useEffect(() => {
@@ -227,7 +228,12 @@ const handleLogout = async () => {
         token={localStorage.getItem("token") || ""}
         handleLogout={handleLogout}
         profileImage={profileImage} // ✅ pass state
+        sidebarExpanded={sidebarExpanded}
+        setSidebarExpanded={setSidebarExpanded}
+
       />
+
+      <title>Change Password</title>
 
       <main className="flex-grow p-6 bg-gradient-to-br from-indigo-50 to-blue-100 rounded-lg">
         <div className="p-6 bg-gradient-to-br from-indigo-50 to-blue-100 min-h-screen rounded-lg">

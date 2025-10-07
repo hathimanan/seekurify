@@ -55,14 +55,14 @@ const useProtectedNavigation = (path: string) => {
     <header className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-6 text-white shadow-md sticky top-0 z-20">
   <div className="w-full flex justify-between items-center px-6 py-4">
     
-    {/* Left Section: SEEKurify + Sidebar Toggle */}
+    {/* Left Section: Seekurify + Sidebar Toggle */}
     <div className="flex items-center gap-2">
       <motion.h1
         className="text-3xl font-extrabold tracking-wide cursor-pointer mr-2"
         whileHover={{ scale: 1.05 }}
         onClick={() => navigate("/")}
       >
-        SEEKurify
+        Seekurify
       </motion.h1>
 
       {/* Sidebar Toggle with Tooltip */}

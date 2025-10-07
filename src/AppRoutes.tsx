@@ -25,7 +25,7 @@ import AvoidPublicWifi from "./components/tips/AvoidPublicWiFis";
 import BackupYourData from "./components/tips/BackupYourData";
 import WarningScreen from "./components/WarningScreen";
 import { FeaturesPage } from "./components/FeaturesPage";
-
+import Insights from "./components/Insights";
 
 const AppRoutes = () => {
   const navigate = useNavigate();
@@ -85,6 +85,8 @@ const AppRoutes = () => {
         <Route path="/profile" element={<Profile />} />
 
         <Route path="/change-password" element={<ChangePasswordForm />} />
+
+        <Route path="/insights" element={<Insights />} />
 
 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 

@@ -195,9 +195,9 @@ const handleSubmit = async (e: React.FormEvent) => {
               <div className="text-center mb-6">
                <Logo />
                 <h1 className="text-4xl font-extrabold text-indigo-700 drop-shadow-sm">
-                  Login to SEEKurify
+                  Login to Seekurify
                 </h1>
-                <p className="text-gray-500 mt-1">Sign in to your SEEKurify account</p>
+                <p className="text-gray-500 mt-1">Sign in to your Seekurify account</p>
               </div>
 
                                     <div className="mt-6 text-center">

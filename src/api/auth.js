@@ -66,7 +66,7 @@ async function sendSuspiciousLoginEmail(ip, email) {
    const htmlContent = `
   <div style="font-family: Arial, sans-serif; color: #333;">
     <h2 style="color: #d9534f;">⚠️ Suspicious Login Detected</h2>
-    <p>We noticed multiple failed login attempts to your <strong>SEEKurify</strong> account from the following IP address:</p>
+    <p>We noticed multiple failed login attempts to your <strong>Seekurify</strong> account from the following IP address:</p>
     <p style="background-color: #f8d7da; padding: 10px; border-radius: 5px; font-weight: bold;">${ip}</p>
     <p>If this wasn’t you, we strongly recommend you:</p>
     <ul>
@@ -87,13 +87,13 @@ async function sendSuspiciousLoginEmail(ip, email) {
     </a>
     <p style="font-size: 12px; color: #666;">If you did attempt to login, you can safely ignore this message.</p>
     <hr style="border: none; border-top: 1px solid #eee;" />
-    <p style="font-size: 12px; color: #999;">&copy; ${new Date().getFullYear()} SEEKurify. All rights reserved.</p>
+    <p style="font-size: 12px; color: #999;">&copy; ${new Date().getFullYear()} Seekurify. All rights reserved.</p>
   </div>
 `;
 
 
     await transporter.sendMail({
-      from: 'SEEKurify <no-reply@SEEKurify.com>',
+      from: 'Seekurify <no-reply@Seekurify.com>',
       to: email,
       subject: 'Suspicious Login Attempts Detected',
       html: htmlContent
@@ -401,14 +401,14 @@ authRouter.post('/send-otp', async (req, res) => {
     });
 
 const mailOptions = {
-  from: `SEEKurify 🔐 <${process.env.GMAIL_USER}>`,
+  from: `Seekurify 🔐 <${process.env.GMAIL_USER}>`,
   to: email,
   subject: '🔒 Your One-Time Password (OTP)',
   text: `Your OTP code is: ${otp}. It expires in 10 minutes.`,
   html: `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 10px; overflow: hidden;">
       <div style="background-color: #4a90e2; color: white; text-align: center; padding: 20px;">
-        <h2>SEEKurify</h2>
+        <h2>Seekurify</h2>
         <p style="margin: 0;">Your Secure OTP</p>
       </div>
       <div style="padding: 30px; text-align: center;">
@@ -420,7 +420,7 @@ const mailOptions = {
         <p style="font-size: 12px; color: #999;">If you did not request this OTP, please ignore this email.</p>
       </div>
       <div style="background-color: #f7f7f7; text-align: center; padding: 15px; font-size: 12px; color: #999;">
-        © ${new Date().getFullYear()} SEEKurify. All rights reserved.
+        © ${new Date().getFullYear()} Seekurify. All rights reserved.
       </div>
     </div>
   `
@@ -585,8 +585,7 @@ authRouter.post('/signup', async (req, res) => {
     const newUser = new User({
       email,
       username,
-      password,
-      // pin:user.pin
+      password
     });
     await newUser.save();
 
@@ -624,11 +623,11 @@ const transporter = nodemailer.createTransport({
   },
 });
     await transporter.sendMail({
-      from: `"SEEKurify" <${process.env.GMAIL_USER}>`,
+      from: `"Seekurify" <${process.env.GMAIL_USER}>`,
       to: email,
-      subject: 'Verify Your Email & Set Your PIN - SEEKurify',
+      subject: 'Verify Your Email & Set Your PIN - Seekurify',
       html: `
-        <h2>Welcome to SEEKurify, ${username}!</h2>
+        <h2>Welcome to Seekurify, ${username}!</h2>
         <p>Click the button below to verify your email and set your secure 4-digit PIN:</p>
         <a href="${verifyLink}" style="background-color:#007bff;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">Set Your PIN</a>
         <p>This link is valid for 15 minutes.</p>
@@ -650,7 +649,6 @@ const transporter = nodemailer.createTransport({
 authRouter.post('/update-pin', async (req, res) => {
   const { email, newPin } = req.body;
 
-  // Basic input validation
   if (!email || !newPin) {
     return res.status(400).json({ error: 'Email and new PIN are required' });
   }
@@ -660,17 +658,13 @@ authRouter.post('/update-pin', async (req, res) => {
   }
 
   try {
-    // Find the user by email
     const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Update the pin field
+    // Set the new PIN
     user.pin = newPin;
 
-    // Save the updated user
+    // Save (triggers pre-save hook and hashes the PIN)
     await user.save();
 
     return res.status(200).json({ message: 'PIN updated successfully' });

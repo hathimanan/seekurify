@@ -55,7 +55,7 @@ export const FeaturesPage: FC = () => {
           </button>
         </div>
         <h1 className="text-4xl sm:text-5xl font-extrabold mb-4">
-          SEEKurify Features
+          Seekurify Features
         </h1>
         <p className="text-lg sm:text-xl text-gray-200 max-w-3xl mx-auto">
           Core tools designed to secure your digital world.

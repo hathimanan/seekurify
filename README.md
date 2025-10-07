@@ -1,19 +1,19 @@
-# SEEKurify Project
+# Seekurify Project
 
-Welcome to **SEEKurify**!  
+Welcome to **Seekurify**!  
 
-**SEEKurify** is an all-in-one **cybersecurity platform** and **secure password manager** designed to empower users with advanced tools and essential knowledge to stay safe in the digital world. The platform combines robust security features with educational insights to promote better cybersecurity practices.
+**Seekurify** is an all-in-one **cybersecurity platform** and **secure password manager** designed to empower users with advanced tools and essential knowledge to stay safe in the digital world. The platform combines robust security features with educational insights to promote better cybersecurity practices.
 
-At its core, SEEKurify provides a **secure password manager**, allowing users to store, manage, and organize their credentials in an encrypted vault. Users can generate strong, random passwords and maintain excellent password hygiene.  
+At its core, Seekurify provides a **secure password manager**, allowing users to store, manage, and organize their credentials in an encrypted vault. Users can generate strong, random passwords and maintain excellent password hygiene.  
 
-In addition to password management, SEEKurify offers:
+In addition to password management, Seekurify offers:
 
 - **Link Checker:** Instantly verify URLs to detect safe or malicious links.  
 - **File & Malware Scanner:** Scan uploaded files for viruses and malware using trusted detection logic.  
 - **System Dashboard:** Monitor system events, track logs, and gain insights into potential threats.  
 - **Real-time Alerts & Educational Content:** Stay informed about the latest threats, scams, and cybersecurity best practices.
 
-SEEKurify is built using **ReactJS** for the frontend and **Node.js/Express** for the backend.
+Seekurify is built using **ReactJS** for the frontend and **Node.js/Express** for the backend.
 
 ---
 
@@ -47,7 +47,7 @@ npm install
 
 Create a .env file in the root directory with the following variables:
 
-MONGODB_URI=mongodb://localhost:27017/SEEKurify
+MONGODB_URI=mongodb://localhost:27017/Seekurify
 secretKey=342b1cccd0172c02ccaa09ddcc0b1d6bbbb205674a4d71d2702e40d12bb53e3c
 PORT=5000
 GMAIL_USER=test266105@gmail.com
@@ -93,7 +93,7 @@ System dashboard with event logs
 
 ## Security Features:
 
-SEEKurify implements industry-standard security practices:
+Seekurify implements industry-standard security practices:
 
 Password hashing with bcrypt
 
@@ -111,7 +111,7 @@ Real-time monitoring of system events
 
 ## Database
 
-SEEKurify uses MongoDB for data storage. Ensure MongoDB is installed and running locally, or update the MONGODB_URI in .env to point to your database instance.
+Seekurify uses MongoDB for data storage. Ensure MongoDB is installed and running locally, or update the MONGODB_URI in .env to point to your database instance.
 
 ## API Endpoints
 
@@ -134,4 +134,4 @@ Build the project for release:
 npm run build
 ```
 
-SEEKurify is designed to protect users’ digital life with a modern, user-focused approach to cybersecurity—all in one seamless interface.
+Seekurify is designed to protect users’ digital life with a modern, user-focused approach to cybersecurity—all in one seamless interface.

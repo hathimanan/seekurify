@@ -163,8 +163,6 @@ export const Dashboard: React.FC = () => {
             setShowDeleteConfirmationModal(true);
 
           }
-          setConfirmId(null);
-          setPinAction(null);
         }
         // optional: refresh full password list if needed
         await loadPasswords(Date.now());
@@ -175,6 +173,7 @@ export const Dashboard: React.FC = () => {
       console.error("Error verifying PIN:", error);
       setPinError(true);
     }
+
   };
 
 
@@ -448,7 +447,7 @@ export const Dashboard: React.FC = () => {
         key,
         amount: paymentFormData.amount * 100, // dynamic
         currency: 'INR',
-        name: 'SEEKurify',
+        name: 'Seekurify',
         description: 'Secure Payment Gateway',
         order_id: orderId,
         prefill: paymentFormData,
@@ -790,10 +789,18 @@ const handleCopy = async (text: string) => {
       navigate('/login');
     }
   };
-
+const cardCount = passwords.length;
+const gridColsClass = cardCount === 1 
+  ? 'grid-cols-1' // Base is 1
+  : cardCount === 2 
+    ? 'lg:grid-cols-2' // Force 2 columns on large screens
+    : 'lg:grid-cols-3'; // Default 3 columns
   const token = localStorage.getItem('token');
   return (
+
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300">
+              <title>Password Manager</title>
+
       <Header
         token={token || ""}
         handleLogout={handleLogout}
@@ -801,7 +808,7 @@ const handleCopy = async (text: string) => {
         sidebarExpanded={sidebarExpanded}
         setSidebarExpanded={setSidebarExpanded}
       />
-
+<title> Password Manager </title>
 <div className="flex flex-1 overflow-hidden">
       {/* Sidebar */}
       <motion.aside
@@ -868,8 +875,8 @@ const handleCopy = async (text: string) => {
         </div>
 
         {/* Saved Passwords */}
-        <div className="bg-white shadow-xl rounded-2xl p-6 border border-gray-200">
-          <div className="flex justify-between items-center mb-6">
+<div className="bg-white shadow-xl rounded-2xl p-6 border border-gray-200">
+            <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold text-gray-800">Your Saved Passwords</h2>
             <Button
               onClick={() => setShowAddForm(true)}
@@ -889,14 +896,18 @@ const handleCopy = async (text: string) => {
               <p className="text-gray-500">No passwords yet. Click <strong>+ Add New</strong> to get started!</p>
             </div>
           ) : (
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+<div className={`grid gap-5 grid-cols-1 sm:grid-cols-2 ${gridColsClass}`}>
               {passwords.map((password) => (
                 <div
                   key={password._id}
-                  className="relative bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-5 shadow-md hover:shadow-lg hover:scale-[1.02] transition transform duration-200 group"
-                >
-                  {/* Icon + Actions */}
-                  <div className="flex items-center justify-between mb-4">
+ className={`
+            w-full bg-gradient-to-br from-blue-500 to-blue-600 text-white 
+            rounded-2xl p-5 shadow-md hover:shadow-lg hover:scale-[1.02] 
+            transition transform duration-200 group
+                        ${cardCount === 1 ? 'col-span-full' : ''} 
+`}
+        >
+                        <div className="flex items-center justify-between mb-4">
                     <div className={`w-12 h-12 ${getWebsiteColor(password.website)} rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-md`}>
                       {getWebsiteIcon(password.website)}
                     </div>
@@ -919,7 +930,7 @@ const handleCopy = async (text: string) => {
 
 {copied && (
   <span className="absolute top-0 right-0 bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
-    Copied!
+    Password successfully copied to clipboard!
   </span>
 )}
 
@@ -1020,7 +1031,7 @@ const handleCopy = async (text: string) => {
 
 
 
-                    {showDeleteConfirmationModal && (confirmId === password._id) && (
+                    {showDeleteConfirmationModal && confirmId && (confirmId === password._id) && (
                       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                         <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-lg">
                           <h3 className="text-lg font-bold mb-3">Confirm Delete</h3>
@@ -1034,14 +1045,17 @@ const handleCopy = async (text: string) => {
                               Cancel
                             </button>
                             <button
-                              onClick={() => {
-                                handleDeletePassword(password._id);
-                                setShowDeleteConfirmationModal(false);
-                              }} // ✅ function used here
-                              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                            >
-                              {isDeleting === password._id ? "Deleting..." : "Delete"}
-                            </button>
+  onClick={async () => {
+    await handleDeletePassword(password._id);
+    setShowReverifyPinModal(false); // close PIN modal
+    setReverifyPinInput(''); // clear PIN input
+    setPinError(false); // reset error
+  }}
+  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+>
+  {isDeleting === password._id ? "Deleting..." : "Delete"}
+</button>
+
                           </div>
 
                         </div>

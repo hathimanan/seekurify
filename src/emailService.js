@@ -29,7 +29,7 @@ async function sendResetEmail(email, resetCode) {
   });
 
   const mailOptions = {
-    from: `SEEKurify Reset <${process.env.GMAIL_USER}>`,
+    from: `Seekurify Reset <${process.env.GMAIL_USER}>`,
     to: email,
     subject: 'Your Password Reset Code',
     text: `Your password reset code is: ${resetCode}`,
