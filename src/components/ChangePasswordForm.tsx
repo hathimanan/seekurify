@@ -261,7 +261,7 @@ const handleLogout = async () => {
   value={pin}
   onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
   maxLength={4}
-  placeholder="4-digit PIN"
+  placeholder="Enter PIN"
   className="w-full px-4 py-2 border rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
 />
 

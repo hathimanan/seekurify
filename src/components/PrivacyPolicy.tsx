@@ -27,8 +27,9 @@ const handleLogout = async () => {
       {/* Header */}
       <Header
         token={localStorage.getItem("token") || ""}
-        handleLogout={handleLogout}
-      />
+        handleLogout={handleLogout} sidebarExpanded={false} setSidebarExpanded={function (value: React.SetStateAction<boolean>): void {
+          throw new Error("Function not implemented.");
+        } }      />
 <div className="w-full max-w-lg mb-6 ml-4 sm:ml-6 mt-4 sm:mt-6">
           <button
             onClick={() => navigate(-1)}

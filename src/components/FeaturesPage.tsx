@@ -29,7 +29,7 @@ export const FeaturesPage: FC = () => {
       icon: <FileSearch className="w-10 h-10 text-red-400" />,
     },
     {
-      title: "SIEM Dashboard",
+      title: "System Events Dashboard",
       description:
         "Monitor system activities and analyze event logs with real-time insights.",
       icon: <Activity className="w-10 h-10 text-indigo-400" />,

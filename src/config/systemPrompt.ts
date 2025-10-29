@@ -46,3 +46,4 @@ knowledge level.
 - Never condescending.
 `;
 
+export default SYSTEM_PROMPT;

@@ -5,6 +5,10 @@ import Header from "../components/ui/Header";
 import Footer from "../components/ui/Footer";
 import { ArrowLeft, BarChart3, FileSearch, KeyRound, Phone, ShieldCheck } from "lucide-react";
 import { API_BASE_URL } from '../services/api';
+import SecurityChatbotIcon from "./ui/ChatbotIcon";
+import BotChat from "./ui/BotChat";
+import { tips } from '../config/securityTips';
+
 interface Attack {
   title: string;
   date: string;
@@ -28,27 +32,27 @@ interface HeaderProps {
 
 // Update tips to include links
 // tips.ts
-export const tips = [
-  { text: "Use strong, unique passwords for each account.", link: "/tips/strong-passwords" },
-  { text: "Enable two-factor authentication (2FA) wherever possible.", link: "/tips/two-factor-authentication" },
-  { text: "Avoid clicking on suspicious links or attachments.", link: "/tips/avoid-suspicious-links" },
-  { text: "Keep your devices and apps updated regularly.", link: "/tips/keep-devices-updated" },
-  { text: "Install antivirus software and run regular scans.", link: "/tips/install-antivirus" },
-  { text: "Never share your OTP or banking PIN with anyone.", link: "/tips/never-share-otp" },
-  { text: "Verify website URLs before entering personal information.", link: "/tips/verify-website-urls" },
-  { text: "Avoid accessing sensitive information over public Wi-Fi.", link: "/tips/avoid-public-wifi" },
-  { text: "Regularly backup your data to the cloud or external drives.", link: "/tips/backup-your-data" },
+// export const tips = [
+//   { text: "Use strong, unique passwords for each account.", link: "/tips/strong-passwords" },
+//   { text: "Enable two-factor authentication (2FA) wherever possible.", link: "/tips/two-factor-authentication" },
+//   { text: "Avoid clicking on suspicious links or attachments.", link: "/tips/avoid-suspicious-links" },
+//   { text: "Keep your devices and apps updated regularly.", link: "/tips/keep-devices-updated" },
+//   { text: "Install antivirus software and run regular scans.", link: "/tips/install-antivirus" },
+//   { text: "Never share your OTP or banking PIN with anyone.", link: "/tips/never-share-otp" },
+//   { text: "Verify website URLs before entering personal information.", link: "/tips/verify-website-urls" },
+//   { text: "Avoid accessing sensitive information over public Wi-Fi.", link: "/tips/avoid-public-wifi" },
+//   { text: "Regularly backup your data to the cloud or external drives.", link: "/tips/backup-your-data" },
 
-    // <Route path="/tips/strong-passwords" element={<StrongPasswords />} />
-    //     <Route path="/tips/two-factor-authentication" element={<TwoFactorAuthentication />} />
-    //     <Route path="/tips/avoid-suspicious-links" element={<AvoidSuspiciousLinks />} />
-    //     <Route path="/tips/keep-devices-updated" element={<KeepDevicesUpdated />} />
-    //     <Route path="/tips/install-antivirus" element={<InstallAntivirus />} />
-    //     <Route path="/tips/never-share-otp" element={<NeverShareOTP />} />
-    //     <Route path="/tips/verify-website-urls" element={<VerifyWebsiteURLs />} />
-    //     <Route path="/tips/avoid-public-wifi" element={<AvoidPublicWifi />} />
-    //     <Route path="/tips/backup-your-data" element={<BackupYourData />} />
-];
+//     // <Route path="/tips/strong-passwords" element={<StrongPasswords />} />
+//     //     <Route path="/tips/two-factor-authentication" element={<TwoFactorAuthentication />} />
+//     //     <Route path="/tips/avoid-suspicious-links" element={<AvoidSuspiciousLinks />} />
+//     //     <Route path="/tips/keep-devices-updated" element={<KeepDevicesUpdated />} />
+//     //     <Route path="/tips/install-antivirus" element={<InstallAntivirus />} />
+//     //     <Route path="/tips/never-share-otp" element={<NeverShareOTP />} />
+//     //     <Route path="/tips/verify-website-urls" element={<VerifyWebsiteURLs />} />
+//     //     <Route path="/tips/avoid-public-wifi" element={<AvoidPublicWifi />} />
+//     //     <Route path="/tips/backup-your-data" element={<BackupYourData />} />
+// ];
 
 
 const mockRecentAttacks: Attack[] = [
@@ -133,6 +137,7 @@ export const SecurityAwareness: React.FC = () => {
   const carouselRef = useRef<HTMLDivElement>(null);
 const [profileImage, setProfileImage] = useState<string>(""); // ✅ state for header
 const [sidebarExpanded,setSidebarExpanded] = useState(true);
+const [isOpen, setIsOpen] = useState(false);
 const token = localStorage.getItem('token');
 useEffect(() => {
   let isMounted = true; // prevent state updates after unmount
@@ -207,14 +212,14 @@ const handleLogout = async () => {
     {/* Sidebar */}
     <motion.aside
       initial={false}
-      animate={{ width: sidebarExpanded ? "16rem" : "4rem" }}
+  animate={{ width: sidebarExpanded ? "18rem" : "4rem" }}
       transition={{ type: "spring", stiffness: 260, damping: 30 }}
       className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col"
     >
       {[
         { label: "Analyze Malware", path: "/malware-analysis", icon: <FileSearch className="w-5 h-5" /> },
         { label: "Password Manager", path: "/dashboard", icon: <KeyRound className="w-5 h-5" /> },
-        { label: "SIEM Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
+        { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
         { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
         { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
       ].map(({ label, path, icon }) => (
@@ -260,7 +265,6 @@ const handleLogout = async () => {
 
 
 <main className="flex-grow px-6 py-6 max-w-6xl mx-auto">
-
         {/* Page Header */}
         <header className="text-center mb-12">
           <h1 className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-pink-600 drop-shadow-md">
@@ -387,7 +391,29 @@ const handleLogout = async () => {
           </p>
         </section>
       </main>
-</div>
+
+      {/* Add fixed SecurityChatbotIcon */}
+            <div
+        className="fixed bottom-8 right-8 z-50 cursor-pointer"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <SecurityChatbotIcon />
+      </div>
+
+      {/* Chat Window */}
+      {isOpen && (
+        <div className="fixed bottom-24 right-8 z-50 w-96 h-[500px] bg-white rounded-xl shadow-xl flex flex-col overflow-hidden">
+          <div className="flex justify-between items-center p-3 bg-blue-600 text-white">
+            <span>Chat with Nick</span>
+            <button onClick={() => setIsOpen(false)}>&times;</button>
+          </div>
+          <div className="flex-1 p-3 overflow-auto">
+            <BotChat />
+          </div>
+        </div>
+      )}
+      
+    </div>
       <Footer />
     </div>
   );

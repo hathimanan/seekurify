@@ -34,8 +34,8 @@ const PORT = process.env.PORT || 5000;
 
 // --- CORS setup ---
 const allowedOrigins = PROD
-  ? ['https://your-domain.com']           // production frontend(s)
-  : ['http://localhost:5173'];            // dev frontend
+  ? ['https://your-domain.com']
+  : ['http://localhost:5173', 'http://localhost:5000', 'http://127.0.0.1:5173']; // add server origin & 127.0.0.1
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -43,7 +43,9 @@ app.use(cors({
     else callback(new Error('Not allowed by CORS'));
   },
   methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  transports: ['websocket', 'polling']
 }));
 
 // --- Security headers ---
@@ -54,7 +56,7 @@ const devCsp = {
     "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", "http://localhost:5173"],
     "style-src": ["'self'", "'unsafe-inline'", "http://localhost:5173"],
     "img-src": ["'self'", "data:", "blob:", "http://localhost:5173"],
-    "connect-src": ["'self'", "ws:", "wss:", "http://localhost:5173"],
+    "connect-src": ["'self'", "ws://localhost:5000", "wss://localhost:5000", "http://localhost:5173"],
     "frame-ancestors": ["'none'"],
     "object-src": ["'none'"],
     "base-uri": ["'self'"]
@@ -121,6 +123,25 @@ app.disable('x-powered-by');
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+
+app.use((req, res, next) => {
+  const sanitizeString = (str) => str.replace(/[<>$]/g, ''); // example simple sanitizer
+
+  const sanitizeObject = (obj) => {
+    for (const key in obj) {
+      if (typeof obj[key] === 'string') obj[key] = sanitizeString(obj[key]);
+      else if (typeof obj[key] === 'object' && obj[key] !== null) sanitizeObject(obj[key]);
+    }
+  };
+
+  if (req.body) sanitizeObject(req.body);
+  if (req.query) sanitizeObject(req.query);
+  if (req.params) sanitizeObject(req.params);
+
+  next();
+});
+
+
 // --- Sessions (5 min) ---
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your_secret_key',
@@ -148,6 +169,7 @@ import contactRouter from './src/api/contactForm.js';
 import SIEMDashboard from './src/api/siemDashboard.js';
 import profileRoute from './src/api/profile.js';
 import userSchema from './src/models/User.ts';
+import botRouter from './src/routes/bot.ts';
 
 app.use('/api/homepage', homepageBeforeloginRoutes);
 app.use('/api/auth', authRouter);
@@ -160,7 +182,7 @@ app.use('/api', contactRouter);
 app.use('/api', SIEMDashboard);
 app.use('/api/profile', profileRoute);
 app.use('/api/user', userSchema);
-
+app.use('/api', botRouter);
 // --- Serve static files from Vite build ---
 app.use(express.static(path.join(__dirname, 'seekurify')));
 
@@ -174,9 +196,17 @@ app.get(/^\/(?!api).*/, (req, res) => {
 });
 
 
-const server = http.createServer(app);
-initSocket(server, { allowedOrigins });
+const socketIoOptions = {
+  cors: {
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  transports: ['polling', 'websocket'] // polling first is more tolerant behind proxies
+};
 
+const server = http.createServer(app);
+initSocket(server, socketIoOptions);
 
 
 // --- Start server ---

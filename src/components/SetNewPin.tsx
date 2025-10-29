@@ -166,14 +166,14 @@ const [sidebarExpanded,setSidebarExpanded] = useState(true);
     {/* Sidebar */}
     <motion.aside
       initial={false}
-      animate={{ width: sidebarExpanded ? "16rem" : "4rem" }}
+  animate={{ width: sidebarExpanded ? "18rem" : "4rem" }}
       transition={{ type: "spring", stiffness: 260, damping: 30 }}
       className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col"
     >
       {[
         { label: "Analyze Malware", path: "/malware-analysis", icon: <FileSearch className="w-5 h-5" /> },
         { label: "Password Manager", path: "/dashboard", icon: <KeyRound className="w-5 h-5" /> },
-        { label: "SIEM Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
+        { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
         { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
         { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
       ].map(({ label, path, icon }) => (

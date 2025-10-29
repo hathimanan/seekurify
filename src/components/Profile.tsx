@@ -204,10 +204,12 @@ const Profile: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-100 relative">
 <Header
-  token={localStorage.getItem("token") || ""}
-  handleLogout={handleLogout}
-  profileImage={user?.profileImage || ""} // ✅ pass uploaded image
-/>
+        token={localStorage.getItem("token") || ""}
+        handleLogout={handleLogout}
+        profileImage={user?.profileImage || ""} // ✅ pass uploaded image
+        sidebarExpanded={false} setSidebarExpanded={function (value: React.SetStateAction<boolean>): void {
+          throw new Error("Function not implemented.");
+        } }/>
 
         <main className="p-6 bg-gradient-to-br from-indigo-50 to-blue-100 min-h-screen rounded-lg">
           {/* Back Button */}

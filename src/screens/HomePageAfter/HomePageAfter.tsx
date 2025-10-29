@@ -103,16 +103,17 @@ useEffect(() => {
 
         <div className="flex flex-1 overflow-hidden">
     {/* Sidebar */}
-    <motion.aside
-      initial={false}
-      animate={{ width: sidebarExpanded ? "16rem" : "4rem" }}
-      transition={{ type: "spring", stiffness: 260, damping: 30 }}
-      className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col"
-    >
+<motion.aside
+  initial={false}
+  animate={{ width: sidebarExpanded ? "18rem" : "4rem" }}
+  transition={{ type: "spring", stiffness: 260, damping: 30 }}
+  className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col"
+>
+
       {[
         { label: "Analyze Malware", path: "/malware-analysis", icon: <FileSearch className="w-5 h-5" /> },
         { label: "Password Manager", path: "/dashboard", icon: <KeyRound className="w-5 h-5" /> },
-        { label: "SIEM Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
+        { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
         { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
         { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
       ].map(({ label, path, icon }) => (
@@ -219,7 +220,7 @@ useEffect(() => {
   </p>
 </div>
 
-              <div className="flex justify-center flex-wrap gap-4 mt-10">
+              {/* <div className="flex justify-center flex-wrap gap-4 mt-10">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   className="bg-red-600 text-white py-3 px-6 rounded-xl hover:bg-red-700 shadow-lg"
@@ -234,7 +235,7 @@ useEffect(() => {
                 >
                   Explore SIEM Dashboard
                 </motion.button>
-              </div>
+              </div> */}
             </div>
           </section>
         </div>

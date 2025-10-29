@@ -46,45 +46,58 @@ const useProtectedNavigation = () => {
   if (isAuthenticated) {
     return <HomePageAfter />;
   }
+return (
+  <div className="min-h-screen flex flex-col justify-between overflow-hidden relative bg-black text-white">
+    {/* Hero Section */}
+    <section className="relative min-h-screen flex flex-col justify-center items-center text-center overflow-hidden">
+      {/* Animated Gradient Background */}
+      <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-purple-600 to-blue-500 animate-gradient-slow z-0" />
 
-  return (
-    <div className="min-h-screen flex flex-col justify-between overflow-hidden relative bg-black text-white">
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex flex-col justify-center items-center text-center overflow-hidden">
-        {/* Animated Gradient Background */}
-        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-purple-600 to-blue-500 animate-gradient-slow z-0" />
+      {/* Overlay for readability */}
+      <div className="absolute inset-0 bg-black/70 z-10 backdrop-blur-sm" />
 
-        {/* Overlay for readability */}
-        <div className="absolute inset-0 bg-black/70 z-10 backdrop-blur-sm" />
+      {/* Floating Security Icons */}
+      <ShieldCheck className="absolute top-20 left-10 h-16 w-16 text-indigo-400 opacity-20 animate-float-slow z-20" />
+      <Lock className="absolute top-1/4 right-20 h-14 w-14 text-blue-400 opacity-15 animate-float-delay z-20" />
+      <Activity className="absolute bottom-32 left-32 h-20 w-20 text-purple-400 opacity-15 animate-float-delay z-20" />
 
-        {/* Floating Security Icons */}
-        <ShieldCheck className="absolute top-20 left-10 h-16 w-16 text-indigo-400 opacity-20 animate-float-slow z-20" />
-        <Lock className="absolute top-1/4 right-20 h-14 w-14 text-blue-400 opacity-15 animate-float-delay z-20" />
-        <Activity className="absolute bottom-32 left-32 h-20 w-20 text-purple-400 opacity-15 animate-float-delay z-20" />
+      {/* Top-right Auth Buttons */}
+      <div className="absolute top-6 right-8 z-30 flex gap-4">
+        <button
+          onClick={() => navigate("/login")}
+          className="px-5 py-2 bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 rounded-full font-semibold transition-all duration-300 shadow-md"
+        >
+          Login
+        </button>
+        <button
+          onClick={() => navigate("/signup")}
+          className="px-5 py-2 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 rounded-full font-semibold transition-all duration-300 shadow-md"
+        >
+          Signup
+        </button>
+      </div>
 
-        {/* Content */}
-        <div className="relative z-20 px-6">
-          <h2
-            onClick={() => navigate("/")}
-            className="cursor-pointer flex items-center gap-2 justify-center mb-8 text-2xl sm:text-3xl font-extrabold tracking-wide"
+      {/* Content */}
+      <div className="relative z-20 px-6 flex flex-col items-center">
+        <h2
+          onClick={() => navigate("/")}
+          className="cursor-pointer flex items-center gap-2 justify-center mb-8 text-2xl sm:text-3xl font-extrabold tracking-wide"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-10 w-10 text-blue-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-10 w-10 text-blue-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-              <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" strokeWidth="2" />
-              <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" strokeWidth="2" />
-              <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-            </svg>
-            Seekurify
-
-          </h2>
-
+            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+            <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" strokeWidth="2" />
+            <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" strokeWidth="2" />
+            <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+          </svg>
+          Seekurify
+        </h2>
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-blue-500 leading-tight max-w-4xl mx-auto">
             Secure. Smart. Simple.
           </h1>

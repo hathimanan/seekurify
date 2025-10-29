@@ -114,7 +114,7 @@ setPasswordHealth(eventsData.passwordHealth || []);
 } else if (paymentData.isTrialActive) {
   setCurrentModal("verifyPin");
 } else if (paymentData.isTrialExpired || !paymentData.isTrialActive) {
-  setCurrentModal("pay");
+  setCurrentModal("onlyPay");
 }
 else {
   setCurrentModal("pay");
@@ -342,7 +342,7 @@ try {
 if (!pinVerified && currentModal === "verifyPin") {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 px-4">
-      <title>SIEM Dashboard</title>
+      <title>System Events Dashboard</title>
       <div className="bg-gray-800 p-8 rounded-3xl shadow-2xl w-full max-w-md flex flex-col items-center">
         {/* Seekurify Icon */}
         <Logo />
@@ -363,7 +363,7 @@ if (!pinVerified && currentModal === "verifyPin") {
               value={pinInput}
               onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
               maxLength={4}
-              placeholder="4-digit PIN"
+              placeholder="Enter PIN"
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${pinError ? 'focus:ring-red-500' : 'focus:ring-blue-500'}`}
             />
             {pinError &&  <p className="text-red-600 text-sm">{pinError}</p>}
@@ -459,19 +459,19 @@ if (!pinVerified && currentModal === "verifyPin") {
   return (
     <div className="bg-gradient-to-br from-gray-900 via-black to-gray-800 min-h-screen flex flex-col text-white">
       <Header token={localStorage.getItem("token") || ""} handleLogout={handleLogout} profileImage={profileImage} sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
-<title> SIEM Dashboard</title>
+<title> System Events Dashboard</title>
 <div className="flex flex-1 overflow-hidden">
     {/* Sidebar */}
     <motion.aside
       initial={false}
-      animate={{ width: sidebarExpanded ? "16rem" : "4rem" }}
+  animate={{ width: sidebarExpanded ? "18rem" : "4rem" }}
       transition={{ type: "spring", stiffness: 260, damping: 30 }}
       className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col"
     >
       {[
         { label: "Analyze Malware", path: "/malware-analysis", icon: <FileSearch className="w-5 h-5" /> },
         { label: "Password Manager", path: "/dashboard", icon: <KeyRound className="w-5 h-5" /> },
-        { label: "SIEM Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
+        { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
         { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
         { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
       ].map(({ label, path, icon }) => (
@@ -517,8 +517,8 @@ if (!pinVerified && currentModal === "verifyPin") {
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
   {/* Login Events */}
-  <div className="bg-gray-800 rounded-2xl shadow-lg p-4 flex flex-col">
-    <h3 className="text-white font-semibold mb-3">🔑 Login Events</h3>
+<div className="bg-gray-800 rounded-2xl shadow-lg p-6 flex flex-col hover:scale-105 transition-transform duration-200">
+  <h3 className="text-white font-semibold mb-4 text-lg flex items-center gap-2">🔑 Login Events</h3>
     <Graph 
       title="Login Events" 
       data={loginEvents.map(e => ({ date: e.date, value: e.count }))} 
@@ -526,8 +526,9 @@ if (!pinVerified && currentModal === "verifyPin") {
   </div>
 
   {/* Password Changes */}
-  <div className="bg-gray-800 rounded-2xl shadow-lg p-4 flex flex-col">
-    <h3 className="text-white font-semibold mb-3">🔄 Password Changes</h3>
+  <div className="bg-gray-800 rounded-2xl shadow-lg p-4 flex flex-col hover:scale-105 transition-transform duration-200">
+  <h3 className="text-white font-semibold mb-3 text-lg flex items-center gap-2">🔄 Password Changes</h3>
+
     <Graph 
       title="Password Changes" 
       data={passwordChanges.map(e => ({ date: e.date, value: e.count }))} 

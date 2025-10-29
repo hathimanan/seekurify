@@ -125,21 +125,22 @@ export const OTPForm: React.FC<OTPFormProps> = ({ email, otpToken, onBack, onSuc
 
           <form onSubmit={handleSubmit}>
             <div className="flex justify-center gap-3 mb-6">
-              {otp.map((digit, index) => (
-                <input
-                  key={index}
-                  ref={(el) => {
-                    inputRefs.current[index] = el;
-                  }}
-                                    type="text"
-                  value={digit}
-                  onChange={(e) => handleInputChange(index, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(index, e)}
-                  onPaste={index === 0 ? handlePaste : undefined}
-                  maxLength={1}
-                  className="w-12 h-12 text-center text-xl font-semibold border border-gray-300 rounded-lg shadow-sm focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200 transition outline-none bg-white hover:shadow-md"
-                />
-              ))}
+{otp.map((digit, index) => (
+  <input
+    key={index}
+    ref={(el) => {
+      inputRefs.current[index] = el;
+    }}
+    type="password" // <-- masked input
+    value={digit}
+    onChange={(e) => handleInputChange(index, e.target.value)}
+    onKeyDown={(e) => handleKeyDown(index, e)}
+    onPaste={index === 0 ? handlePaste : undefined}
+    maxLength={1}
+    className="w-12 h-12 text-center text-xl font-semibold border border-gray-300 rounded-lg shadow-sm focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200 transition outline-none bg-white hover:shadow-md"
+  />
+))}
+
             </div>
 
             <div className="flex justify-center">

@@ -86,6 +86,7 @@ export const Dashboard: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [viewingPassword, setViewingPassword] = useState<PasswordEntry | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [showViewingPassword, setShowViewingPassword] = useState(false);
   const [showReverifyPinModal, setShowReverifyPinModal] = useState(false);
   const [reverifyPinInput, setReverifyPinInput] = useState('');
   const [isReverified, setIsReverified] = useState(false);
@@ -107,9 +108,12 @@ export const Dashboard: React.FC = () => {
   const [profileImage, setProfileImage] = useState<string>(""); // ✅ state for header
   const [pinAction, setPinAction] = useState<"view" | "edit" | "delete" | null>(null);
   const [showDeleteConfirmationModal, setShowDeleteConfirmationModal] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
   const [showCopyModal, setShowCopyModal] = useState(false);
-  const [sidebarExpanded,setSidebarExpanded] = useState(true);
+  const [sidebarExpanded, setSidebarExpanded] = useState(true);
+
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleReverifyPinSubmit = async (e: React.FormEvent) => {
@@ -150,10 +154,12 @@ export const Dashboard: React.FC = () => {
               setPasswordFormData({
                 website: pwdToEdit.website,
                 username: pwdToEdit.username,
-                password: pwdToEdit.password,
+                // Do NOT pre-fill the "New Password" field for security UX
+                password: '',
                 category: pwdToEdit.category,
                 notes: pwdToEdit.notes,
               });
+              setCurrentPassword(''); // ensure current password input is cleared when opening edit
               setShowEditModal(true); // user can now edit and THEN call handleUpdatePassword on submit
             }
           }
@@ -229,11 +235,18 @@ export const Dashboard: React.FC = () => {
     };
 
     initialize();
+    // setShowPassword(false);
+
 
     return () => {
       isMounted = false;
     };
-  }, [location.pathname]);
+  }, [viewingPassword, location.pathname]);
+
+
+  // toggle used specifically for the "View Password" modal visibility (mask/unmask)
+  const toggleShowPassword = () => setShowViewingPassword((prev) => !prev);
+
 
 
   const validateReverifyPin = (e: React.FormEvent) => {
@@ -253,9 +266,16 @@ export const Dashboard: React.FC = () => {
     handleReverifyPinSubmit(e);
   };
 
+
+  const handleClose = () => {
+    setShowPassword(false);
+    setViewingPassword(null);
+  };
+
   // ----------------------------
   // Load passwords
   // ----------------------------
+
   const loadPasswords = async (cacheBuster?: number) => {
     try {
       setIsLoading(true);
@@ -742,7 +762,8 @@ export const Dashboard: React.FC = () => {
     const freshPassword = passwords.find(p => p._id === passwordId);
     if (freshPassword) {
       setViewingPassword(freshPassword);
-      setShowPassword(true);
+      setShowPassword(true);               // open view modal
+      setShowViewingPassword(false);       // start masked by default
     }
   };
 
@@ -760,18 +781,19 @@ export const Dashboard: React.FC = () => {
 
   // Inside your component
 
-const handleCopy = async (text: string) => {
-  try {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000); // hide after 2 seconds
-  } catch (err) {
-    console.error("Failed to copy: ", err);
-  }
-};
+  const handleCopy = async (text: string, id: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(id); // store the copied card's ID
+      setTimeout(() => setCopied(null), 2000); // hide after 2 seconds
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
 
 
-    
+
+
 
   const handleLogout = async () => {
     try {
@@ -789,17 +811,17 @@ const handleCopy = async (text: string) => {
       navigate('/login');
     }
   };
-const cardCount = passwords.length;
-const gridColsClass = cardCount === 1 
-  ? 'grid-cols-1' // Base is 1
-  : cardCount === 2 
-    ? 'lg:grid-cols-2' // Force 2 columns on large screens
-    : 'lg:grid-cols-3'; // Default 3 columns
+  const cardCount = passwords.length;
+  const gridColsClass = cardCount === 1
+    ? 'grid-cols-1' // Base is 1
+    : cardCount === 2
+      ? 'lg:grid-cols-2' // Force 2 columns on large screens
+      : 'lg:grid-cols-3'; // Default 3 columns
   const token = localStorage.getItem('token');
   return (
 
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300">
-              <title>Password Manager</title>
+      <title>Password Manager</title>
 
       <Header
         token={token || ""}
@@ -808,686 +830,751 @@ const gridColsClass = cardCount === 1
         sidebarExpanded={sidebarExpanded}
         setSidebarExpanded={setSidebarExpanded}
       />
-<title> Password Manager </title>
-<div className="flex flex-1 overflow-hidden">
-      {/* Sidebar */}
-      <motion.aside
-        initial={false}
-        animate={{ width: sidebarExpanded ? "16rem" : "4rem" }}
-        transition={{ type: "spring", stiffness: 260, damping: 30 }}
-        className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col"
-      >
-        {[
-          { label: "Analyze Malware", path: "/malware-analysis", icon: <FileSearch className="w-5 h-5" /> },
-          { label: "Password Manager", path: "/dashboard", icon: <KeyRound className="w-5 h-5" /> },
-          { label: "SIEM Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
-          { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
-          { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
-        ].map(({ label, path, icon }) => (
-          <div
-            key={path}
-            onClick={() => navigate(path)}
-            className="relative group flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-indigo-600 transition cursor-pointer"
-          >
-            {icon}
-            {sidebarExpanded && <span className="truncate">{label}</span>}
+      <title> Password Manager </title>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <motion.aside
+          initial={false}
+          animate={{ width: sidebarExpanded ? "18rem" : "4rem" }}
+          transition={{ type: "spring", stiffness: 260, damping: 30 }}
+          className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col"
+        >
+          {[
+            { label: "Analyze Malware", path: "/malware-analysis", icon: <FileSearch className="w-5 h-5" /> },
+            { label: "Password Manager", path: "/dashboard", icon: <KeyRound className="w-5 h-5" /> },
+            { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
+            { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
+            { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
+          ].map(({ label, path, icon }) => (
+            <div
+              key={path}
+              onClick={() => navigate(path)}
+              className="relative group flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-indigo-600 transition cursor-pointer"
+            >
+              {icon}
+              {sidebarExpanded && <span className="truncate">{label}</span>}
 
+              {!sidebarExpanded && (
+                <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                  {label}
+                </span>
+              )}
+            </div>
+          ))}
+
+          {/* Expand/Collapse */}
+          <div
+            onClick={() => setSidebarExpanded((s) => !s)}
+            className="flex items-center justify-center mt-auto cursor-pointer bg-white/10 hover:bg-white/20 px-2 py-2 rounded-md transition relative group"
+          >
+            {sidebarExpanded ? "Collapse" : "Expand"}
             {!sidebarExpanded && (
               <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                {label}
+                {sidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
               </span>
             )}
           </div>
-        ))}
-
-        {/* Expand/Collapse */}
-        <div
-          onClick={() => setSidebarExpanded((s) => !s)}
-          className="flex items-center justify-center mt-auto cursor-pointer bg-white/10 hover:bg-white/20 px-2 py-2 rounded-md transition relative group"
-        >
-          {sidebarExpanded ? "Collapse" : "Expand"}
-          {!sidebarExpanded && (
-            <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
-              {sidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
-            </span>
-          )}
-        </div>
-      </motion.aside>
+        </motion.aside>
 
 
 
-      <main className="flex-1 px-6 py-4 md:py-6 lg:py-8">
-        {/* Back Button */}
-        <div className="mb-6">
-          <button
-            onClick={() => navigate(prevRoute)}
-            className="flex items-center gap-2 text-white bg-gradient-to-r from-red-500 to-red-600 px-3 py-2 rounded-lg shadow-md hover:scale-105 transition transform duration-200"
-          >
-            <ArrowLeft className="w-5 h-5" /> Back
-          </button>
-        </div>
-        {/* Header */}
-        <div className="mt-6 mb-8">
-          <h1 className="text-3xl font-extrabold text-gray-900 drop-shadow">
-            🔐 Password Manager
-          </h1>
-          <p className="text-gray-700 mt-1">Welcome, <span className="font-semibold">{user?.email}</span></p>
-        </div>
-
-        {/* Saved Passwords */}
-<div className="bg-white shadow-xl rounded-2xl p-6 border border-gray-200">
-            <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-gray-800">Your Saved Passwords</h2>
-            <Button
-              onClick={() => setShowAddForm(true)}
-              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-5 py-2 rounded-xl shadow-md hover:shadow-lg transition"
+        <main className="flex-1 px-6 py-4 md:py-6 lg:py-8">
+          {/* Back Button */}
+          <div className="mb-6">
+            <button
+              onClick={() => navigate(prevRoute)}
+              className="flex items-center gap-2 text-white bg-gradient-to-r from-red-500 to-red-600 px-3 py-2 rounded-lg shadow-md hover:scale-105 transition transform duration-200"
             >
-              + Add New
-            </Button>
+              <ArrowLeft className="w-5 h-5" /> Back
+            </button>
+          </div>
+          {/* Header */}
+          <div className="mt-6 mb-8">
+            <h1 className="text-3xl font-extrabold text-gray-900 drop-shadow">
+              🔐 Password Manager
+            </h1>
+            <p className="text-gray-700 mt-1">Welcome, <span className="font-semibold">{user?.email}</span></p>
           </div>
 
-          {isLoading ? (
-            <div className="flex flex-col items-center py-10">
-              <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-              <p className="mt-3 text-gray-600">Loading passwords...</p>
+          {/* Saved Passwords */}
+          <div className="bg-white shadow-xl rounded-2xl p-6 border border-gray-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-800">Your Saved Passwords</h2>
+              <Button
+                onClick={() => setShowAddForm(true)}
+                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-5 py-2 rounded-xl shadow-md hover:shadow-lg transition"
+              >
+                + Add New
+              </Button>
             </div>
-          ) : !passwords.length ? (
-            <div className="bg-gray-50 p-8 rounded-lg text-center border border-dashed border-gray-300">
-              <p className="text-gray-500">No passwords yet. Click <strong>+ Add New</strong> to get started!</p>
-            </div>
-          ) : (
-<div className={`grid gap-5 grid-cols-1 sm:grid-cols-2 ${gridColsClass}`}>
-              {passwords.map((password) => (
-                <div
-                  key={password._id}
- className={`
+
+            {isLoading ? (
+              <div className="flex flex-col items-center py-10">
+                <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+                <p className="mt-3 text-gray-600">Loading passwords...</p>
+              </div>
+            ) : !passwords.length ? (
+              <div className="bg-gray-50 p-8 rounded-lg text-center border border-dashed border-gray-300">
+                <p className="text-gray-500">No passwords yet. Click <strong>+ Add New</strong> to get started!</p>
+              </div>
+            ) : (
+              <div className={`grid gap-5 grid-cols-1 sm:grid-cols-2 ${gridColsClass}`}>
+                {passwords.map((password) => (
+                  <div
+                    key={password._id}
+                    className={`
             w-full bg-gradient-to-br from-blue-500 to-blue-600 text-white 
             rounded-2xl p-5 shadow-md hover:shadow-lg hover:scale-[1.02] 
             transition transform duration-200 group
                         ${cardCount === 1 ? 'col-span-full' : ''} 
 `}
-        >
-                        <div className="flex items-center justify-between mb-4">
-                    <div className={`w-12 h-12 ${getWebsiteColor(password.website)} rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-md`}>
-                      {getWebsiteIcon(password.website)}
-                    </div>
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div className={`w-12 h-12 ${getWebsiteColor(password.website)} rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-md`}>
+                        {getWebsiteIcon(password.website)}
+                      </div>
 
-                    <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition">
-                      <div className="flex gap-3">
-                        {/* Copy Button with Tooltip */}
-                        
-  <TooltipProvider>
-  <Tooltip>
-    <TooltipTrigger>
-      <Button
-  variant="outline"
-  size="icon"
-  className="hover:bg-blue-100 hover:text-blue-600 rounded-full transition"
-  onClick={() => handleCopy(password.password)}
->
-  <Copy />
-</Button>
+                      <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition">
+                        <div className="flex gap-3">
+                          {/* Copy Button with Tooltip */}
 
-{copied && (
-  <span className="absolute top-0 right-0 bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
-    Password successfully copied to clipboard!
-  </span>
-)}
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="hover:bg-blue-100 hover:text-blue-600 rounded-full transition"
+                                  onClick={() => handleCopy(password.password, password._id)}                                >
+                                  <Copy />
+                                </Button>
 
-    </TooltipTrigger>
-    <TooltipContent>
-      <p>Copy Password</p>
-    </TooltipContent>
-  </Tooltip>
-</TooltipProvider>
+                                {copied === password._id && (
+                                  <div className="fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50">
+                                    <div className="bg-white text-green-700 px-5 py-4 rounded-2xl shadow-2xl text-sm font-medium animate-fadeInOut">
+                                      ✅ Password successfully copied to clipboard!
+                                    </div>
+                                  </div>
+                                )}
 
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="hover:bg-green-100 hover:text-green-600 rounded-full transition"
-                              onClick={() => {
-                                setConfirmId(password._id);
-                                setPinAction("view");
-                                setShowReverifyPinModal(true);
-                              }}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>View Password</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
 
-                      {/* Edit Button */}
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="hover:bg-yellow-100 hover:text-yellow-600 rounded-full transition"
-                              onClick={() => {
-                                setConfirmId(password._id);
-                                setPinAction("edit"); // 👈 set action
-                                setShowReverifyPinModal(true);
-                              }}
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Edit Password</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
 
-                      {/* Delete Button */}
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="hover:bg-red-100 hover:text-red-600 rounded-full transition"
-                              onClick={() => {
-                                setConfirmId(password._id);
-                                setPinAction("delete");
-                                setShowReverifyPinModal(true);
-                              }
-                              }
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Delete Password</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Copy Password</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
 
-                    <Dialog open={showCopyModal} onOpenChange={setShowCopyModal}>
-                      <DialogContent className="sm:max-w-xs rounded-2xl shadow-lg border border-green-200 bg-green-50 p-6 text-center">
-                        <DialogHeader>
-                          <div className="flex flex-col items-center gap-3">
-                            {/* ✅ Success Icon */}
-                            <div className="w-12 h-12 flex items-center justify-center rounded-full bg-green-100">
-                              <span className="text-green-600 text-2xl">✅</span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="hover:bg-green-100 hover:text-green-600 rounded-full transition"
+                                  onClick={() => {
+                                    setConfirmId(password._id);
+                                    setPinAction("view");
+                                    setShowReverifyPinModal(true);
+                                  }}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>View Password</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+
+                          {/* Edit Button */}
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="hover:bg-yellow-100 hover:text-yellow-600 rounded-full transition"
+                                  onClick={() => {
+                                    setConfirmId(password._id);
+                                    setPinAction("edit"); // 👈 set action
+                                    setShowReverifyPinModal(true);
+                                  }}
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Edit Password</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+
+                          {/* Delete Button */}
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="hover:bg-red-100 hover:text-red-600 rounded-full transition"
+                                  onClick={() => {
+                                    setConfirmId(password._id);
+                                    setPinAction("delete");
+                                    setShowReverifyPinModal(true);
+                                  }
+                                  }
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Delete Password</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+
+                        <Dialog open={showCopyModal} onOpenChange={setShowCopyModal}>
+                          <DialogContent className="sm:max-w-xs rounded-2xl shadow-lg border border-green-200 bg-green-50 p-6 text-center">
+                            <DialogHeader>
+                              <div className="flex flex-col items-center gap-3">
+                                {/* ✅ Success Icon */}
+                                <div className="w-12 h-12 flex items-center justify-center rounded-full bg-green-100">
+                                  <span className="text-green-600 text-2xl">✅</span>
+                                </div>
+
+                                {/* Title */}
+                                <DialogTitle className="text-lg font-semibold text-green-700">
+                                  Password copied!
+                                </DialogTitle>
+
+                                {/* Subtext */}
+                                <p className="text-sm text-gray-600">
+                                  The password has been successfully copied to your clipboard.
+                                </p>
+                              </div>
+                            </DialogHeader>
+                          </DialogContent>
+                        </Dialog>
+
+
+
+
+                        {showDeleteConfirmationModal && confirmId && (confirmId === password._id) && (
+                          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                            <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-lg">
+                              <h3 className="text-lg font-bold mb-3">Confirm Delete</h3>
+                              <p className="text-gray-600 mb-4">Are you sure you want to delete this password?</p>
+
+                              <div className="flex justify-end gap-3">
+                                <button
+                                  onClick={() => setConfirmId(null)}
+                                  className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    await handleDeletePassword(password._id);
+                                    setShowReverifyPinModal(false); // close PIN modal
+                                    setReverifyPinInput(''); // clear PIN input
+                                    setPinError(false); // reset error
+                                  }}
+                                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                                >
+                                  {isDeleting === password._id ? "Deleting..." : "Delete"}
+                                </button>
+
+                              </div>
+
                             </div>
-
-                            {/* Title */}
-                            <DialogTitle className="text-lg font-semibold text-green-700">
-                              Password copied!
-                            </DialogTitle>
-
-                            {/* Subtext */}
-                            <p className="text-sm text-gray-600">
-                              The password has been successfully copied to your clipboard.
-                            </p>
                           </div>
-                        </DialogHeader>
-                      </DialogContent>
-                    </Dialog>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Info */}
+                    < div className="space-y-1" >
+                      <p className="text-sm opacity-80">Website</p>
+                      <p className="font-semibold truncate">{password.website}</p>
+                      <p className="text-sm opacity-80">Username</p>
+                      <p className="font-semibold truncate">{password.username}</p>
+                      <p className="text-sm opacity-80">Password</p>
+                      <p className="font-semibold tracking-widest">••••••••</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+            }
+
+            {
+              showReverifyPinModal && !pinError && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                  <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-lg flex flex-col items-center">
+
+                    <Logo />
+                    {/* Modal Title */}
+                    <h3 className="text-xl font-bold text-black mb-4 text-center">
+                      Re-enter PIN to Confirm
+                    </h3>
+                    <form onSubmit={validateReverifyPin} className="space-y-4">
+                      <input
+                        type="email"
+                        value={user?.email || ""}
+                        className="w-full px-3 py-2 border border-gray-300 bg-gray-100 text-gray-700 rounded-md cursor-not-allowed"
+                        disabled
+                      />
+
+                      <div>
+                        <input
+                          type="password"
+                          value={reverifyPinInput}
+                          maxLength={4}
+
+                          onChange={(e) => setReverifyPinInput(e.target.value.replace(/\D/g, ''))}
+                          placeholder="Enter PIN"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        {reverifyPinError && (
+                          <p className="text-sm text-red-600 mt-1">{reverifyPinError}</p>
+                        )}
+                      </div>
+
+                      <div className="flex justify-end">
+                        <Button
+                          type="submit"
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+                        >
+                          Confirm
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )
+            }
+
+
+            {
+              showReverifyPinModal && pinError && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                  <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-red-200">
+
+                    <Logo />
+
+                    <h3 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2 flex items-center gap-2">
+                      ⚠️ Incorrect PIN
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                      Please re-enter your PIN to confirm access.
+                    </p>
+
+                    <form onSubmit={validateReverifyPin} className="space-y-4">
+                      <input
+                        type="email"
+                        value={user?.email || ""}
+                        className="w-full px-3 py-2 border border-gray-300 bg-gray-100 text-gray-500 rounded-md cursor-not-allowed"
+                        disabled
+                      />
+
+                      <div>
+                        <input
+                          type="password"
+                          value={reverifyPinInput}
+                          maxLength={4}
+                          onChange={(e) => setReverifyPinInput(e.target.value.replace(/\D/g, ''))}
+                          placeholder="Enter PIN"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                        />
+                        {reverifyPinError && (
+                          <p className="text-sm text-red-600 mt-1">{reverifyPinError}</p>
+                        )}
+                      </div>
+
+                      <div className="flex justify-end gap-3">
+                        <Button
+                          type="submit"
+                          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md shadow-md transition"
+                        >
+                          Confirm
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )
+            }
+
+
+
+            {
+              showPassword && viewingPassword && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                  <div className="bg-white p-6 rounded-lg w-full max-w-md">
+
+                    <Logo />
+                    <h3 className="text-xl font-bold text-black mb-4">View Password Details</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-black">Website</label>
+                        <input
+                          type="text"
+                          value={viewingPassword.website}
+                          disabled
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-black">Username</label>
+                        <input
+                          type="text"
+                          value={viewingPassword.username}
+                          disabled
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+                        />
+                      </div>
+                      <div className="relative">
+                        <label className="block text-sm font-medium text-black mb-1">
+                          Password
+                        </label>
+
+
+
+                        <input
+                          type={showViewingPassword ? "text" : "password"} // toggles mask/unmask for view modal only
+                          value={viewingPassword?.password || ""}
+                          disabled
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 pr-12"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={toggleShowPassword}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-blue-600 hover:text-blue-800 focus:outline-none"
+                        >
+                          {showViewingPassword ? "Hide" : "Show"}
+                        </button>
+                      </div>
+                      {/* Close Button */}
+                      <div className="flex justify-end mt-4">
+                        <Button
+                          onClick={() => {
+                            setShowPassword(false);
+                            setViewingPassword(null);
+                          }}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+                        >
+                          Close
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            }
 
 
 
 
-                    {showDeleteConfirmationModal && confirmId && (confirmId === password._id) && (
-                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                        <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-lg">
-                          <h3 className="text-lg font-bold mb-3">Confirm Delete</h3>
-                          <p className="text-gray-600 mb-4">Are you sure you want to delete this password?</p>
 
-                          <div className="flex justify-end gap-3">
+
+
+
+            {
+              showEditModal && (
+
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                  <div className="bg-blue-400 p-6 rounded-lg w-full max-w-md">
+
+                    <h3 className="text-xl font-bold text-black mb-4">Edit Password</h3>
+
+                    {successMessage && (
+                      <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded mb-4">
+                        {successMessage}
+                      </div>
+                    )}
+                    <form onSubmit={handleUpdatePassword} className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-black mb-1">
+                          Website URL
+                        </label>
+                        <input
+                          type="text"
+                          value={passwordformData.website}
+                          disabled
+                          // onChange={(e) => setPasswordFormData({ ...passwordformData, website: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-black mb-1">
+                          Username
+                        </label>
+                        <input
+                          type="text"
+                          value={passwordformData.username}
+                          disabled
+                          // onChange={(e) => setPasswordFormData({ ...passwordformData, username: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mt-4">
+                          Current Password
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showCurrentPassword ? "text" : "password"}
+                            className="mt-1 p-2 border w-full rounded pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            value={currentPassword}
+                            onChange={(e) => setCurrentPassword(e.target.value)}
+                            required
+                            placeholder="Enter current password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                            className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
+                          >
+                            {showCurrentPassword ? "Hide" : "Show"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* New Password */}
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-black mb-1">
+                          New Password
+                        </label>
+
+                        <div className="relative">
+                          <input
+                            type={showNewPassword ? "text" : "password"}
+                            value={passwordformData.password || ""}
+                            onChange={(e) =>
+                              setPasswordFormData({ ...passwordformData, password: e.target.value })
+                            }
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
+                            placeholder="Enter new password"
+                            autoComplete="new-password" // 🧠 prevents browser autofill
+                          />
+
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
+                          >
+                            {showNewPassword ? "Hide" : "Show"}
+                          </button>
+                        </div>
+                        {/* 
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            generatePassword();
+                          }}
+                          className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md mt-2"
+                        >
+                          Generate
+                        </Button> */}
+                      </div>
+
+                      <Button
+                        type="button"
+                        onClick={generatePassword}
+                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md mt-2"
+                      >
+                        Generate
+                      </Button>
+                      <div>
+                        <label className="block text-sm font-medium text-black mb-1">
+                          Category
+                        </label>
+                        <input
+                          type="text"
+                          value={passwordformData.category}
+                          disabled
+                          // onChange={(e) => setPasswordFormData({ ...passwordformData, category: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-black mb-1">
+                          Notes
+                        </label>
+                        <textarea
+                          value={passwordformData.notes}
+                          onChange={(e) => setPasswordFormData({ ...passwordformData, notes: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          rows={3}
+                        />
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-4">
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            setShowEditModal(false);
+                            setEditingPassword(null);
+                          }}
+                          className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+                        >
+                          Update
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )
+            }
+
+
+
+
+
+            {/* Add Password Form */}
+            {
+              showAddForm && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                  <div className="bg-white p-6 rounded-lg w-full max-w-md">
+                    <h3 className="text-xl font-bold text-black mb-4">Add New Password</h3>
+                    <form onSubmit={handleAddPassword} className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-black mb-1">
+                          Website/Service
+                        </label>
+                        <input
+                          type="text"
+                          value={passwordformData.website}
+                          onChange={(e) => setPasswordFormData({ ...passwordformData, website: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-black mb-1">
+                          Username/Email
+                        </label>
+                        <input
+                          type="text"
+                          value={passwordformData.username}
+                          onChange={(e) => setPasswordFormData({ ...passwordformData, username: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder='Enter your username'
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-black mb-1">
+                          Password
+                        </label>
+                        <div className="flex space-x-2 items-center">
+                          <div className="relative flex-1">
+                            <input
+                              type={showPassword ? "text" : "password"}
+                              value={passwordformData.password}
+                              onChange={(e) =>
+                                setPasswordFormData({ ...passwordformData, password: e.target.value })
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
+                              placeholder="Enter your password"
+                              required
+                            />
                             <button
-                              onClick={() => setConfirmId(null)}
-                              className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300"
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute inset-y-0 right-2 flex items-center text-gray-500 hover:text-gray-700"
                             >
-                              Cancel
+                              {showPassword ? "Hide" : "Show"}
                             </button>
-                            <button
-  onClick={async () => {
-    await handleDeletePassword(password._id);
-    setShowReverifyPinModal(false); // close PIN modal
-    setReverifyPinInput(''); // clear PIN input
-    setPinError(false); // reset error
-  }}
-  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
->
-  {isDeleting === password._id ? "Deleting..." : "Delete"}
-</button>
-
                           </div>
+
+                          <Button
+                            type="button"
+                            onClick={generatePassword}
+                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md"
+                          >
+                            Generate
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-black mb-1">
+                            Category
+                          </label>
+                          <input
+                            type="text"
+                            value={passwordformData.category}
+                            onChange={(e) => setPasswordFormData({ ...passwordformData, category: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-black mb-1">
+                            Notes
+                          </label>
+                          <textarea
+                            value={passwordformData.notes}
+                            onChange={(e) => setPasswordFormData({ ...passwordformData, notes: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            rows={3}
+                          />
 
                         </div>
                       </div>
-                    )}
+
+
+
+                      <div className="flex justify-end gap-2 pt-4">
+                        <Button
+                          type="button"
+                          onClick={() => setShowAddForm(false)}
+                          className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+                        >
+                          Save
+                        </Button>
+                      </div>
+                    </form>
                   </div>
                 </div>
+              )
+            }
 
-                {/* Info */ }
-                < div className = "space-y-1" >
-                  <p className="text-sm opacity-80">Website</p>
-                  <p className="font-semibold truncate">{password.website}</p>
-                  <p className="text-sm opacity-80">Username</p>
-                  <p className="font-semibold truncate">{password.username}</p>
-                  <p className="text-sm opacity-80">Password</p>
-                  <p className="font-semibold tracking-widest">••••••••</p>
+            {
+              error && (
+                <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                  {error}
+                  <button
+                    onClick={() => setError('')}
+                    className="ml-2 text-red-500 hover:text-red-700"
+                  >
+                    ×
+                  </button>
                 </div>
-              </div>
-            ))}
-    </div>
-  )
-}
-
-{
-  showReverifyPinModal && !pinError && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-lg flex flex-col items-center">
-
-        <Logo />
-        {/* Modal Title */}
-        <h3 className="text-xl font-bold text-black mb-4 text-center">
-          Re-enter PIN to Confirm
-        </h3>
-        <form onSubmit={validateReverifyPin} className="space-y-4">
-          <input
-            type="email"
-            value={user?.email || ""}
-            className="w-full px-3 py-2 border border-gray-300 bg-gray-100 text-gray-700 rounded-md cursor-not-allowed"
-            disabled
-          />
-
-          <div>
-            <input
-              type="password"
-              value={reverifyPinInput}
-              maxLength={4}
-
-              onChange={(e) => setReverifyPinInput(e.target.value.replace(/\D/g, ''))}
-              placeholder="Enter PIN"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {reverifyPinError && (
-              <p className="text-sm text-red-600 mt-1">{reverifyPinError}</p>
-            )}
-          </div>
-
-          <div className="flex justify-end">
-            <Button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
-            >
-              Confirm
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-
-{
-  showReverifyPinModal && pinError && (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-red-200">
-
-        <Logo />
-
-        <h3 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2 flex items-center gap-2">
-          ⚠️ Incorrect PIN
-        </h3>
-        <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-          Please re-enter your PIN to confirm access.
-        </p>
-
-        <form onSubmit={validateReverifyPin} className="space-y-4">
-          <input
-            type="email"
-            value={user?.email || ""}
-            className="w-full px-3 py-2 border border-gray-300 bg-gray-100 text-gray-500 rounded-md cursor-not-allowed"
-            disabled
-          />
-
-          <div>
-            <input
-              type="password"
-              value={reverifyPinInput}
-              maxLength={4}
-              onChange={(e) => setReverifyPinInput(e.target.value.replace(/\D/g, ''))}
-              placeholder="Enter PIN"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-            />
-            {reverifyPinError && (
-              <p className="text-sm text-red-600 mt-1">{reverifyPinError}</p>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-3">
-            <Button
-              type="submit"
-              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md shadow-md transition"
-            >
-              Confirm
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-
-
-{
-  showPassword && viewingPassword && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white p-6 rounded-lg w-full max-w-md">
-
-        <Logo />
-        <h3 className="text-xl font-bold text-black mb-4">View Password Details</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-black">Website</label>
-            <input
-              type="text"
-              value={viewingPassword.website}
-              disabled
-              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-black">Username</label>
-            <input
-              type="text"
-              value={viewingPassword.username}
-              disabled
-              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-black">Password</label>
-            <input
-              type="text"
-              value={viewingPassword.password}
-              disabled
-              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-            />
-          </div>
-          <div className="flex justify-end">
-            <Button
-              onClick={() => {
-                setShowPassword(false);
-                setViewingPassword(null);
-              }}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
-            >
-              Close
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-
-
-
-
-
-
-
-{
-  showEditModal && (
-
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-blue-400 p-6 rounded-lg w-full max-w-md">
-        
-        <h3 className="text-xl font-bold text-black mb-4">Edit Password</h3>
-
-        {successMessage && (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded mb-4">
-            {successMessage}
-          </div>
-        )}
-        <form onSubmit={handleUpdatePassword} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-black mb-1">
-              Website URL
-            </label>
-            <input
-              type="text"
-              value={passwordformData.website}
-              disabled
-              // onChange={(e) => setPasswordFormData({ ...passwordformData, website: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-black mb-1">
-              Username
-            </label>
-            <input
-              type="text"
-              value={passwordformData.username}
-              disabled
-              // onChange={(e) => setPasswordFormData({ ...passwordformData, username: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mt-4">Current Password</label>
-            <input
-              type="password"
-              className="mt-1 p-2 border w-full rounded"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              required
-              placeholder="Enter current password"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-black mb-1">
-              New Password
-            </label>
-            <input
-              type="password"
-              value={passwordformData.password}
-              onChange={(e) =>
-                setPasswordFormData({ ...passwordformData, password: e.target.value })
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter new password"
-            />
-            <Button
-              type="button"
-              onClick={generatePassword}
-              className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md mt-2"
-            >
-              Generate
-            </Button>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-black mb-1">
-              Category
-            </label>
-            <input
-              type="text"
-              value={passwordformData.category}
-              disabled
-              // onChange={(e) => setPasswordFormData({ ...passwordformData, category: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-black mb-1">
-              Notes
-            </label>
-            <textarea
-              value={passwordformData.notes}
-              onChange={(e) => setPasswordFormData({ ...passwordformData, notes: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              rows={3}
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4">
-            <Button
-              type="button"
-              onClick={() => {
-                setShowEditModal(false);
-                setEditingPassword(null);
-              }}
-              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
-            >
-              Update
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-
-
-
-
-{/* Add Password Form */ }
-{
-  showAddForm && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white p-6 rounded-lg w-full max-w-md">
-        <h3 className="text-xl font-bold text-black mb-4">Add New Password</h3>
-        <form onSubmit={handleAddPassword} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-black mb-1">
-              Website/Service
-            </label>
-            <input
-              type="text"
-              value={passwordformData.website}
-              onChange={(e) => setPasswordFormData({ ...passwordformData, website: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-black mb-1">
-              Username/Email
-            </label>
-            <input
-              type="text"
-              value={passwordformData.username}
-              onChange={(e) => setPasswordFormData({ ...passwordformData, username: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-black mb-1">
-              Password
-            </label>
-            <div className="flex space-x-2">
-              <input
-                type="text"
-                value={passwordformData.password}
-                onChange={(e) => setPasswordFormData({ ...passwordformData, password: e.target.value })}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-              <Button
-                type="button"
-                onClick={generatePassword}
-                className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md"
-              >
-                Generate
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-black mb-1">
-                Category
-              </label>
-              <input
-                type="text"
-                value={passwordformData.category}
-                onChange={(e) => setPasswordFormData({ ...passwordformData, category: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-black mb-1">
-                Notes
-              </label>
-              <textarea
-                value={passwordformData.notes}
-                onChange={(e) => setPasswordFormData({ ...passwordformData, notes: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={3}
-              />
-
-            </div>
-          </div>
-
-
-
-          <div className="flex justify-end gap-2 pt-4">
-            <Button
-              type="button"
-              onClick={() => setShowAddForm(false)}
-              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
-            >
-              Save
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-{
-  error && (
-    <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-      {error}
-      <button
-        onClick={() => setError('')}
-        className="ml-2 text-red-500 hover:text-red-700"
-      >
-        ×
-      </button>
-    </div>
-  )
-}
+              )
+            }
+          </div >
+        </main >
       </div >
-      </main >
-      </div>
-  <Footer />
+      <Footer />
     </div >
   );
 };

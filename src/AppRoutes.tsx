@@ -26,6 +26,8 @@ import BackupYourData from "./components/tips/BackupYourData";
 import WarningScreen from "./components/WarningScreen";
 import { FeaturesPage } from "./components/FeaturesPage";
 import Insights from "./components/Insights";
+import BotChat from "./components/ui/BotChat";
+
 
 const AppRoutes = () => {
   const navigate = useNavigate();
@@ -87,6 +89,8 @@ const AppRoutes = () => {
         <Route path="/change-password" element={<ChangePasswordForm />} />
 
         <Route path="/insights" element={<Insights />} />
+
+        <Route path="/ask" element={<BotChat />} />
 
 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 

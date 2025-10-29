@@ -25,7 +25,6 @@ import { getPasswordStrength } from '../models/User.ts';
 import Razorpay from "razorpay";
 import Trial from "../models/Trial.js";
 import requestIp from 'request-ip';
-
 import axios from 'axios';            // ← you reference axios but never imported
 import { pushAlert } from '../realtime/socketHub.js';
 
@@ -370,25 +369,30 @@ authRouter.post('/send-otp', async (req, res) => {
   const { email } = req.body;
 
   try {
+    // 🔍 1. Validate user existence
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ error: 'User not found' });
 
+    // 🔢 2. Generate random OTP (6 digits)
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // ✅ Sign OTP in JWT (expires in 10 mins)
+    // 🔏 3. Sign OTP inside a JWT (valid for 10 mins)
     const otpToken = jwt.sign(
       { email, otp },
       process.env.secretKeyOTP,
       { expiresIn: '10m' }
     );
 
-    // ✅ Send OTP via email
-// const accessToken = accessTokenResponse?.token;
+    // 🔐 4. Get a fresh Gmail access token
+    const accessTokenObj = await oAuth2Client.getAccessToken();
+    const accessToken = accessTokenObj?.token;
 
-// if (!accessToken) {
-//   return res.status(500).json({ error: 'Failed to get access token' });
-// }
+    if (!accessToken) {
+      console.error("❌ Failed to retrieve access token");
+      return res.status(500).json({ error: 'Email service unavailable. Try again later.' });
+    }
 
+    // ✉️ 5. Create reusable transporter
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -397,44 +401,54 @@ authRouter.post('/send-otp', async (req, res) => {
         clientId: process.env.GMAIL_CLIENT_ID,
         clientSecret: process.env.GMAIL_CLIENT_SECRET,
         refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-        accessToken: process.env.GMAIL_ACCESS_TOKEN       }
+        accessToken
+      },
     });
 
-const mailOptions = {
-  from: `Seekurify 🔐 <${process.env.GMAIL_USER}>`,
-  to: email,
-  subject: '🔒 Your One-Time Password (OTP)',
-  text: `Your OTP code is: ${otp}. It expires in 10 minutes.`,
-  html: `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 10px; overflow: hidden;">
-      <div style="background-color: #4a90e2; color: white; text-align: center; padding: 20px;">
-        <h2>Seekurify</h2>
-        <p style="margin: 0;">Your Secure OTP</p>
-      </div>
-      <div style="padding: 30px; text-align: center;">
-        <p style="font-size: 16px;">Hello,</p>
-        <p style="font-size: 16px;">Use the OTP below to complete your login:</p>
-        <p style="font-size: 24px; font-weight: bold; margin: 20px 0; color: #4a90e2;">${otp}</p>
-        <p style="font-size: 14px; color: #555;">This OTP will expire in <strong>10 minutes</strong>.</p>
-        <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-        <p style="font-size: 12px; color: #999;">If you did not request this OTP, please ignore this email.</p>
-      </div>
-      <div style="background-color: #f7f7f7; text-align: center; padding: 15px; font-size: 12px; color: #999;">
-        © ${new Date().getFullYear()} Seekurify. All rights reserved.
-      </div>
-    </div>
-  `
-};
+    // 📨 6. Email Template
+    const mailOptions = {
+      from: `Seekurify 🔐 <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: '🔒 Your One-Time Password (OTP)',
+      text: `Your OTP code is: ${otp}. It expires in 10 minutes.`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 10px; overflow: hidden;">
+          <div style="background-color: #4a90e2; color: white; text-align: center; padding: 20px;">
+            <h2>Seekurify</h2>
+            <p style="margin: 0;">Your Secure OTP</p>
+          </div>
+          <div style="padding: 30px; text-align: center;">
+            <p style="font-size: 16px;">Hello,</p>
+            <p style="font-size: 16px;">Use the OTP below to complete your login:</p>
+            <p style="font-size: 24px; font-weight: bold; margin: 20px 0; color: #4a90e2;">${otp}</p>
+            <p style="font-size: 14px; color: #555;">This OTP will expire in <strong>10 minutes</strong>.</p>
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+            <p style="font-size: 12px; color: #999;">If you did not request this OTP, please ignore this email.</p>
+          </div>
+          <div style="background-color: #f7f7f7; text-align: center; padding: 15px; font-size: 12px; color: #999;">
+            © ${new Date().getFullYear()} Seekurify. All rights reserved.
+          </div>
+        </div>
+      `,
+    };
+
+    // 🚀 7. Send the email
     const result = await transporter.sendMail(mailOptions);
     console.log("✅ OTP email sent:", result.response);
 
-    // ✅ Return token (not OTP) to frontend
+    // 🎯 8. Respond with OTP token
     res.json({
-      message: 'OTP sent to your Gmail account',
-      otpToken // frontend needs to store this securely
+      message: 'OTP sent successfully to your email.',
+      otpToken,
     });
+
   } catch (err) {
-    console.error('❌ Error sending OTP:', err.message);
+    // 🧯 9. Handle Gmail token or sendMail errors
+    if (err.message?.includes("invalid_grant")) {
+      console.error("⚠️ Refresh token expired or revoked. Reauthorize Gmail API.");
+    } else {
+      console.error("❌ Error in /send-otp:", err.message);
+    }
     res.status(500).json({ error: 'Failed to send OTP email' });
   }
 });
@@ -565,84 +579,116 @@ authRouter.get('/user', async (req, res) => {
   }
 });
 
-authRouter.post('/signup', async (req, res) => {
+
+
+authRouter.post("/signup", async (req, res) => {
   const { email, username, password } = req.body;
 
+  // 1️⃣ Validate input
   if (!email || !username || !password)
-    return res.status(400).json({ error: 'All fields are required.' });
+    return res.status(400).json({ error: "All fields are required." });
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email))
-    return res.status(400).json({ error: 'Invalid email format.' });
+    return res.status(400).json({ error: "Invalid email format." });
 
   try {
+    // 2️⃣ Check existing user
     const existingUser = await User.findOne({ email });
     if (existingUser)
-      return res.status(400).json({ error: 'Email is already in use.' });
+      return res.status(400).json({ error: "Email is already in use." });
 
-    const hashedPassword = await bcryptjs.hash(password, 10);
-
+    // 3️⃣ Save user (you already hash elsewhere)
     const newUser = new User({
       email,
       username,
-      password
+      password, // already hashed before saving
     });
     await newUser.save();
 
-    // 🔐 Generate email verification token
-    const emailToken = jwt.sign({ email, newUser: true }, process.env.JWT_SECRET, { expiresIn: '15m' });
+    // 4️⃣ Create email verification token (15 min expiry)
+    const emailToken = jwt.sign(
+      { email, newUser: true },
+      process.env.JWT_SECRET,
+      { expiresIn: "15m" }
+    );
+
     const verifyLink = `${process.env.REACT_APP_BASE_URL}/set-new-pin?token=${emailToken}`;
 
-    // ⚙️ Set up OAuth2
+    // 5️⃣ Set up Google OAuth2 client (auto-refresh)
     const oauth2Client = new OAuth2(
       process.env.GMAIL_CLIENT_ID,
       process.env.GMAIL_CLIENT_SECRET,
-      "https://developers.google.com/oauthplayground" // redirect URL
+      process.env.GMAIL_REDIRECT_URI // must match in Google Cloud Console
     );
 
     oauth2Client.setCredentials({
       refresh_token: process.env.GMAIL_REFRESH_TOKEN,
     });
-const accessTokenResponse = await oauth2Client.getAccessToken();
-const accessToken = accessTokenResponse?.token;
 
-if (!accessToken) {
-  console.error('Failed to retrieve access token.');
-  return res.status(500).json({ error: 'Email service unavailable.' });
-}
+    const accessTokenResponse = await oauth2Client.getAccessToken();
+    const accessToken = accessTokenResponse?.token;
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    type: "OAuth2",
-    user: process.env.GMAIL_USER,
-    clientId: process.env.GMAIL_CLIENT_ID,
-    clientSecret: process.env.GMAIL_CLIENT_SECRET,
-    refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-    accessToken: accessToken,
-  },
-});
-    await transporter.sendMail({
+    if (!accessToken) {
+      console.error("❌ Failed to retrieve Gmail access token");
+      return res.status(500).json({ error: "Email service unavailable." });
+    }
+
+    // 6️⃣ Configure Nodemailer transporter
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        type: "OAuth2",
+        user: process.env.GMAIL_USER,
+        clientId: process.env.GMAIL_CLIENT_ID,
+        clientSecret: process.env.GMAIL_CLIENT_SECRET,
+        refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+        accessToken,
+      },
+    });
+
+    // 7️⃣ Prepare and send verification email
+    const mailOptions = {
       from: `"Seekurify" <${process.env.GMAIL_USER}>`,
       to: email,
-      subject: 'Verify Your Email & Set Your PIN - Seekurify',
+      subject: "Verify Your Email & Set Your PIN - Seekurify",
       html: `
-        <h2>Welcome to Seekurify, ${username}!</h2>
-        <p>Click the button below to verify your email and set your secure 4-digit PIN:</p>
-        <a href="${verifyLink}" style="background-color:#007bff;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">Set Your PIN</a>
-        <p>This link is valid for 15 minutes.</p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
+          <h2 style="color: #4a90e2;">Welcome to Seekurify, ${username}!</h2>
+          <p>Click below to verify your email and set your secure PIN:</p>
+          <a href="${verifyLink}"
+             style="background-color:#007bff;color:#fff;padding:10px 15px;text-decoration:none;border-radius:5px;">
+             Set Your PIN
+          </a>
+          <p style="color:#555;">This link is valid for 15 minutes.</p>
+          <hr />
+          <p style="font-size:12px;color:#888;">If you did not register, ignore this email.</p>
+        </div>
       `,
-    });
+    };
 
-    return res.status(201).json({
-      message: 'User created successfully! Check your email to verify and set your PIN.',
-    });
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log(`📧 Verification email sent to ${email}`);
+    } catch (emailErr) {
+      console.error("❌ Failed to send email:", emailErr.message);
+      return res
+        .status(500)
+        .json({ error: "User created, but failed to send verification email." });
+    }
 
+    // 8️⃣ Final response
+    res.status(201).json({
+      message:
+        "User created successfully! Check your email to verify and set your PIN.",
+    });
   } catch (err) {
-    console.error('Error during signup:', err.message);
-    return res.status(500).json({ error: 'Internal server error.' });
+    console.error("❌ Error during signup:", err.message);
+    res.status(500).json({ error: "Internal server error." });
   }
 });
+
+
 
 
 
