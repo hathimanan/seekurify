@@ -863,7 +863,7 @@ export const Dashboard: React.FC = () => {
           ))}
 
           {/* Expand/Collapse */}
-          <div
+          {/* <div
             onClick={() => setSidebarExpanded((s) => !s)}
             className="flex items-center justify-center mt-auto cursor-pointer bg-white/10 hover:bg-white/20 px-2 py-2 rounded-md transition relative group"
           >
@@ -873,21 +873,25 @@ export const Dashboard: React.FC = () => {
                 {sidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
               </span>
             )}
-          </div>
+          </div> */}
         </motion.aside>
 
+        <div className="mt-6 ml-6 mb-6">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-white bg-gradient-to-r from-red-500 to-red-600 px-6 py-3 rounded-lg shadow-md hover:scale-105 transition-transform duration-200"
+          >
+            <ArrowLeft className="w-5 h-5" /> Back
+          </button>
+          <br/>
+        </div>
 
 
-        <main className="flex-1 px-6 py-4 md:py-6 lg:py-8">
-          {/* Back Button */}
-          <div className="mb-6">
-            <button
-              onClick={() => navigate(prevRoute)}
-              className="flex items-center gap-2 text-white bg-gradient-to-r from-red-500 to-red-600 px-3 py-2 rounded-lg shadow-md hover:scale-105 transition transform duration-200"
-            >
-              <ArrowLeft className="w-5 h-5" /> Back
-            </button>
-          </div>
+<main className="flex-1 px-6 py-4 md:py-6 lg:py-8">
+            {/* Back Button */}
+
+
+
           {/* Header */}
           <div className="mt-6 mb-8">
             <h1 className="text-3xl font-extrabold text-gray-900 drop-shadow">

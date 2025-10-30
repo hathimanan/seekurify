@@ -6,9 +6,10 @@ import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import Header from './ui/Header';
 import Footer from './ui/Footer';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, BarChart3, FileSearch, KeyRound, Phone, ShieldCheck } from 'lucide-react';
 import { set } from 'mongoose';
 import { API_BASE_URL } from '../services/api';
+import { motion } from 'framer-motion';
 
 interface HeaderProps {
   token: string;
@@ -26,199 +27,199 @@ const ChangePasswordForm: React.FC = () => {
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState('');
   const [currentPasswordError, setCurrentPasswordError] = useState('');
-const [newPasswordError, setNewPasswordError] = useState('');
-const [confirmPasswordError, setConfirmPasswordError] = useState('');
-const [generalError, setGeneralError] = useState('');
+  const [newPasswordError, setNewPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const [generalError, setGeneralError] = useState('');
 
   const [isPinVerified, setIsPinVerified] = useState(false);
   const [profileImage, setProfileImage] = useState<string>(''); // ✅ state for header
-  const [sidebarExpanded,setSidebarExpanded] = useState(true);
+  const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const navigate = useNavigate();
 
-useEffect(() => {
-  const fetchUserProfile = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        console.error("Token not found");
-        return;
-      }
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          console.error("Token not found");
+          return;
+        }
 
-      const res = await fetch(`${API_BASE_URL}/user/profile`, {
+        const res = await fetch(`${API_BASE_URL}/profile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) {
+          throw new Error("Failed to fetch user profile");
+        }
+
+        const data = await res.json();
+        if (data?.profileImage) {
+          setProfileImage(data.profileImage); // ✅ Set profileImage in state
+        }
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+      }
+    };
+
+    // Show PIN modal on mount
+    setIsPinVerified(false);
+
+    // Fetch user profile on mount
+    fetchUserProfile();
+  }, []);
+
+
+  // Handle PIN verification
+  const handleVerifyPin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPinError('');
+
+    // Empty field validation
+    if (!pin) {
+      setPinError('PIN cannot be empty');
+      return;
+    }
+
+    // Numeric and length validation
+    if (!/^\d{4}$/.test(pin)) {
+      setPinError('PIN must be exactly 4 digits');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+
+    let email = '';
+    try {
+      const decoded: any = jwtDecode(token);
+      email = decoded.email;
+    } catch (err) {
+      setPinError('Invalid token');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/verify-pin`, {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({ email, pin }),
       });
 
+      const data = await res.json();
       if (!res.ok) {
-        throw new Error("Failed to fetch user profile");
+        throw new Error(data.error || 'PIN verification failed');
       }
 
-      const data = await res.json();
-      if (data?.profileImage) {
-        setProfileImage(data.profileImage); // ✅ Set profileImage in state
-      }
-    } catch (error) {
-      console.error("Error fetching user profile:", error);
+      setIsPinVerified(true);
+    } catch (err) {
+      setPinError(err instanceof Error ? err.message : 'PIN verification failed');
     }
   };
 
-  // Show PIN modal on mount
-  setIsPinVerified(false);
-
-  // Fetch user profile on mount
-  fetchUserProfile();
-}, []);
-
-
-// Handle PIN verification
-const handleVerifyPin = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setPinError('');
-
-  // Empty field validation
-  if (!pin) {
-    setPinError('PIN cannot be empty');
-    return;
-  }
-
-  // Numeric and length validation
-  if (!/^\d{4}$/.test(pin)) {
-    setPinError('PIN must be exactly 4 digits');
-    return;
-  }
-
-  const token = localStorage.getItem('token');
-  if (!token) {
-    navigate('/login');
-    return;
-  }
-
-  let email = '';
-  try {
-    const decoded: any = jwtDecode(token);
-    email = decoded.email;
-  } catch (err) {
-    setPinError('Invalid token');
-    return;
-  }
-
-  try {
-    const res = await fetch(`${API_BASE_URL}/auth/verify-pin`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ email, pin }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'PIN verification failed');
+  // Keep numeric-only restriction in input handler
+  const handleNumericInput = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setter: (val: string) => void
+  ) => {
+    const value = e.target.value;
+    if (/^\d{0,4}$/.test(value)) {
+      setter(value);
     }
-
-    setIsPinVerified(true);
-  } catch (err) {
-    setPinError(err instanceof Error ? err.message : 'PIN verification failed');
-  }
-};
-
-// Keep numeric-only restriction in input handler
-const handleNumericInput = (
-  e: React.ChangeEvent<HTMLInputElement>,
-  setter: (val: string) => void
-) => {
-  const value = e.target.value;
-  if (/^\d{0,4}$/.test(value)) {
-    setter(value);
-  }
-};
+  };
 
 
-const handleChangePassword = async (e: React.FormEvent) => {
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
 
-  // reset errors
-  setCurrentPasswordError('');
-  setNewPasswordError('');
-  setConfirmPasswordError('');
-  setGeneralError('');
-  setSuccessMessage('');
+    // reset errors
+    setCurrentPasswordError('');
+    setNewPasswordError('');
+    setConfirmPasswordError('');
+    setGeneralError('');
+    setSuccessMessage('');
 
-  let hasError = false;
+    let hasError = false;
 
-  if (!currentPassword) {
-    setCurrentPasswordError('Current password cannot be empty');
-    hasError = true;
-  }
-
-  if (!newPassword) {
-    setNewPasswordError('New password cannot be empty');
-    hasError = true;
-  } else if (/^\d+$/.test(newPassword)) {
-    setNewPasswordError('Password cannot be only numbers');
-    hasError = true;
-  } else if (newPassword.length < 6) {
-    setNewPasswordError('Password must be at least 6 characters');
-    hasError = true;
-  }
-
-  if (!confirmPassword) {
-    setConfirmPasswordError('Please confirm your password');
-    hasError = true;
-  } else if (newPassword !== confirmPassword) {
-    setConfirmPasswordError('Passwords do not match');
-    hasError = true;
-  }
-
-  if (hasError) return;
-  setIsLoading(true);
-  const token = localStorage.getItem('token');
-
-  try {
-    const res = await fetch(`${API_BASE_URL}/auth/change-password`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ currentPassword, newPassword }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.error || 'Failed to change password');
+    if (!currentPassword) {
+      setCurrentPasswordError('Current password cannot be empty');
+      hasError = true;
     }
 
-    setSuccessMessage(data.message || 'Password changed successfully');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-  } catch (err) {
-    setError(err instanceof Error ? err.message : 'Something went wrong');
-  } finally {
-    setIsLoading(false);
-  }
-};
+    if (!newPassword) {
+      setNewPasswordError('New password cannot be empty');
+      hasError = true;
+    } else if (/^\d+$/.test(newPassword)) {
+      setNewPasswordError('Password cannot be only numbers');
+      hasError = true;
+    } else if (newPassword.length < 6) {
+      setNewPasswordError('Password must be at least 6 characters');
+      hasError = true;
+    }
 
-const handleLogout = async () => {
-  try {
-    // Call backend to clear cookies (if using httpOnly or session cookies)
-    await fetch(`${API_BASE_URL}/auth/logout`, {
-      method: 'POST',
-      credentials: 'include', // important to include cookies
-    });
-  } catch (err) {
-    console.error('Failed to call logout endpoint', err);
-  } finally {
-    // Remove token from localStorage
-    localStorage.removeItem('token');
-    // Redirect to login
-    navigate('/login');
-  }
-};
+    if (!confirmPassword) {
+      setConfirmPasswordError('Please confirm your password');
+      hasError = true;
+    } else if (newPassword !== confirmPassword) {
+      setConfirmPasswordError('Passwords do not match');
+      hasError = true;
+    }
+
+    if (hasError) return;
+    setIsLoading(true);
+    const token = localStorage.getItem('token');
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to change password');
+      }
+
+      setSuccessMessage(data.message || 'Password changed successfully');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      // Call backend to clear cookies (if using httpOnly or session cookies)
+      await fetch(`${API_BASE_URL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include', // important to include cookies
+      });
+    } catch (err) {
+      console.error('Failed to call logout endpoint', err);
+    } finally {
+      // Remove token from localStorage
+      localStorage.removeItem('token');
+      // Redirect to login
+      navigate('/login');
+    }
+  };
 
 
   return (
@@ -233,138 +234,187 @@ const handleLogout = async () => {
 
       />
 
+
       <title>Change Password</title>
 
-      <main className="flex-grow p-6 bg-gradient-to-br from-indigo-50 to-blue-100 rounded-lg">
-        <div className="p-6 bg-gradient-to-br from-indigo-50 to-blue-100 min-h-screen rounded-lg">
-          <div className="mb-6">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-white bg-gradient-to-r from-red-500 to-red-600 px-3 py-2 rounded-lg shadow-md hover:scale-105 transition transform duration-200"
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <motion.aside
+          initial={false}
+          animate={{ width: sidebarExpanded ? "18rem" : "4rem" }}
+          transition={{ type: "spring", stiffness: 260, damping: 30 }}
+          className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col"
+        >
+          {[
+            { label: "Analyze Malware", path: "/malware-analysis", icon: <FileSearch className="w-5 h-5" /> },
+            { label: "Password Manager", path: "/dashboard", icon: <KeyRound className="w-5 h-5" /> },
+            { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
+            { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
+            { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
+          ].map(({ label, path, icon }) => (
+            <div
+              key={path}
+              onClick={() => navigate(path)}
+              className="relative group flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-indigo-600 transition cursor-pointer"
             >
-              <ArrowLeft className="w-5 h-5" /> Back
-            </button>
-          </div>
+              {icon}
+              {sidebarExpanded && <span className="truncate">{label}</span>}
 
-          {/* PIN Modal */}
-          {!isPinVerified && (
-            <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
-              <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-sm">
-                <h2 className="text-xl font-bold mb-4">Enter Your PIN</h2>
-                {pinError && (
-                  <div className="text-red-600 text-sm mb-3">{pinError}</div>
-                )}
-                <form onSubmit={handleVerifyPin}>
-<input
-  type="password"
-  inputMode="numeric"
-  value={pin}
-  onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-  maxLength={4}
-  placeholder="Enter PIN"
-  className="w-full px-4 py-2 border rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-/>
-
-
-                  <Button
-                    type="submit"
-                    className="w-full bg-blue-600 text-white hover:bg-blue-700 py-2 rounded-md"
-                  >
-                    Verify PIN
-                  </Button>
-                </form>
-              </div>
+              {!sidebarExpanded && (
+                <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                  {label}
+                </span>
+              )}
             </div>
-          )}
+          ))}
 
-          {/* Change Password Form */}
-          {isPinVerified && (
-            <div className="flex items-center justify-center h-full px-4">
-              <div className="w-full max-w-md">
-                <Card className="bg-white shadow-lg">
-                  <CardContent className="p-8">
-                    <h2 className="text-2xl font-bold text-center mb-6">Change Password</h2>
+          {/* Expand/Collapse */}
+          {/* <div
+            onClick={() => setSidebarExpanded((s) => !s)}
+            className="flex items-center justify-center mt-auto cursor-pointer bg-white/10 hover:bg-white/20 px-2 py-2 rounded-md transition relative group"
+          >
+            {sidebarExpanded ? "Collapse" : "Expand"}
+            {!sidebarExpanded && (
+              <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                {sidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+              </span>
+            )}
+          </div> */}
+        </motion.aside>
 
-                    {error && (
-                      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                        {error}
-                      </div>
-                    )}
 
-                    {successMessage && (
-                      <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-                        {successMessage}
-                      </div>
-                    )}
 
-                   <form onSubmit={handleChangePassword} className="space-y-6">
-  <div>
-    <label className="block text-sm font-medium mb-2">Current Password</label>
-    <input
-      type="password"
-      value={currentPassword}
-      onChange={(e) => setCurrentPassword(e.target.value)}
-      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-    />
-    {currentPasswordError && (
-      <p className="text-red-500 text-sm mt-1">{currentPasswordError}</p>
-    )}
-  </div>
-
-  <div>
-    <label className="block text-sm font-medium mb-2">New Password</label>
-    <input
-      type="password"
-      value={newPassword}
-      onChange={(e) => setNewPassword(e.target.value)}
-      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-    />
-    {newPasswordError && (
-      <p className="text-red-500 text-sm mt-1">{newPasswordError}</p>
-    )}
-  </div>
-
-  <div>
-    <label className="block text-sm font-medium mb-2">Confirm New Password</label>
-    <input
-      type="password"
-      value={confirmPassword}
-      onChange={(e) => setConfirmPassword(e.target.value)}
-      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-    />
-    {confirmPasswordError && (
-      <p className="text-red-500 text-sm mt-1">{confirmPasswordError}</p>
-    )}
-  </div>
-
-  {generalError && (
-    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-      {generalError}
-    </div>
-  )}
-
-  {successMessage && (
-    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-      {successMessage}
-    </div>
-  )}
-
-  <Button
-    type="submit"
-    disabled={isLoading}
-    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-md font-medium text-lg"
-  >
-    {isLoading ? 'Changing...' : 'Change Password'}
-  </Button>
-</form>
-
-                  </CardContent>
-                </Card>
-              </div>
+        <main className="flex-grow p-6 bg-gradient-to-br from-indigo-50 to-blue-100 rounded-lg">
+          <div className="p-6 bg-gradient-to-br from-indigo-50 to-blue-100 min-h-screen rounded-lg">
+            <div className="mb-6">
+              <button
+                onClick={() => navigate(-1)}
+                className="flex items-center gap-2 text-white bg-gradient-to-r from-red-500 to-red-600 px-3 py-2 rounded-lg shadow-md hover:scale-105 transition transform duration-200"
+              >
+                <ArrowLeft className="w-5 h-5" /> Back
+              </button>
             </div>
-          )}
+
+            {/* PIN Modal */}
+            {!isPinVerified && (
+              <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
+                <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-sm">
+                  <h2 className="text-xl font-bold mb-4">Enter Your PIN</h2>
+                  {pinError && (
+                    <div className="text-red-600 text-sm mb-3">{pinError}</div>
+                  )}
+                  <form onSubmit={handleVerifyPin}>
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      value={pin}
+                      onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                      maxLength={4}
+                      placeholder="Enter PIN"
+                      className="w-full px-4 py-2 border rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+
+
+                    <Button
+                      type="submit"
+                      className="w-full bg-blue-600 text-white hover:bg-blue-700 py-2 rounded-md"
+                    >
+                      Verify PIN
+                    </Button>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* Change Password Form */}
+            {isPinVerified && (
+              <div className="flex items-center justify-center h-full px-4">
+                <div className="w-full max-w-md">
+                  <Card className="bg-white shadow-lg">
+                    <CardContent className="p-8">
+                      <h2 className="text-2xl font-bold text-center mb-6">Change Password</h2>
+
+                      {error && (
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                          {error}
+                        </div>
+                      )}
+
+                      {successMessage && (
+                        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                          {successMessage}
+                        </div>
+                      )}
+
+                      <form onSubmit={handleChangePassword} className="space-y-6">
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Current Password</label>
+                          <input
+                            type="password"
+                            value={currentPassword}
+                            onChange={(e) => setCurrentPassword(e.target.value)}
+                            className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          {currentPasswordError && (
+                            <p className="text-red-500 text-sm mt-1">{currentPasswordError}</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium mb-2">New Password</label>
+                          <input
+                            type="password"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          {newPasswordError && (
+                            <p className="text-red-500 text-sm mt-1">{newPasswordError}</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Confirm New Password</label>
+                          <input
+                            type="password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          {confirmPasswordError && (
+                            <p className="text-red-500 text-sm mt-1">{confirmPasswordError}</p>
+                          )}
+                        </div>
+
+                        {generalError && (
+                          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                            {generalError}
+                          </div>
+                        )}
+
+                        {successMessage && (
+                          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                            {successMessage}
+                          </div>
+                        )}
+
+                        <Button
+                          type="submit"
+                          disabled={isLoading}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-md font-medium text-lg"
+                        >
+                          {isLoading ? 'Changing...' : 'Change Password'}
+                        </Button>
+                      </form>
+
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            )}
           </div>
-      </main>
+        </main>
+      </div>
       <Footer />
     </div>
   );

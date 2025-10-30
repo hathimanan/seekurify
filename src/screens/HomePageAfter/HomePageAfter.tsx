@@ -134,7 +134,7 @@ useEffect(() => {
       ))}
 
       {/* Expand/Collapse */}
-      <div
+      {/* <div
         onClick={() => setSidebarExpanded((s) => !s)}
         className="flex items-center justify-center mt-auto cursor-pointer bg-white/10 hover:bg-white/20 px-2 py-2 rounded-md transition relative group"
       >
@@ -144,7 +144,7 @@ useEffect(() => {
             {sidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
           </span>
         )}
-      </div>
+      </div> */}
     </motion.aside>
 
 

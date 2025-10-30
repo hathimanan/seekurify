@@ -692,7 +692,7 @@ authRouter.post("/signup", async (req, res) => {
 
 
 
-authRouter.post('/update-pin', async (req, res) => {
+authRouter.post('/update-pin',authenticateToken, async (req, res) => {
   const { email, newPin } = req.body;
 
   if (!email || !newPin) {
@@ -905,7 +905,7 @@ authRouter.post("/start-trial", authenticateToken, async (req, res) => {
   }
 });
 
-authRouter.post("/check-user", async (req, res) => {
+authRouter.post("/check-user", authenticateToken, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -928,7 +928,7 @@ authRouter.post("/check-user", async (req, res) => {
 
 
 
-authRouter.post('/logout', (req, res) => {
+authRouter.post('/logout', authenticateToken, (req, res) => {
   // Clear cookies
   res.clearCookie('token'); // name of your cookie
   res.status(200).json({ message: 'Logged out successfully' });

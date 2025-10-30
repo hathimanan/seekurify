@@ -49,7 +49,7 @@ const [sidebarExpanded,setSidebarExpanded] = useState(true);
     const fetchUserProfile = async (decodedEmail: string) => {
       try {
         const res = await fetch(
-          `${API_BASE_URL}/user/profile?email=${decodedEmail}`,
+          `${API_BASE_URL}/profile?email=${decodedEmail}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -194,7 +194,7 @@ const [sidebarExpanded,setSidebarExpanded] = useState(true);
       ))}
 
       {/* Expand/Collapse */}
-      <div
+      {/* <div
         onClick={() => setSidebarExpanded((s) => !s)}
         className="flex items-center justify-center mt-auto cursor-pointer bg-white/10 hover:bg-white/20 px-2 py-2 rounded-md transition relative group"
       >
@@ -204,7 +204,7 @@ const [sidebarExpanded,setSidebarExpanded] = useState(true);
             {sidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
           </span>
         )}
-      </div>
+      </div> */}
     </motion.aside>
 
       <main className="flex-grow p-6 bg-gradient-to-br from-indigo-50 to-blue-100 rounded-lg">
