@@ -357,10 +357,9 @@ await User.updateOne(
   // Clear reset token after use
   resetTokens.delete(email);
 
-  console.log(`✅ Password reset for ${email}. New password: ${newPassword}`);
-
-  return res.status(200).json({ message: 'Password has been reset successfully' });
-
+  console.log(`✅ Password reset for ${email}. New password stored.`);
+  // Send HTTP 200 only — frontend will display its own modal/message
+  return res.sendStatus(200);
 });
 
 

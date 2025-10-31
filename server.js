@@ -1,5 +1,14 @@
 // --- Load environment variables ---
 import dotenv from 'dotenv';
+const NODE_ENV = process.env.NODE_ENV || "development";
+dotenv.config({
+  path: NODE_ENV === "production"
+    ? ".env.production"
+    : NODE_ENV === "test"
+    ? ".env.test"
+    : ".env.development"
+});
+
 import path from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
@@ -12,18 +21,6 @@ import { initSocket } from './src/realtime/socketHub.js';
 // --- Paths for __dirname in ES modules ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// --- Load correct .env file ---
-const NODE_ENV = process.env.NODE_ENV || "development";
-dotenv.config({
-  path: NODE_ENV === "production"
-    ? ".env.production"
-    : NODE_ENV === "test"
-    ? ".env.test"
-    : ".env.development"
-});
-
-
 
 // --- Determine if production ---
 const PROD = NODE_ENV === "production";

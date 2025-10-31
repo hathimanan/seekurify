@@ -1,42 +1,58 @@
-import nodemailer from 'nodemailer';
-import { google } from 'googleapis';
-import dotenv from 'dotenv';
-// dotenv.config({ path: '.env.development' });
-import express from 'express';
-const router = express.Router();
+import nodemailer from "nodemailer";
+import { google } from "googleapis";
 
-const OAuth2 = google.auth.OAuth2;
+async function createTransporter() {
+  // read env at call time (avoid using module-top cached values)
+  const GMAIL_CLIENT_ID = (process.env.GMAIL_CLIENT_ID || "").trim();
+  const GMAIL_CLIENT_SECRET = (process.env.GMAIL_CLIENT_SECRET || "").trim();
+  const GMAIL_REFRESH_TOKEN = (process.env.GMAIL_REFRESH_TOKEN || "").trim();
+  const GMAIL_USER = (process.env.GMAIL_USER || "").trim();
 
-const oauth2Client = new OAuth2(
-  process.env.GMAIL_CLIENT_ID,
-  process.env.GMAIL_CLIENT_SECRET);
+  if (!GMAIL_CLIENT_ID || !GMAIL_CLIENT_SECRET || !GMAIL_REFRESH_TOKEN || !GMAIL_USER) {
+    throw new Error("No valid Gmail OAuth2 credentials found (GMAIL_CLIENT_ID/GMAIL_CLIENT_SECRET/GMAIL_REFRESH_TOKEN/GMAIL_USER required)");
+  }
 
-oauth2Client.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
+  const oAuth2Client = new google.auth.OAuth2(
+    GMAIL_CLIENT_ID,
+    GMAIL_CLIENT_SECRET,
+    "https://developers.google.com/oauthplayground"
+  );
 
-async function sendResetEmail(email, resetCode) {
-  const accessToken = await oauth2Client.getAccessToken();
+  oAuth2Client.setCredentials({ refresh_token: GMAIL_REFRESH_TOKEN });
 
-  const transport = nodemailer.createTransport({
-    service: 'gmail',
+  // getAccessToken may return a string or an object { token: string }
+  const accessTokenResult = await oAuth2Client.getAccessToken();
+  const accessToken = accessTokenResult?.token ?? accessTokenResult;
+
+  if (!accessToken) {
+    throw new Error("Failed to obtain Gmail access token via refresh token");
+  }
+
+  return nodemailer.createTransport({
+    service: "gmail",
     auth: {
-      type: 'OAuth2',
-      user: process.env.GMAIL_USER,
-      clientId: process.env.GMAIL_CLIENT_ID,
-      clientSecret: process.env.GMAIL_CLIENT_SECRET,
-      refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-      accessToken: accessToken.token,
+      type: "OAuth2",
+      user: GMAIL_USER,
+      clientId: GMAIL_CLIENT_ID,
+      clientSecret: GMAIL_CLIENT_SECRET,
+      refreshToken: GMAIL_REFRESH_TOKEN,
+      accessToken,
     },
   });
-
-  const mailOptions = {
-    from: `Seekurify Reset <${process.env.GMAIL_USER}>`,
-    to: email,
-    subject: 'Your Password Reset Code',
-    text: `Your password reset code is: ${resetCode}`,
-    html: `<h2>Password Reset</h2><p>Your 6-digit reset code is: <strong>${resetCode}</strong></p>`,
-  };
-
-  await transport.sendMail(mailOptions);
 }
 
-export default sendResetEmail;
+export default async function sendResetEmail(toEmail, resetCode) {
+  const transporter = await createTransporter();
+
+  const mailOptions = {
+    from: `Seekurify <${process.env.GMAIL_USER}>`,
+    to: toEmail,
+    subject: "Seekurify — Password reset code",
+    html: `
+      <p>Your password reset code is <strong>${resetCode}</strong>.</p>
+      <p>This code will expire in 10 minutes.</p>
+    `,
+  };
+
+  return transporter.sendMail(mailOptions);
+}
