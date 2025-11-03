@@ -30,30 +30,43 @@ interface HeaderProps {
   profileImage?: string; // ✅ new prop
 }
 
-// Update tips to include links
-// tips.ts
-// export const tips = [
-//   { text: "Use strong, unique passwords for each account.", link: "/tips/strong-passwords" },
-//   { text: "Enable two-factor authentication (2FA) wherever possible.", link: "/tips/two-factor-authentication" },
-//   { text: "Avoid clicking on suspicious links or attachments.", link: "/tips/avoid-suspicious-links" },
-//   { text: "Keep your devices and apps updated regularly.", link: "/tips/keep-devices-updated" },
-//   { text: "Install antivirus software and run regular scans.", link: "/tips/install-antivirus" },
-//   { text: "Never share your OTP or banking PIN with anyone.", link: "/tips/never-share-otp" },
-//   { text: "Verify website URLs before entering personal information.", link: "/tips/verify-website-urls" },
-//   { text: "Avoid accessing sensitive information over public Wi-Fi.", link: "/tips/avoid-public-wifi" },
-//   { text: "Regularly backup your data to the cloud or external drives.", link: "/tips/backup-your-data" },
 
-//     // <Route path="/tips/strong-passwords" element={<StrongPasswords />} />
-//     //     <Route path="/tips/two-factor-authentication" element={<TwoFactorAuthentication />} />
-//     //     <Route path="/tips/avoid-suspicious-links" element={<AvoidSuspiciousLinks />} />
-//     //     <Route path="/tips/keep-devices-updated" element={<KeepDevicesUpdated />} />
-//     //     <Route path="/tips/install-antivirus" element={<InstallAntivirus />} />
-//     //     <Route path="/tips/never-share-otp" element={<NeverShareOTP />} />
-//     //     <Route path="/tips/verify-website-urls" element={<VerifyWebsiteURLs />} />
-//     //     <Route path="/tips/avoid-public-wifi" element={<AvoidPublicWifi />} />
-//     //     <Route path="/tips/backup-your-data" element={<BackupYourData />} />
-// ];
-
+interface Tip {  // Rename from 'tips' to 'Tip' for proper naming convention
+  title: string;
+  text: string;
+  description: string;
+  proTips?: string[];
+  importance?: string[];
+  realLifeExample?: string;
+  link?: string;
+  quickTips?: string[];
+  bestPractices?: string[];
+  backupMethods?: string[];
+  backupFrequency?: string;
+  backupStrategies?: string[];
+  whyBackupsMatter?: string;
+  additionalTip?: string;
+  additionalTips?: string[];
+  verificationSteps?: string[];
+  publicWifiRisks?: string[];
+  safePractices?: string[];
+  otpRisks?: string[];
+  antivirusBenefits?: string[];
+  updateBenefits?: string[];
+  authenticationMethods?: string[];
+  passwordTips?: string[];
+  passwordBenefits?: string[];
+  authenticationBenefits?: string[];
+  urlVerificationSteps?: string[];
+  urlAdditionalTips?: string[];
+  urlFinalNote?: string;
+  howTo?: string[];
+  tools?: string[];
+  recoverySteps?: string[];
+  quickTip?: string;
+  signs?: string[];
+  reference?: string[];
+}
 
 const mockRecentAttacks: Attack[] = [
   {
@@ -139,6 +152,20 @@ export const SecurityAwareness: React.FC = () => {
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
+
+  const [selectedTip, setSelectedTip] = useState<Tip | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openModal = (tip: Tip) => {
+    setSelectedTip(tip);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setSelectedTip(null);
+    setIsModalOpen(false);
+  };
+
   const token = localStorage.getItem('token');
   useEffect(() => {
     let isMounted = true; // prevent state updates after unmount
@@ -281,20 +308,164 @@ export const SecurityAwareness: React.FC = () => {
             <h2 className="text-2xl font-semibold mb-6 text-indigo-700">
               Steps to Stay Secure Online
             </h2>
+
+            {/* Tip Cards */}
             <ul className="grid md:grid-cols-2 gap-5">
               {tips.map((tip, index) => (
                 <li
                   key={index}
                   className="bg-white shadow-md hover:shadow-lg p-4 rounded-xl border-l-4 border-indigo-500 hover:border-pink-500 
-                   transition-all duration-300 cursor-pointer hover:bg-gray-100"
-                  onClick={() => window.open(tip.link, "_blank")}
+              transition-all duration-300 cursor-pointer hover:bg-gray-100"
+                  onClick={() => openModal(tip)}
                 >
-                  <span className="font-medium text-gray-800">
-                    ✅ {tip.text}
-                  </span>
+                  <span className="font-medium text-gray-800">✅ {tip.title}</span>
                 </li>
               ))}
             </ul>
+
+            {/* Modal */}
+            {isModalOpen && selectedTip && (
+              <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
+                <div className="bg-white rounded-2xl shadow-lg p-6 w-11/12 md:w-1/2 max-h-[80vh] overflow-auto relative animate-fadeIn">
+                  <button
+                    onClick={closeModal}
+                    className="absolute top-3 right-3 text-gray-500 hover:text-gray-800"
+                  >
+                    ✖
+                  </button>
+
+                  <h3 className="text-2xl font-semibold mb-4 text-indigo-700">
+                    {selectedTip.title}
+                  </h3>
+
+                  <div className="text-gray-700 whitespace-pre-line space-y-4">
+                    {/* Description */}
+                    <p>{selectedTip.description}</p>
+
+                    {/* Importance */}
+                    {selectedTip.importance && selectedTip.importance.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold">Why it Matters:</h4>
+                        <ul className="list-disc list-inside">
+                          {selectedTip.importance.map((item, idx) => (
+                            <li key={idx}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Pro Tips */}
+                    {selectedTip.proTips && selectedTip.proTips.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold">Pro Tips:</h4>
+                        <ul className="list-disc list-inside">
+                          {selectedTip.proTips.map((tip, idx) => (
+                            <li key={idx}>{tip}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+
+                    {selectedTip.bestPractices && selectedTip.bestPractices.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold">Best Practices:</h4>
+                        <ul className="list-disc list-inside">
+                          {selectedTip.bestPractices.map((tip, idx) => (
+                            <li key={idx}>{tip}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* How To */}
+                    {selectedTip.howTo && selectedTip.howTo.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold">How To:</h4>
+                        <ol className="list-decimal list-inside">
+                          {selectedTip.howTo.map((step, idx) => (
+                            <li key={idx}>{step}</li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+
+{/* Signs */}
+{selectedTip.signs && selectedTip.signs.length > 0 && (
+  <div className="mt-4">
+    <h4 className="font-semibold text-red-600">Signs:</h4>
+    <ul className="list-disc list-inside">
+      {selectedTip.signs.map((sign, idx) => (
+        <li key={idx}>{sign}</li>
+      ))}
+    </ul>
+  </div>
+)}
+
+
+
+                    {/* Quick Tip */}
+                    {selectedTip.quickTip && (
+                      <p className="italic font-medium">💡 Quick Tip: {selectedTip.quickTip}</p>
+                    )}
+
+                    {/* Real Life Example */}
+                    {selectedTip.realLifeExample && (
+                      <p className="mt-2 text-gray-800">📖 {selectedTip.realLifeExample}</p>
+                    )}
+
+                    {/* Tools */}
+                    {selectedTip.tools && selectedTip.tools.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold">Recommended Tools:</h4>
+                        <ul className="list-disc list-inside">
+                          {selectedTip.tools.map((tool, idx) => (
+                            <li key={idx}>{tool}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Recovery Steps */}
+                    {selectedTip.recoverySteps && selectedTip.recoverySteps.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold">Recovery Steps:</h4>
+                        <ol className="list-decimal list-inside">
+                          {selectedTip.recoverySteps.map((step, idx) => (
+                            <li key={idx}>{step}</li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+
+{/* References */}
+{selectedTip.reference && selectedTip.reference.length > 0 && (
+  <div className="mt-4">
+    <h4 className="font-semibold text-blue-700">References:</h4>
+    <ul className="list-disc list-inside">
+      {selectedTip.reference.map((ref, idx) => (
+        <li key={idx}>
+          <a
+            href={ref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline"
+          >
+            {ref}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+)}
+
+
+
+                  </div>
+                </div>
+              </div>
+            )}
+
           </section>
 
 
@@ -412,49 +583,48 @@ export const SecurityAwareness: React.FC = () => {
         )} */}
 
         {/* Chat Window */}
-{isOpen && (
-  <div
-    className={`fixed z-50 bg-white rounded-xl shadow-xl flex flex-col overflow-hidden transition-all duration-300 ease-in-out
-      ${
-        isFullScreen
-          ? "inset-0 w-full h-full m-0 rounded-none" // Fullscreen mode
-          : "bottom-20 right-4 sm:right-8 sm:bottom-24 w-[90vw] h-[75vh] sm:w-96 sm:h-[500px]" // Responsive size
-      }`}
-  >
-    {/* Header */}
-    <div className="flex justify-between items-center p-3 bg-blue-600 text-white">
-      <span className="font-semibold text-sm sm:text-base">Chat with Nick</span>
-      <div className="flex space-x-3">
-        {/* Fullscreen Toggle */}
-        <button
-          onClick={() => setIsFullScreen((prev) => !prev)}
-          className="text-lg font-bold hover:text-gray-200 transition"
-          title={isFullScreen ? "Exit Full Screen" : "Full Screen"}
-        >
-          {isFullScreen ? "🗕" : "🗖"}
-        </button>
+        {isOpen && (
+          <div
+            className={`fixed z-50 bg-white rounded-xl shadow-xl flex flex-col overflow-hidden transition-all duration-300 ease-in-out
+      ${isFullScreen
+                ? "inset-0 w-full h-full m-0 rounded-none" // Fullscreen mode
+                : "bottom-20 right-4 sm:right-8 sm:bottom-24 w-[90vw] h-[75vh] sm:w-96 sm:h-[500px]" // Responsive size
+              }`}
+          >
+            {/* Header */}
+            <div className="flex justify-between items-center p-3 bg-blue-600 text-white">
+              <span className="font-semibold text-sm sm:text-base">Chat with Nick</span>
+              <div className="flex space-x-3">
+                {/* Fullscreen Toggle */}
+                <button
+                  onClick={() => setIsFullScreen((prev) => !prev)}
+                  className="text-lg font-bold hover:text-gray-200 transition"
+                  title={isFullScreen ? "Exit Full Screen" : "Full Screen"}
+                >
+                  {isFullScreen ? "🗕" : "🗖"}
+                </button>
 
-        {/* Close Button */}
-        <button
-          onClick={() => setIsOpen(false)}
-          className="text-lg font-bold hover:text-gray-200 transition"
-          title="Close Chat"
-        >
-          &times;
-        </button>
-      </div>
-    </div>
+                {/* Close Button */}
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="text-lg font-bold hover:text-gray-200 transition"
+                  title="Close Chat"
+                >
+                  &times;
+                </button>
+              </div>
+            </div>
 
-    {/* Chat Body */}
-    <div className="flex-1 p-3 overflow-auto text-sm sm:text-base">
-      <BotChat />
-    </div>
-  </div>
-)}
+            {/* Chat Body */}
+            <div className="flex-1 p-3 overflow-auto text-sm sm:text-base">
+              <BotChat />
+            </div>
+          </div>
+        )}
 
 
       </div>
       <Footer />
     </div>
-      );
+  );
 };

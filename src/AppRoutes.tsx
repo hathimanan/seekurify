@@ -14,15 +14,15 @@ import Profile from "./components/Profile";
 import ChangePasswordForm from "./components/ChangePasswordForm";
 import PrivacyPolicy from "./components/PrivacyPolicy";
 import TermsAndConditions from "./components/TermsAndConditions";
-import StrongPasswords from "./components/tips/StrongPasswords";
-import TwoFactorAuthentication from "./components/tips/TwoFactorAuthentication";
-import AvoidSuspiciousLinks from "./components/tips/AvoidSuspiciousLinks";
-import KeepDevicesUpdated from "./components/tips/KeepDevicesUpdated";  
-import InstallAntivirus from "./components/tips/InstallAntivirus";  
-import NeverShareOTP from "./components/tips/NeverShareOTP";
-import VerifyWebsiteURLs from "./components/tips/VerifyWebsiteURLs";
-import AvoidPublicWifi from "./components/tips/AvoidPublicWiFis";
-import BackupYourData from "./components/tips/BackupYourData";
+// import StrongPasswords from "./components/tips/StrongPasswords";
+// import TwoFactorAuthentication from "./components/tips/TwoFactorAuthentication";
+// import AvoidSuspiciousLinks from "./components/tips/AvoidSuspiciousLinks";
+// import KeepDevicesUpdated from "./components/tips/KeepDevicesUpdated";  
+// import InstallAntivirus from "./components/tips/InstallAntivirus";  
+// import NeverShareOTP from "./components/tips/NeverShareOTP";
+// import VerifyWebsiteURLs from "./components/tips/VerifyWebsiteURLs";
+// import AvoidPublicWifi from "./components/tips/AvoidPublicWiFis";
+// import BackupYourData from "./components/tips/BackupYourData";
 import WarningScreen from "./components/WarningScreen";
 import { FeaturesPage } from "./components/FeaturesPage";
 import Insights from "./components/Insights";
@@ -70,7 +70,7 @@ const AppRoutes = () => {
         <Route path="/malware-analysis" element={<MalwareAnalyzer />} />
 
 
-        <Route path="/securityAwareness" element={<SecurityAwareness />}/>
+        <Route path="/securityAwareness" element={<SecurityAwareness tips={[]} />}/>
 
         <Route path="/contact" element={<ContactForm />} />
 
@@ -96,7 +96,7 @@ const AppRoutes = () => {
 
 <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
 
-        <Route path="/tips/strong-passwords" element={<StrongPasswords />} />
+        {/* <Route path="/tips/strong-passwords" element={<StrongPasswords />} />
         <Route path="/tips/two-factor-authentication" element={<TwoFactorAuthentication />} />
         <Route path="/tips/avoid-suspicious-links" element={<AvoidSuspiciousLinks />} />
         <Route path="/tips/keep-devices-updated" element={<KeepDevicesUpdated />} />
@@ -104,7 +104,7 @@ const AppRoutes = () => {
         <Route path="/tips/never-share-otp" element={<NeverShareOTP />} />
         <Route path="/tips/verify-website-urls" element={<VerifyWebsiteURLs />} />
         <Route path="/tips/avoid-public-wifi" element={<AvoidPublicWifi />} />
-        <Route path="/tips/backup-your-data" element={<BackupYourData />} />
+        <Route path="/tips/backup-your-data" element={<BackupYourData />} /> */}
     </Routes>
   );
 };
