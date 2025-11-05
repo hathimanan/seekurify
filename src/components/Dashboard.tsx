@@ -103,6 +103,7 @@ export const Dashboard: React.FC = () => {
   const [trialActive, setTrialActive] = useState(false);
   const [showOnlyPayModal, setShowOnlyPayModal] = useState(false);
   const [isTrialExpired, setTrialExpired] = useState(false);
+  const [showReuseWarning, setShowReuseWarning] = useState(false);
   const [trialAcknowledged, setTrialAcknowledged] = useState(false);
   const location = useLocation();
   const [profileImage, setProfileImage] = useState<string>(""); // ✅ state for header
@@ -110,6 +111,8 @@ export const Dashboard: React.FC = () => {
   const [showDeleteConfirmationModal, setShowDeleteConfirmationModal] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [showCopyModal, setShowCopyModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredPasswords, setFilteredPasswords] = useState(passwords);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
 
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -242,6 +245,20 @@ export const Dashboard: React.FC = () => {
       isMounted = false;
     };
   }, [viewingPassword, location.pathname]);
+
+  useEffect(() => {
+  if (!searchQuery.trim()) {
+    setFilteredPasswords(passwords);
+  } else {
+    const query = searchQuery.toLowerCase();
+    const filtered = passwords.filter((p) =>
+      p.website.toLowerCase().includes(query) ||
+      p.username.toLowerCase().includes(query) ||
+      (p.notes && p.notes.toLowerCase().includes(query))
+    );
+    setFilteredPasswords(filtered);
+  }
+}, [searchQuery, passwords]);
 
 
   // toggle used specifically for the "View Password" modal visibility (mask/unmask)
@@ -678,6 +695,12 @@ export const Dashboard: React.FC = () => {
 
   const handleAddPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+
+  if (checkPasswordReuse(passwordformData.password)) {
+    setShowReuseWarning(true); // 👈 open modal instead of alert
+    return;
+  }
+
     try {
       await apiService.addPassword(passwordformData);
 
@@ -698,6 +721,15 @@ export const Dashboard: React.FC = () => {
     // const data = await apiService.getPasswords({ params: { t: Date.now() } });
 
     e.preventDefault();
+
+    if (
+    checkPasswordReuse(passwordformData.password) &&
+    passwordformData.password !== currentPassword
+  ) {
+    setShowReuseWarning(true); // 👈 open modal instead of aler
+    return;
+  }
+
     if (!editingPassword) return;
 
     try {
@@ -792,6 +824,14 @@ export const Dashboard: React.FC = () => {
   };
 
 
+
+// 🧩 Password Reuse Detection
+const checkPasswordReuse = (newPassword: string) => {
+  if (!newPassword || !Array.isArray(passwords)) return false;
+  return passwords.some(
+    (entry) => entry.password.trim() === newPassword.trim()
+  );
+};
 
 
 
@@ -902,41 +942,58 @@ export const Dashboard: React.FC = () => {
 
           {/* Saved Passwords */}
           <div className="bg-white shadow-xl rounded-2xl p-6 border border-gray-200">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-800">Your Saved Passwords</h2>
-              <Button
-                onClick={() => setShowAddForm(true)}
-                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-5 py-2 rounded-xl shadow-md hover:shadow-lg transition"
-              >
-                + Add New
-              </Button>
-            </div>
+  <div className="flex justify-between items-center mb-6">
+    <h2 className="text-xl font-bold text-gray-800">Your Saved Passwords</h2>
+    <Button
+      onClick={() => setShowAddForm(true)}
+      className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-5 py-2 rounded-xl shadow-md hover:shadow-lg transition"
+    >
+      + Add New
+    </Button>
+  </div>
 
-            {isLoading ? (
-              <div className="flex flex-col items-center py-10">
-                <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-                <p className="mt-3 text-gray-600">Loading passwords...</p>
-              </div>
-            ) : !passwords.length ? (
-              <div className="bg-gray-50 p-8 rounded-lg text-center border border-dashed border-gray-300">
-                <p className="text-gray-500">No passwords yet. Click <strong>+ Add New</strong> to get started!</p>
-              </div>
-            ) : (
-              <div className={`grid gap-5 grid-cols-1 sm:grid-cols-2 ${gridColsClass}`}>
-                {passwords.map((password) => (
-                  <div
-                    key={password._id}
-                    className={`
+  {/* 🔍 Search / Filter Bar */}
+  <div className="mb-6">
+    <input
+      type="text"
+      placeholder="Search passwords (by website, username, or notes)..."
+      value={searchQuery}
+      onChange={(e) => setSearchQuery(e.target.value)}
+      className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none shadow-sm"
+    />
+  </div>
+
+  {isLoading ? (
+    <div className="flex flex-col items-center py-10">
+      <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+      <p className="mt-3 text-gray-600">Loading passwords...</p>
+    </div>
+  ) : filteredPasswords.length === 0 ? (
+    <div className="bg-gray-50 p-8 rounded-lg text-center border border-dashed border-gray-300">
+      <p className="text-gray-500">
+        {searchQuery
+          ? `No results found for "${searchQuery}".`
+          : `No passwords yet. Click + Add New to get started!`}
+      </p>
+    </div>
+  ) : (
+    <div className={`grid gap-5 grid-cols-1 sm:grid-cols-2 ${gridColsClass}`}>
+{filteredPasswords.map((password) => (
+          <div
+          key={password._id}
+          className={`
             w-full bg-gradient-to-br from-blue-500 to-blue-600 text-white 
             rounded-2xl p-5 shadow-md hover:shadow-lg hover:scale-[1.02] 
             transition transform duration-200 group
-                        ${cardCount === 1 ? 'col-span-full' : ''} 
-`}
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className={`w-12 h-12 ${getWebsiteColor(password.website)} rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-md`}>
-                        {getWebsiteIcon(password.website)}
-                      </div>
+            ${cardCount === 1 ? 'col-span-full' : ''} 
+          `}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div
+              className={`w-12 h-12 ${getWebsiteColor(password.website)} rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-md`}
+            >
+              {getWebsiteIcon(password.website)}
+            </div>
 
                       <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition">
                         <div className="flex gap-3">
@@ -1154,6 +1211,43 @@ export const Dashboard: React.FC = () => {
                 </div>
               )
             }
+
+
+
+<Dialog open={showReuseWarning} onOpenChange={setShowReuseWarning}>
+  <DialogContent className="sm:max-w-md rounded-2xl shadow-lg border border-blue-300 bg-blue-50 p-6 text-center">
+    <DialogHeader>
+      <div className="flex flex-col items-center gap-3">
+        {/* ⚠️ Warning Icon */}
+        <div className="w-12 h-12 flex items-center justify-center rounded-full bg-blue-100">
+          <span className="text-blue-600 text-2xl">⚠️</span>
+        </div>
+
+        {/* Title */}
+        <DialogTitle className="text-lg font-semibold text-blue-700">
+          Password Reuse Detected
+        </DialogTitle>
+
+        {/* Subtext */}
+        <p className="text-sm text-gray-700">
+          This password is already used for another account.  
+          Please choose a unique password to enhance your security.
+        </p>
+
+        {/* Close Button */}
+        <div className="mt-5">
+          <Button
+            onClick={() => setShowReuseWarning(false)}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-xl shadow-md transition"
+          >
+            Okay, Got it
+          </Button>
+        </div>
+      </div>
+    </DialogHeader>
+  </DialogContent>
+</Dialog>
+
 
 
             {
