@@ -27,7 +27,9 @@ import Trial from "../models/Trial.js";
 import requestIp from 'request-ip';
 import axios from 'axios';            // ← you reference axios but never imported
 import { pushAlert } from '../realtime/socketHub.js';
-
+import { UAParser } from 'ua-parser-js'; // Add this import at the top
+import Notification from '../models/Notification.model.js';
+import mongoose from 'mongoose';
 
 import sendResetEmail from '../emailService.js' ;
 const NODE_ENV = process.env.NODE_ENV || "development";
@@ -194,7 +196,10 @@ function authenticateToken(req, res, next) {
   jwt.verify(token, process.env.JWT_SECRET || 'defaultsecret', (err, user) => {
     if (err) return res.status(403).json({ error: 'Invalid or expired token' });
     req.user = user;
+
     next();
+          console.log('Decoded user in middleware:', user)
+
   });
 }
 
@@ -925,7 +930,123 @@ authRouter.post("/check-user", authenticateToken, async (req, res) => {
   }
 });
 
+// GET /devices - Get all devices for the authenticated user
+authRouter.post('/devices', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    if (!userId) {
+      console.error('User not authenticated in /devices');
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
 
+    // Fetch last 10 successful login events
+    const loginEvents = await LoginEvent.find({ userId, success: true })
+      .sort({ timestamp: -1 })
+      .limit(10)
+      .lean();
+
+    if (!loginEvents || loginEvents.length === 0) {
+      return res.json({ devices: [] }); // Safe fallback
+    }
+
+    // Transform login events to devices
+    const devices = loginEvents.map(event => {
+      const timestamp = event.timestamp ? new Date(event.timestamp) : new Date();
+      const ipAddress = event.ipAddress || 'Unknown';
+      const userAgent = event.userAgent || 'Unknown';
+      const location = event.location || 'Unknown';
+
+      return {
+        deviceId: `${ipAddress}-${event._id || new mongoose.Types.ObjectId()}`,
+        deviceType: 'desktop', // default
+        browser: userAgent,
+        os: 'Unknown',          // no parsing needed
+        lastLogin: timestamp,
+        ipAddress,
+        location,
+        status: timestamp > new Date(Date.now() - 24 * 60 * 60 * 1000) ? 'active' : 'inactive'
+      };
+    });
+
+    return res.json({ devices });
+
+  } catch (err) {
+    console.error('Error in /devices route:', err);
+    return res.status(500).json({
+      error: 'Error fetching devices',
+      details: err?.message || 'Unknown server error'
+    });
+  }
+});
+
+
+// POST /devices/logout - Log out from a specific device
+authRouter.post('/devices/logout', authenticateToken, async (req, res) => {
+  try {
+    const { deviceId } = req.body;
+    const userId = req.user._id;
+
+    if (!deviceId) {
+      return res.status(400).json({ error: 'Device ID is required' });
+    }
+
+    // Extract IP and UA from deviceId (assuming format: "ip-useragent")
+    const [ipAddress, ...userAgentParts] = deviceId.split('-');
+    const userAgent = userAgentParts.join('-');
+
+    // Update the most recent login event for this device to mark it as logged out
+    await LoginEvent.updateOne(
+      {
+        userId,
+        ipAddress,
+        userAgent,
+        success: true
+      },
+      {
+        $set: { loggedOut: true }
+      }
+    );
+
+    res.json({ message: 'Device logged out successfully' });
+  } catch (error) {
+    console.error('Error logging out device:', error);
+    res.status(500).json({ error: 'Failed to log out device' });
+  }
+});
+
+// POST /devices/logout-all - Log out from all devices except current
+authRouter.post('/devices/logout-all', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const currentDeviceId = req.body.currentDeviceId;
+
+    if (!currentDeviceId) {
+      return res.status(400).json({ error: 'Current device ID is required' });
+    }
+
+    const [currentIp, ...currentUaParts] = currentDeviceId.split('-');
+    const currentUa = currentUaParts.join('-');
+
+    await LoginEvent.updateMany(
+      {
+        userId,
+        success: true,
+        $or: [
+          { ipAddress: { $ne: currentIp } },
+          { userAgent: { $ne: currentUa } }
+        ]
+      },
+      {
+        $set: { loggedOut: true }
+      }
+    );
+
+    res.json({ message: 'All other devices logged out successfully' });
+  } catch (error) {
+    console.error('Error logging out all devices:', error);
+    res.status(500).json({ error: 'Failed to log out devices' });
+  }
+});
 
 authRouter.post('/logout', authenticateToken, (req, res) => {
   // Clear cookies
@@ -933,5 +1054,45 @@ authRouter.post('/logout', authenticateToken, (req, res) => {
   res.status(200).json({ message: 'Logged out successfully' });
 });
 
+
+
+authRouter.post("/createNewNotification", authenticateToken, async (req, res) => {
+  try {
+    const { message, type } = req.body;
+    const userId = req.user.id;
+
+    const notification = await Notification.create({ userId, message, type });
+    res.status(201).json(notification);
+  } catch (error) {
+    console.error("Error creating notification:", error);
+    res.status(500).json({ error: "Failed to create notification" });
+  }
+});
+
+// Get all notifications for a user
+// router.get("/", authenticateToken, async (req, res) => {
+//   try {
+//     const notifications = await Notification.find({ userId: req.user.id }).sort({ createdAt: -1 });
+//     res.json(notifications);
+//   } catch (error) {
+//     console.error("Error fetching notifications:", error);
+//     res.status(500).json({ error: "Failed to fetch notifications" });
+//   }
+// });
+
+// Mark as read
+authRouter.put("/:id/readNotification", authenticateToken, async (req, res) => {
+  try {
+    const notification = await Notification.findByIdAndUpdate(
+      req.params.id,
+      { read: true },
+      { new: true }
+    );
+    res.json(notification);
+  } catch (error) {
+    console.error("Error marking as read:", error);
+    res.status(500).json({ error: "Failed to mark notification as read" });
+  }
+});
 
 export default authRouter;

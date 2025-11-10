@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import SecurityChatbotIcon from "./ChatbotIcon";
 import defaultProfileIcon from "../../assets/default-profile.png";
+import { MediaKey, mediaLibrary, MediaItem } from "../chatbot/richMediaLibrary"; // Update imports at the top
 
 interface BotProps {
   profileImage?: string;
@@ -23,6 +24,24 @@ const predefinedQuestions = [
   "How can I create a strong password?",
   "What are the best password management practices?",
 ];
+
+// Update the Media type definition
+type Media = {
+  type: "image" | "table";
+  src?: string;
+  caption?: string;
+  headers?: ReadonlyArray<string>;
+  rows?: ReadonlyArray<ReadonlyArray<string>>;
+};
+
+// Or alternatively, using a more concise syntax:
+// type Media = {
+//   type: "image" | "table";
+//   src?: string;
+//   caption?: string;
+//   headers?: readonly string[];
+//   rows?: readonly (readonly string[])[];
+// };
 
 const BotChat: React.FC<BotProps> = ({ profileImage }) => {
   const [question, setQuestion] = useState("");
@@ -46,16 +65,18 @@ const [thankYouMap, setThankYouMap] = useState<Record<string, boolean>>({});
 });
 const [showSaved, setShowSaved] = useState(false);
   const [widgetData, setWidgetData] = useState<any>(null);
-  const [chatHistory, setChatHistory] = useState<
-    {
-      question: string;
-      answer: string;
-      suggestions: string[];
-      widgetType: "linkScanner" | "quiz" | "stepByStep" | null;
-      widgetData: any;
-      feedback: "up" | "down" | null;
-    }[]
-  >([]);
+  const [chatHistory, setChatHistory] = useState<{
+    question: string;
+    answer: string;
+    suggestions: string[];
+    widgetType: "linkScanner" | "quiz" | "stepByStep" | null;
+    widgetData: any;
+    feedback: "up" | "down" | null;
+    media?: Media;
+  }[]>([]);
+
+
+  // 🌗 Dark Mode Stat  e 
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem("darkMode");
     return saved ? JSON.parse(saved) : false;
@@ -112,6 +133,47 @@ const [showSaved, setShowSaved] = useState(false);
     return () => clearInterval(interval);
   }, [chatHistory]);
 
+
+
+  const getRichMedia = (message: string): Media | null => {
+  // Log the message and mediaLibrary to debug
+  console.log('Checking message:', message);
+  console.log('Available media keys:', Object.keys(mediaLibrary));
+
+  const key = Object.keys(mediaLibrary).find((term) =>
+    message.toLowerCase().includes(term.toLowerCase())
+  );
+
+  if (!key) {
+    console.log('No matching media found');
+    return null;
+  }
+
+  console.log('Found matching key:', key);
+  const media = mediaLibrary[key as MediaKey];
+  
+  // Log the media object to verify its structure
+  console.log('Media object:', media);
+
+  if (media.type === "image") {
+    return {
+      type: "image",
+      src: media.src,
+      caption: media.caption
+    };
+  }
+
+  if (media.type === "table") {
+    return {
+      type: "table",
+      headers: media.headers as readonly string[],
+      rows: media.rows as readonly (readonly string[])[]
+    };
+  }
+
+  return null;
+};
+
   // 🧠 Ask bot function
   const askBot = async (customQuestion?: string) => {
     const userQuestion = customQuestion || question;
@@ -129,12 +191,23 @@ const [showSaved, setShowSaved] = useState(false);
         suggestions = [],
         widgetType = null,
         widgetData = {},
-      feedback = null,
+        feedback = null,
       } = res.data;
+
+      const media = getRichMedia(botAnswer);
+      console.log('Generated media object:', media); // Debug log
 
       setChatHistory((prev) => [
         ...prev,
-        { question: userQuestion, answer: botAnswer, suggestions, widgetType, widgetData, feedback },
+        {
+          question: userQuestion,
+          answer: botAnswer,
+          suggestions,
+          widgetType,
+          widgetData,
+          feedback,
+          media: media || undefined // Explicitly handle null case
+        }
       ]);
 
       setQuestion("");
@@ -447,14 +520,96 @@ return (
                   }`}
                 >
 {/* Answer Text */}
-<div className="pr-8">  {/* add right padding for spacing */}
+<div className="pr-8">
   {index === chatHistory.length - 1 && isTyping ? (
     <p>
       {displayedText}
       <span className="animate-pulse ml-1">▮</span>
     </p>
   ) : (
-    <ReactMarkdown>{item.answer}</ReactMarkdown>
+    <>
+      <ReactMarkdown>{item.answer}</ReactMarkdown>
+      
+      {/* 🖼️ Rich Media Rendering */}
+      {item.media && (
+        <div className="mt-3">
+          {/* Debug logging wrapped in IIFE */}
+          {(() => {
+            if (item.media) {
+              console.log('Rendering media:', item.media);
+            }
+            return null;
+          })()}
+
+          {/* Image rendering with type narrowing */}
+{item.media?.type === "image" && item.media.src && (
+  <div className="flex flex-col items-center">
+    <img
+      src={item.media.src}
+      alt={item.media.caption || ''}
+      className="rounded-xl shadow-md max-w-xs sm:max-w-sm md:max-w-md mb-2"
+      onError={(e) => {
+        e.currentTarget.style.display = 'none';
+      }}
+    />
+
+    {item.media.caption && (
+      <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 italic">
+        {item.media.caption}
+      </p>
+    )}
+
+    {/* 🌟 View & Download Buttons */}
+    <div className="flex gap-2 mt-2">
+      {/* View button opens the image in a new tab */}
+      <button
+        onClick={() => window.open(item.media?.src, "_blank")}
+        className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 text-sm"
+      >
+        View
+      </button>
+
+      {/* Download button */}
+      <a
+        href={item.media.src}
+        download={item.media.caption || 'image'}
+        className="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700 text-sm"
+      >
+        Download
+      </a>
+    </div>
+  </div>
+)}
+
+
+          {/* Table rendering with type narrowing */}
+          {item.media?.type === "table" && item.media.headers && item.media.rows && (
+            <table className="mt-3 border border-gray-300 rounded-lg text-sm">
+              <thead className="bg-indigo-100 dark:bg-blue-800">
+                <tr>
+                  {item.media.headers.map((h: string, i: number) => (
+                    <th key={i} className="px-4 py-2 border">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(item.media.rows as ReadonlyArray<ReadonlyArray<string>>).map((row, rIdx) => (
+                  <tr key={rIdx}>
+                    {(row as ReadonlyArray<string>).map((cell, cIdx) => (
+                      <td key={cIdx} className="px-4 py-2 border">
+                        {cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </>
   )}
 </div>
 

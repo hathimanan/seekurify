@@ -70,10 +70,11 @@ const AppRoutes = () => {
         <Route path="/malware-analysis" element={<MalwareAnalyzer />} />
 
 
-        <Route path="/securityAwareness" element={<SecurityAwareness tips={[]} />}/>
+        <Route path="/securityAwareness" element={<SecurityAwareness />} />
 
         <Route path="/contact" element={<ContactForm />} />
 
+{/* <Route path="/devices" element={<SIEMDashboard />} /> */}
         <Route path="/siem-dashboard" element={<SIEMDashboard />} />
 
         <Route path="/forgot-password" element={<ForgotPasswordForm/>} />

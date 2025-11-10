@@ -30,6 +30,19 @@ interface passwordHealth {
   count: number;
 }
 
+interface DeviceInfo {
+  deviceId: string;
+  userId: string;
+  success: boolean;
+  deviceType: string;
+  browser: string;
+  os: string;
+  lastLogin: string;
+  ipAddress: string;
+  location?: string;
+  status: 'active' | 'inactive';
+}
+
 type ModalState = "none" | "pay" | "trial" | "onlyPay" | "verifyPin" | "reVerifyPin";
 
 const SystemEventsPage: React.FC = () => {
@@ -44,12 +57,12 @@ const SystemEventsPage: React.FC = () => {
   // ---------- Modal State ----------
   const [currentModal, setCurrentModal] = useState<ModalState>("none");
 
-    const [paymentFormData, setPaymentFormData] = useState<PaymentEntry>({
-      name: '',
-      email: '',
-      contact: '',
-      amount: 100, // default amount
-    });
+  const [paymentFormData, setPaymentFormData] = useState<PaymentEntry>({
+    name: '',
+    email: '',
+    contact: '',
+    amount: 100, // default amount
+  });
   // ---------- Payment / Trial ----------
   const [trialActive, setTrialActive] = useState(false);
   const [trialExpired, setTrialExpired] = useState(false);
@@ -70,7 +83,8 @@ const SystemEventsPage: React.FC = () => {
   const [showTrialModal, setShowTrialModal] = useState(false);
   const [showReverifyPinModal, setShowReverifyPinModal] = useState(false);
   const [isReverified, setIsReverified] = useState(false);
-  const [sidebarExpanded,setSidebarExpanded] = useState(true);
+  const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const [deviceInfo, setDeviceInfo] = useState<DeviceInfo[]>([]);
 
 
   // ---------- Fetch Dashboard & Payment Info ----------
@@ -78,47 +92,80 @@ const SystemEventsPage: React.FC = () => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem("token");
-        if (!token) return;
+        console.log('Token for devices fetch:', token);
 
-        const [resProfile, resPayment, resEvents] = await Promise.all([
-          fetch(`${API_BASE_URL}/profile`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`${API_BASE_URL}/auth/check-payment`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`${API_BASE_URL}/siem-dashboard`, { headers: { Authorization: `Bearer ${token}` } }),
+        const [resProfile, resPayment, resEvents, resDevices] = await Promise.all([
+          fetch(`${API_BASE_URL}/profile`, {
+            headers: { Authorization: `Bearer ${token}` }
+          }),
+          fetch(`${API_BASE_URL}/auth/check-payment`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` }
+          }),
+          fetch(`${API_BASE_URL}/siem-dashboard`, {
+            headers: { Authorization: `Bearer ${token}` }
+          }),
+          fetch(`${API_BASE_URL}/auth/devices`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }),
         ]);
+
+        console.log('Device fetch response:', {
+          status: resDevices.status,
+          statusText: resDevices.statusText
+        });
+
+        if (!resDevices.ok) {
+          const errorText = await resDevices.text();
+          console.error('Devices fetch failed:', errorText);
+          setDeviceInfo([]);
+        } else {
+          const deviceData = await resDevices.json();
+          console.log('Device data received:', deviceData);
+          setDeviceInfo(deviceData.devices || []);
+        }
 
         const profileData = await resProfile.json();
         const paymentData = await resPayment.json();
         const eventsData = await resEvents.json();
 
-        if (profileData?.profileImage) 
-          {
-            setProfileImage(profileData.profileImage);
-          }
+        if (profileData?.profileImage) {
+          setProfileImage(profileData.profileImage);
+        }
 
-            if (pinError) {
-    setCurrentModal("reVerifyPin");
-  }
+        if (pinError) {
+          setCurrentModal("reVerifyPin");
+        }
         setTrialActive(paymentData.isTrialActive);
         setTrialExpired(paymentData.isTrialExpired);
         setHasPaid(paymentData.hasPaid);
 
-   setLoginEvents(eventsData.loginEvents || []);
-setPasswordChanges(eventsData.passwordChanges || []);
-setInvalidLogins(eventsData.invalidLogins || []);
-setPasswordHealth(eventsData.passwordHealth || []);
-
+        setLoginEvents(eventsData.loginEvents || []);
+        setPasswordChanges(eventsData.passwordChanges || []);
+        setInvalidLogins(eventsData.invalidLogins || []);
+        setPasswordHealth(eventsData.passwordHealth || []);
 
         // ---------- Determine Modal ----------
-       if (paymentData.hasPaid) {
-  setCurrentModal("verifyPin");
-} else if (paymentData.isTrialActive) {
-  setCurrentModal("verifyPin");
-} else if (paymentData.isTrialExpired || !paymentData.isTrialActive) {
-  setCurrentModal("onlyPay");
-}
-else {
-  setCurrentModal("pay");
-}
+        if (paymentData.hasPaid) {
+          setCurrentModal("verifyPin"); // Always show verifyPin for paid users initially
+        } else if (paymentData.isTrialActive) {
+          setCurrentModal("verifyPin");
+        } else if (paymentData.isTrialExpired) {
+          setCurrentModal("onlyPay");
+        } else {
+          setCurrentModal("pay");
+        }
+
+        // Add these logs before the modal determination
+        console.log('Payment Data:', {
+          hasPaid: paymentData.hasPaid,
+          isTrialActive: paymentData.isTrialActive,
+          isTrialExpired: paymentData.isTrialExpired,
+          pinVerified: pinVerified
+        });
 
       } catch (err) {
         console.error(err);
@@ -185,74 +232,74 @@ else {
     }
   };
 
- const checkPaymentStatus = async (): Promise<void> => {
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) throw new Error('User not authenticated');
+  const checkPaymentStatus = async (): Promise<void> => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('User not authenticated');
 
-    const response = await fetch(`${API_BASE_URL}/auth/check-payment`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    });
+      const response = await fetch(`${API_BASE_URL}/auth/check-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      });
 
-    if (!response.ok) throw new Error('Failed to check payment status');
-    const data = await response.json();
+      if (!response.ok) throw new Error('Failed to check payment status');
+      const data = await response.json();
 
-    // Update states from backend
-    setHasPaid(data.hasPaid);
-    setTrialActive(data.isTrialActive);
-    setTrialExpired(data.isTrialExpired);
+      // Update states from backend
+      setHasPaid(data.hasPaid);
+      setTrialActive(data.isTrialActive);
+      setTrialExpired(data.isTrialExpired);
 
-    // Reset all modals first
-    setShowOnlyPayModal(false);
-    setShowTrialModal(false);
-    setShowReverifyPinModal(false);
+      // Reset all modals first
+      setShowOnlyPayModal(false);
+      setShowTrialModal(false);
+      setShowReverifyPinModal(false);
 
-    // --- Modal Flow ---
-    // 1. New user (not started trial, not paid)
-    if (!data.hasPaid && !data.isTrialActive && !data.isTrialExpired) {
-      setShowPayModal(true); // Pay modal with trial button
-      return;
-    }
-
-    // 2. In trial (trial started but unpaid)
-    if (!data.hasPaid && data.isTrialActive && !data.isTrialExpired) {
-       if (!isReverified) {
-        setShowReverifyPinModal(true); // After acknowledgment, show PIN modal if not reverified
+      // --- Modal Flow ---
+      // 1. New user (not started trial, not paid)
+      if (!data.hasPaid && !data.isTrialActive && !data.isTrialExpired) {
+        setShowPayModal(true); // Pay modal with trial button
+        return;
       }
-      return;
-    }
 
-    // 3. Trial expired, unpaid
-    if (!data.hasPaid && !data.isTrialActive && data.isTrialExpired) {
-      setShowOnlyPayModal(true); // Pay modal, no trial button
-      return;
-    }
-
-    // 4. Trial expired, paid OR 5. Paid but no trial (rare but valid)
-    if (data.hasPaid) {
-      if (!isReverified) {
-        setShowReverifyPinModal(true); // Paid users must reverify PIN if not done
+      // 2. In trial (trial started but unpaid)
+      if (!data.hasPaid && data.isTrialActive && !data.isTrialExpired) {
+        if (!isReverified) {
+          setShowReverifyPinModal(true); // After acknowledgment, show PIN modal if not reverified
+        }
+        return;
       }
-      // else: full access, no modal
-      return;
+
+      // 3. Trial expired, unpaid
+      if (!data.hasPaid && !data.isTrialActive && data.isTrialExpired) {
+        setShowOnlyPayModal(true); // Pay modal, no trial button
+        return;
+      }
+
+      // 4. Trial expired, paid OR 5. Paid but no trial (rare but valid)
+      if (data.hasPaid) {
+        if (!isReverified) {
+          setShowReverifyPinModal(true); // Paid users must reverify PIN if not done
+        }
+        // else: full access, no modal
+        return;
+      }
+      setShowPayModal(true);
+    } catch (err) {
+      console.error('Error checking payment status:', err);
+      setHasPaid(false);
+      setShowOnlyPayModal(false);
+      setShowTrialModal(false);
+      setShowReverifyPinModal(false);
+    } finally {
+      setPaymentChecked(true);
     }
-setShowPayModal(true);
-  } catch (err) {
-    console.error('Error checking payment status:', err);
-    setHasPaid(false);
-    setShowOnlyPayModal(false);
-    setShowTrialModal(false);
-    setShowReverifyPinModal(false);
-  } finally {
-    setPaymentChecked(true);
-  }
-};
+  };
 
 
 
   const handlePayNow = async () => {
-try {
+    try {
       if (!(window as any).Razorpay) {
         alert('Razorpay SDK failed to load.');
         return;
@@ -339,18 +386,18 @@ try {
 
   // ---------- Render ----------
 
-if (!pinVerified && currentModal === "verifyPin") {
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 px-4">
-      <title>System Events Dashboard</title>
-      <div className="bg-gray-800 p-8 rounded-3xl shadow-2xl w-full max-w-md flex flex-col items-center">
-        {/* Seekurify Icon */}
-        <Logo />
+  if (!pinVerified && currentModal === "verifyPin") {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 px-4">
+        <title>System Events Dashboard</title>
+        <div className="bg-gray-800 p-8 rounded-3xl shadow-2xl w-full max-w-md flex flex-col items-center">
+          {/* Seekurify Icon */}
+          <Logo />
 
-        {/* Modal Title */}
-        <h2 className="text-3xl font-extrabold mb-6 text-center text-white drop-shadow-md">
-          🔒 Enter PIN
-        </h2>
+          {/* Modal Title */}
+          <h2 className="text-3xl font-extrabold mb-6 text-center text-white drop-shadow-md">
+            🔒 Enter PIN
+          </h2>
           <form onSubmit={handlePinSubmit} className="space-y-4">
             <input
               type="email"
@@ -366,7 +413,7 @@ if (!pinVerified && currentModal === "verifyPin") {
               placeholder="Enter PIN"
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${pinError ? 'focus:ring-red-500' : 'focus:ring-blue-500'}`}
             />
-            {pinError &&  <p className="text-red-600 text-sm">{pinError}</p>}
+            {pinError && <p className="text-red-600 text-sm">{pinError}</p>}
             <div className="flex justify-end">
               <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
                 Verify
@@ -379,19 +426,19 @@ if (!pinVerified && currentModal === "verifyPin") {
   }
 
 
-  if(!pinVerified && currentModal==="reVerifyPin" ) {
+  if (!pinVerified && currentModal === "reVerifyPin") {
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-red-200">
-       
-      <Logo />
-       
+
+        <Logo />
+
         <h3 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2 flex items-center gap-2">
           ⚠️ Incorrect PIN
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
           Please re-enter your PIN to confirm access.
         </p>
-  
+
         <form onSubmit={handlePinSubmit} className="space-y-4">
           <input
             type="email"
@@ -399,12 +446,12 @@ if (!pinVerified && currentModal === "verifyPin") {
             className="w-full px-3 py-2 border border-gray-300 bg-gray-100 text-gray-500 rounded-md cursor-not-allowed"
             disabled
           />
-  
+
           <div>
             <input
               type="password"
               value={pinInput}
-                maxLength={4}
+              maxLength={4}
               onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
               placeholder="Enter PIN"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -413,7 +460,7 @@ if (!pinVerified && currentModal === "verifyPin") {
               <p className="text-sm text-red-600 mt-1">{error}</p>
             )}
           </div>
-  
+
           <div className="flex justify-end gap-3">
             <Button
               type="submit"
@@ -425,8 +472,8 @@ if (!pinVerified && currentModal === "verifyPin") {
         </form>
       </div>
     </div>
-  
-}
+
+  }
 
   if (currentModal === "pay") {
     return (
@@ -459,40 +506,40 @@ if (!pinVerified && currentModal === "verifyPin") {
   return (
     <div className="bg-gradient-to-br from-gray-900 via-black to-gray-800 min-h-screen flex flex-col text-white">
       <Header token={localStorage.getItem("token") || ""} handleLogout={handleLogout} profileImage={profileImage} sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
-<title> System Events Dashboard</title>
-<div className="flex flex-1 overflow-hidden">
-    {/* Sidebar */}
-    <motion.aside
-      initial={false}
-  animate={{ width: sidebarExpanded ? "18rem" : "4rem" }}
-      transition={{ type: "spring", stiffness: 260, damping: 30 }}
-      className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col"
-    >
-      {[
-        { label: "Analyze Malware", path: "/malware-analysis", icon: <FileSearch className="w-5 h-5" /> },
-        { label: "Password Manager", path: "/dashboard", icon: <KeyRound className="w-5 h-5" /> },
-        { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
-        { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
-        { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
-      ].map(({ label, path, icon }) => (
-        <div
-          key={path}
-          onClick={() => navigate(path)}
-          className="relative group flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-indigo-600 transition cursor-pointer"
+      <title> System Events Dashboard</title>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <motion.aside
+          initial={false}
+          animate={{ width: sidebarExpanded ? "18rem" : "4rem" }}
+          transition={{ type: "spring", stiffness: 260, damping: 30 }}
+          className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col"
         >
-          {icon}
-          {sidebarExpanded && <span className="truncate">{label}</span>}
+          {[
+            { label: "Analyze Malware", path: "/malware-analysis", icon: <FileSearch className="w-5 h-5" /> },
+            { label: "Password Manager", path: "/dashboard", icon: <KeyRound className="w-5 h-5" /> },
+            { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
+            { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
+            { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
+          ].map(({ label, path, icon }) => (
+            <div
+              key={path}
+              onClick={() => navigate(path)}
+              className="relative group flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-indigo-600 transition cursor-pointer"
+            >
+              {icon}
+              {sidebarExpanded && <span className="truncate">{label}</span>}
 
-          {!sidebarExpanded && (
-            <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
-              {label}
-            </span>
-          )}
-        </div>
-      ))}
+              {!sidebarExpanded && (
+                <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                  {label}
+                </span>
+              )}
+            </div>
+          ))}
 
-      {/* Expand/Collapse */}
-      {/* <div
+          {/* Expand/Collapse */}
+          {/* <div
         onClick={() => setSidebarExpanded((s) => !s)}
         className="flex items-center justify-center mt-auto cursor-pointer bg-white/10 hover:bg-white/20 px-2 py-2 rounded-md transition relative group"
       >
@@ -503,7 +550,7 @@ if (!pinVerified && currentModal === "verifyPin") {
           </span>
         )}
       </div> */}
-    </motion.aside>
+        </motion.aside>
 
         <div className="mt-6 ml-6 mb-6">
           <button
@@ -515,61 +562,93 @@ if (!pinVerified && currentModal === "verifyPin") {
         </div>
 
 
-      <main className="flex-grow px-6 py-4">
+        <main className="flex-grow px-6 py-4">
 
-        <h1 className="text-3xl md:text-4xl font-extrabold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-orange-600 drop-shadow-md">
-          ⚡ System Event Management Dashboard ⚡
-        </h1>
+          <h1 className="text-3xl md:text-4xl font-extrabold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-orange-600 drop-shadow-md">
+            ⚡ System Event Management Dashboard ⚡
+          </h1>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
-  {/* Login Events */}
-<div className="bg-gray-800 rounded-2xl shadow-lg p-6 flex flex-col hover:scale-105 transition-transform duration-200">
-  <h3 className="text-white font-semibold mb-4 text-lg flex items-center gap-2">🔑 Login Events</h3>
-    <Graph 
-      title="Login Events" 
-      data={loginEvents.map(e => ({ date: e.date, value: e.count }))} 
-    />
-  </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
+            {/* Login Events */}
+            <div className="bg-gray-800 rounded-2xl shadow-lg p-6 flex flex-col hover:scale-105 transition-transform duration-200">
+              <h3 className="text-white font-semibold mb-4 text-lg flex items-center gap-2">🔑 Login Events</h3>
+              <Graph
+                title="Login Events"
+                data={loginEvents.map(e => ({ date: e.date, value: e.count }))}
+              />
+            </div>
 
-  {/* Password Changes */}
-  <div className="bg-gray-800 rounded-2xl shadow-lg p-4 flex flex-col hover:scale-105 transition-transform duration-200">
-  <h3 className="text-white font-semibold mb-3 text-lg flex items-center gap-2">🔄 Password Changes</h3>
+            {/* Password Changes */}
+            <div className="bg-gray-800 rounded-2xl shadow-lg p-4 flex flex-col hover:scale-105 transition-transform duration-200">
+              <h3 className="text-white font-semibold mb-3 text-lg flex items-center gap-2">🔄 Password Changes</h3>
 
-    <Graph 
-      title="Password Changes" 
-      data={passwordChanges.map(e => ({ date: e.date, value: e.count }))} 
-    />
-  </div>
+              <Graph
+                title="Password Changes"
+                data={passwordChanges.map(e => ({ date: e.date, value: e.count }))}
+              />
+            </div>
 
- <div className="bg-gray-800 rounded-2xl shadow-lg p-6 flex flex-col hover:scale-105 transition-transform duration-200">
-  <h3 className="text-white font-semibold mb-4 text-lg flex items-center gap-2">⚠️ Invalid Logins</h3>
-  <Graph
-    title="Invalid Logins"
-    data={invalidLogins
-      .filter(e => e.intervalStart) // remove undefined/null entries
-      .map(e => ({
-        date: new Date(e.intervalStart ?? "").toLocaleString(), // fallback to ""
-        value: e.count
-      }))}
-  />
-</div>
+            <div className="bg-gray-800 rounded-2xl shadow-lg p-6 flex flex-col hover:scale-105 transition-transform duration-200">
+              <h3 className="text-white font-semibold mb-4 text-lg flex items-center gap-2">⚠️ Invalid Logins</h3>
+              <Graph
+                title="Invalid Logins"
+                data={invalidLogins
+                  .filter(e => e.intervalStart) // remove undefined/null entries
+                  .map(e => ({
+                    date: new Date(e.intervalStart ?? "").toLocaleString(), // fallback to ""
+                    value: e.count
+                  }))}
+              />
+            </div>
 
-<div className="bg-gray-800 rounded-2xl shadow-lg p-6 flex flex-col hover:scale-105 transition-transform duration-200">
-  <h3 className="text-white font-semibold mb-4 text-lg flex items-center gap-2">🔐 Password Health</h3>
-<Graph 
-  title="Password Health" 
-  data={passwordHealth.map(e => ({ category: e.category, value: e.count }))} 
-  type="bar"
-  xKey="category"
-/>
+            <div className="bg-gray-800 rounded-2xl shadow-lg p-6 flex flex-col hover:scale-105 transition-transform duration-200">
+              <h3 className="text-white font-semibold mb-4 text-lg flex items-center gap-2">🔐 Password Health</h3>
+              <Graph
+                title="Password Health"
+                data={passwordHealth.map(e => ({ category: e.category, value: e.count }))}
+                type="bar"
+                xKey="category"
+              />
 
-</div>
+            </div>
 
+            {/* Device Info Card - New Addition */}
+            <div className="col-span-2 bg-gray-800 rounded-2xl shadow-lg p-6 hover:scale-105 transition-transform duration-200">
+              <h3 className="text-white font-semibold mb-4 text-lg flex items-center gap-2">
+                💻 Devices Login Info
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {deviceInfo.map((device) => (
+                  <div
+                    key={device.deviceId}
+                    className="bg-gray-700 rounded-lg p-4 border border-gray-600"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="text-lg font-medium text-white">
+                        {device.deviceType}
+                      </div>
+                      <span className={`px-2 py-1 rounded text-xs ${device.status === 'active'
+                          ? 'bg-green-500/20 text-green-300'
+                          : 'bg-gray-500/20 text-gray-300'
+                        }`}>
+                        {device.status}
+                      </span>
+                    </div>
+                    <div className="space-y-1 text-sm text-gray-300">
+                      <p>🌐 Browser: {device.browser}</p>
+                      <p>🖥️ OS: {device.os}</p>
+                      <p>🕒 Last Active: {new Date(device.lastLogin).toLocaleString()}</p>
+                      <p>🌍 IP: {device.ipAddress}</p>
+                      {device.location && <p>📍 Location: {device.location}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
 
-</div>
-
-      </main>
-    </div>
+        </main>
+      </div>
 
       <Footer />
     </div>

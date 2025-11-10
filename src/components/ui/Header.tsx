@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import defaultProfileIcon from "../../assets/default-profile.png";
-import { Menu, X } from "lucide-react";
-// import { Logo } from "./logo";
+import { Menu, X, Bell } from "lucide-react";
+import { API_BASE_URL } from "../../services/api";
+
 interface HeaderProps {
-  profileImage?: string; // uploaded image from profile
+  profileImage?: string;
   token: string;
   handleLogout: () => void;
   sidebarExpanded: boolean;
@@ -20,61 +21,128 @@ const navItems = [
   { name: "Contact Us", path: "/contact" },
 ];
 
-const Header: React.FC<HeaderProps> = ({ profileImage, handleLogout, sidebarExpanded, setSidebarExpanded }) => {
+// Helper: Time formatter
+const formatTimeAgo = (timestamp: string) => {
+  const diff = Date.now() - new Date(timestamp).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+};
+
+const Header: React.FC<HeaderProps> = ({
+  profileImage,
+  handleLogout,
+  sidebarExpanded,
+  setSidebarExpanded,
+}) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const notificationRef = useRef<HTMLDivElement>(null);
+
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(true);
+
+  // ✅ Fetch dynamic notifications
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${API_BASE_URL}/api/notifications`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
+        const formatted = data.map((n: any) => ({
+          id: n._id,
+          message: n.message,
+          read: n.read,
+          time: formatTimeAgo(n.createdAt),
+        }));
+        setNotifications(formatted);
+      } catch (err) {
+        console.error("Failed to fetch notifications:", err);
+      } finally {
+        setLoadingNotifications(false);
+      }
+    };
+    fetchNotifications();
+  }, []);
+
+  // 🔁 Auto-refresh every 60s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetch(`${API_BASE_URL}/api/notifications`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          const formatted = data.map((n: any) => ({
+            id: n._id,
+            message: n.message,
+            read: n.read,
+            time: formatTimeAgo(n.createdAt),
+          }));
+          setNotifications(formatted);
+        })
+        .catch(() => {});
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // 🧭 Protected Navigation
+  const useProtectedNavigation = (path: string) => {
+    const token = localStorage.getItem("token");
+    token ? navigate(path) : navigate("/homepageBefore");
+  };
+
+  // 🧹 Click outside close
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node))
+        setShowDropdown(false);
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node))
+        setShowNotifications(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const logout = () => {
     localStorage.removeItem("token");
     handleLogout();
   };
 
-  const useProtectedNavigation = (path: string) => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      navigate(path);
-    } else {
-      navigate("/homepageBefore");
-    }
-  };
-
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowDropdown(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   return (
     <header className="relative bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-6 text-white shadow-md z-50">
       <div className="w-full flex justify-between items-center">
-          <div className="relative group">
-            <div
-              onClick={() => setSidebarExpanded((s) => !s)}
-              className="flex items-center justify-center cursor-pointer bg-white/20 px-3 py-2 rounded-lg hover:bg-white/30 transition shadow-sm"
-            >
-              {sidebarExpanded ? (
-                <X size={18} className="text-white" />
-              ) : (
-                <Menu size={18} className="text-white" />
-              )}
-            </div>
-
-            {/* Tooltip */}
-            <span className="absolute left-1/2 -translate-x-1/2 -top-8 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
-              {sidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
-            </span>
+        {/* Sidebar Toggle */}
+        <div className="relative group">
+          <div
+            onClick={() => setSidebarExpanded((s) => !s)}
+            className="flex items-center justify-center cursor-pointer bg-white/20 px-3 py-2 rounded-lg hover:bg-white/30 transition shadow-sm"
+          >
+            {sidebarExpanded ? (
+              <X size={18} className="text-white" />
+            ) : (
+              <Menu size={18} className="text-white" />
+            )}
           </div>
-        {/* Left Section: Logo (white card) */}
+          <span className="absolute left-1/2 -translate-x-1/2 -top-8 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
+            {sidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+          </span>
+        </div>
+
+        {/* Logo */}
         <div className="flex items-center gap-3">
-          {/* <div className="flex items-center bg-white/90 backdrop-blur-md rounded-xl shadow-md px-3 py-0.5 border border-gray-100"> */}
           <div className="flex flex-col items-center mb-4">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -89,27 +157,77 @@ const Header: React.FC<HeaderProps> = ({ profileImage, handleLogout, sidebarExpa
               <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" strokeWidth="2" />
               <circle cx="12" cy="12" r="1.5" fill="currentColor" />
             </svg>
-<a href="/" className="text-blue-400 font-bold text-3xl hover:text-blue-500 transition-colors">
-  Seekurify
-</a>
+            <a
+              href="/"
+              className="text-blue-400 font-bold text-3xl hover:text-blue-500 transition-colors"
+            >
+              Seekurify
+            </a>
           </div>
-          {/* </div> */}
-
-
-          {/* Sidebar Toggle (outside white box, aligned right) */}
-
         </div>
 
-        {/* Right Section: Profile + Mobile Menu */}
-        <div className="flex items-center space-x-3">
-          {/* Mobile Menu Button */}
-          <div className="md:hidden">
+        {/* Right Section */}
+        <div className="flex items-center space-x-4">
+          {/* Notification Icon */}
+          <div className="relative" ref={notificationRef}>
             <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-white text-2xl"
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="relative p-2 rounded-full hover:bg-white/20 transition"
             >
-              {mobileMenuOpen ? "✖" : "☰"}
+              <Bell size={22} className="text-white" />
+              {notifications.some((n) => !n.read) && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+              )}
             </button>
+
+            {showNotifications && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute right-0 top-12 w-80 bg-white text-gray-800 shadow-lg rounded-xl overflow-hidden z-50"
+              >
+                <div className="flex justify-between items-center px-4 py-2 border-b">
+                  <span className="font-semibold text-gray-700">Notifications</span>
+                  <button
+                    onClick={() =>
+                      setNotifications((prev) =>
+                        prev.map((n) => ({ ...n, read: true }))
+                      )
+                    }
+                    className="text-sm text-indigo-600 hover:underline"
+                  >
+                    Mark all as read
+                  </button>
+                </div>
+
+                <div className="max-h-64 overflow-y-auto">
+                  {loadingNotifications ? (
+                    <p className="text-gray-500 text-center py-4">Loading...</p>
+                  ) : notifications.length === 0 ? (
+                    <p className="text-gray-500 text-center py-4">No new notifications</p>
+                  ) : (
+                    notifications.map((n) => (
+                      <div
+                        key={n.id}
+                        className={`px-4 py-3 border-b hover:bg-indigo-50 cursor-pointer ${
+                          n.read ? "bg-white" : "bg-indigo-50"
+                        }`}
+                        onClick={() =>
+                          setNotifications((prev) =>
+                            prev.map((x) =>
+                              x.id === n.id ? { ...x, read: true } : x
+                            )
+                          )
+                        }
+                      >
+                        <p className="text-sm">{n.message}</p>
+                        <p className="text-xs text-gray-500">{n.time}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            )}
           </div>
 
           {/* Profile Dropdown */}
@@ -124,49 +242,48 @@ const Header: React.FC<HeaderProps> = ({ profileImage, handleLogout, sidebarExpa
               }}
               className="w-10 h-10 rounded-full border-2 border-white object-cover cursor-pointer shadow-md"
             />
-
-            {/* Tooltip */}
-            <span className="absolute left-1/2 -translate-x-1/2 -top-8 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
-              Profile
-            </span>
-
             {showDropdown && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="absolute right-0 top-12 w-52 bg-white text-gray-700 shadow-lg rounded-xl overflow-hidden z-50"
               >
-                <button className="w-full px-4 py-2 hover:bg-indigo-50 text-left" onClick={() => useProtectedNavigation("/profile")}>Profile</button>
-                <button className="w-full px-4 py-2 hover:bg-indigo-50 text-left" onClick={() => useProtectedNavigation(`/set-new-pin?token=${localStorage.getItem("token")}`)}>Change PIN</button>
-                <button className="w-full px-4 py-2 hover:bg-indigo-50 text-left" onClick={() => useProtectedNavigation("/change-password")}>Change Password</button>
-                <button className="w-full px-4 py-2 text-red-600 hover:bg-red-50 text-left" onClick={logout}>Logout</button>
+                <button
+                  className="w-full px-4 py-2 hover:bg-indigo-50 text-left"
+                  onClick={() => useProtectedNavigation("/profile")}
+                >
+                  Profile
+                </button>
+                <button
+                  className="w-full px-4 py-2 hover:bg-indigo-50 text-left"
+                  onClick={() =>
+                    useProtectedNavigation(
+                      `/set-new-pin?token=${localStorage.getItem("token")}`
+                    )
+                  }
+                >
+                  Change PIN
+                </button>
+                <button
+                  className="w-full px-4 py-2 hover:bg-indigo-50 text-left"
+                  onClick={() => useProtectedNavigation("/change-password")}
+                >
+                  Change Password
+                </button>
+                <button
+                  className="w-full px-4 py-2 text-red-600 hover:bg-red-50 text-left"
+                  onClick={logout}
+                >
+                  Logout
+                </button>
               </motion.div>
             )}
           </div>
         </div>
       </div>
-
-      {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-indigo-700">
-          {navItems.map((item) => (
-            <button
-              key={item.name}
-              onClick={() => setMobileMenuOpen(false)}
-              className={`block px-4 py-2 font-medium hover:bg-indigo-600 ${location.pathname === item.path ? "bg-indigo-600" : ""
-                }`}
-            >
-              {item.name}
-            </button>
-          ))}
-        </div>
-      )}
     </header>
   );
-
-
-
-
 };
 
 export default Header;
+

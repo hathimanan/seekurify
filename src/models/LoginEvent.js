@@ -1,27 +1,23 @@
-// models/LoginEvent.model.js
 import mongoose from 'mongoose';
 
 const loginEventSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    required: true,
+    ref: 'User'
   },
-  success: {
-    type: Boolean,
-    required: true
-  },
-  ipAddress: String,
-  userAgent: String,
   timestamp: {
     type: Date,
     default: Date.now
   },
+  ipAddress: String,
+  userAgent: String,
+  success: Boolean,
+  location: String,
   loggedOut: {
     type: Boolean,
     default: false
-  },
-  location: String
+  }
 });
 
 export default mongoose.model('LoginEvent', loginEventSchema);
