@@ -50,53 +50,85 @@ const Header: React.FC<HeaderProps> = ({
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(true);
 
-  // ✅ Fetch dynamic notifications
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`${API_BASE_URL}/api/notifications`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await res.json();
-        const formatted = data.map((n: any) => ({
-          id: n._id,
-          message: n.message,
-          read: n.read,
-          time: formatTimeAgo(n.createdAt),
-        }));
-        setNotifications(formatted);
-      } catch (err) {
-        console.error("Failed to fetch notifications:", err);
-      } finally {
-        setLoadingNotifications(false);
-      }
-    };
-    fetchNotifications();
-  }, []);
+  const fetchNotifications = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
 
-  // 🔁 Auto-refresh every 60s
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetch(`${API_BASE_URL}/api/notifications`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          const formatted = data.map((n: any) => ({
-            id: n._id,
-            message: n.message,
-            read: n.read,
-            time: formatTimeAgo(n.createdAt),
-          }));
-          setNotifications(formatted);
-        })
-        .catch(() => {});
-    }, 60000);
+      const res = await fetch(`${API_BASE_URL}/auth/notifications`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) throw new Error(`Failed to fetch notifications: ${res.status}`);
+
+      const data = await res.json();
+      const formatted = data.map((n: any) => ({
+        _id: n._id,
+        message: n.message,
+        read: n.read,
+        time: formatTimeAgo(n.createdAt),
+      }));
+      setNotifications(formatted);
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  // ✅ Fetch dynamic notifications
+ useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
   }, []);
+
+
+   const markAsRead = async (id: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/auth/${id}/read`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) throw new Error("Failed to mark notification as read");
+
+      setNotifications((prev) =>
+        prev.map((n) => (n._id === id ? { ...n, read: true } : n))
+      );
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      await Promise.all(
+        notifications
+          .filter((n) => !n.read)
+          .map((n) =>
+            fetch(`${API_BASE_URL}/auth/${n._id}/read`, {
+              method: "PUT",
+              headers: { Authorization: `Bearer ${token}` },
+            })
+          )
+      );
+
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    } catch (err) {
+      console.error("Failed to mark all as read:", err);
+    }
+  };
+
+
+
 
   // 🧭 Protected Navigation
   const useProtectedNavigation = (path: string) => {
@@ -169,60 +201,50 @@ const Header: React.FC<HeaderProps> = ({
         {/* Right Section */}
         <div className="flex items-center space-x-4">
           {/* Notification Icon */}
-          <div className="relative" ref={notificationRef}>
+<div className="relative" ref={notificationRef}>
+      <button
+        onClick={() => setShowNotifications((s) => !s)}
+        className="relative p-2 rounded-full hover:bg-white/20 transition"
+      >
+        <Bell size={22} className="text-white" />
+        {notifications.some((n) => !n.read) && (
+          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+        )}
+      </button>
+
+      {showNotifications && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="absolute right-0 top-12 w-80 bg-white text-gray-800 shadow-lg rounded-xl overflow-hidden z-50"
+        >
+          <div className="flex justify-between items-center px-4 py-2 border-b">
+            <span className="font-semibold text-gray-700">Notifications</span>
             <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 rounded-full hover:bg-white/20 transition"
+              onClick={markAllAsRead}
+              className="text-sm text-indigo-600 hover:underline"
             >
-              <Bell size={22} className="text-white" />
-              {notifications.some((n) => !n.read) && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              )}
+              Mark all as read
             </button>
+          </div>
 
-            {showNotifications && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="absolute right-0 top-12 w-80 bg-white text-gray-800 shadow-lg rounded-xl overflow-hidden z-50"
-              >
-                <div className="flex justify-between items-center px-4 py-2 border-b">
-                  <span className="font-semibold text-gray-700">Notifications</span>
-                  <button
-                    onClick={() =>
-                      setNotifications((prev) =>
-                        prev.map((n) => ({ ...n, read: true }))
-                      )
-                    }
-                    className="text-sm text-indigo-600 hover:underline"
-                  >
-                    Mark all as read
-                  </button>
+          <div className="max-h-64 overflow-y-auto">
+            {loadingNotifications ? (
+              <p className="text-gray-500 text-center py-4">Loading...</p>
+            ) : notifications.length === 0 ? (
+              <p className="text-gray-500 text-center py-4">No new notifications</p>
+            ) : (
+              notifications.map((n) => (
+                <div
+                  key={n._id}
+                  className={`px-4 py-3 border-b hover:bg-indigo-50 cursor-pointer ${
+                    n.read ? "bg-white" : "bg-indigo-50"
+                  }`}
+                  onClick={() => markAsRead(n._id)}
+                >
+                  <p className="text-sm">{n.message}</p>
+                  <p className="text-xs text-gray-500">{n.time}</p>
                 </div>
-
-                <div className="max-h-64 overflow-y-auto">
-                  {loadingNotifications ? (
-                    <p className="text-gray-500 text-center py-4">Loading...</p>
-                  ) : notifications.length === 0 ? (
-                    <p className="text-gray-500 text-center py-4">No new notifications</p>
-                  ) : (
-                    notifications.map((n) => (
-                      <div
-                        key={n.id}
-                        className={`px-4 py-3 border-b hover:bg-indigo-50 cursor-pointer ${
-                          n.read ? "bg-white" : "bg-indigo-50"
-                        }`}
-                        onClick={() =>
-                          setNotifications((prev) =>
-                            prev.map((x) =>
-                              x.id === n.id ? { ...x, read: true } : x
-                            )
-                          )
-                        }
-                      >
-                        <p className="text-sm">{n.message}</p>
-                        <p className="text-xs text-gray-500">{n.time}</p>
-                      </div>
                     ))
                   )}
                 </div>

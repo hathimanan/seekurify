@@ -53,12 +53,18 @@ const passwordSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   category: { type: String, default: 'General' },
-  notes: { type: String, default: '' }
+  notes: { type: String, default: '' },
+  expiresAt: { type: Date },                       // actual expiry date
+expireAfterDays: { type: Number, default: 90 },  // default expiry period
+lastReminderSent: { type: Date }
 });
 
 // Encrypt password before saving
 passwordSchema.pre('save', function (next) {
   if (!this.isModified('password')) return next();
+
+
+
 
   if (isEncrypted(this.password)) {
     // Already encrypted, skip re-encryption
@@ -68,6 +74,11 @@ passwordSchema.pre('save', function (next) {
   try {
     this.password = encrypt(this.password);
     this.updatedAt = new Date();
+    if (this.isModified('password')) {
+    const now = new Date();
+    this.expiresAt = new Date(now.getTime() + this.expireAfterDays * 24*60*60*1000);
+    this.updatedAt = now;
+  }
     next();
   } catch (err) {
     next(err);
@@ -78,6 +89,12 @@ passwordSchema.pre('save', function (next) {
 passwordSchema.set('toJSON', {
   transform(doc, ret) {
     try {
+      ret.isExpired = ret.expiresAt ? new Date() > new Date(ret.expiresAt) : false;
+
+if (ret.expiresAt) {
+  const msLeft = new Date(ret.expiresAt) - new Date();
+  ret.daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
+}
       ret.password = decrypt(ret.password);
     } catch (err) {
       console.error('Error decrypting password:', err);

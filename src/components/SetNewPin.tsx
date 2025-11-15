@@ -106,13 +106,19 @@ const [sidebarExpanded,setSidebarExpanded] = useState(true);
       return;
     }
 
-    try {
-      setIsLoading(true);
-      const res = await fetch(`${API_BASE_URL}/auth/update-pin`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, newPin }),
-      });
+   try {
+    setIsLoading(true);
+
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(`${API_BASE_URL}/auth/update-pin`, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,  // ✅ FIXED
+      },
+      body: JSON.stringify({ email, newPin }),
+    });
 
       if (!res.ok) {
         const data = await res.json();

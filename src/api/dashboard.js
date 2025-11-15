@@ -1,5 +1,6 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import { createNotification } from "../utils/createNotification.js";
 
 const dashboardRouter = express.Router();
 
@@ -67,9 +68,11 @@ dashboardRouter.post('/passwords', authenticateToken, (req, res) => {
   res.status(201).json(newPassword);
 });
 
+
 // PUT /passwords/:id - Update a password by ID
-dashboardRouter.put('/passwords/:id', authenticateToken, (req, res) => {
+dashboardRouter.put('/passwords/:id', authenticateToken, async (req, res) => {
   const userEmail = req.user.email;
+  const userId = req.user.id; // assuming JWT contains user.id
   const { id } = req.params;
   const { site, password, currentPassword } = req.body;
 
@@ -92,6 +95,17 @@ dashboardRouter.put('/passwords/:id', authenticateToken, (req, res) => {
 
     if (site) passwordEntry.site = site;
     if (password) passwordEntry.password = encrypt(password); // Encrypt new password
+
+    // ✅ Trigger notification after password change
+    try {
+await createNotification({
+  userId,
+  message: `🔐 Password for "${site}" was successfully changed.`,
+  type: "info",
+});
+    } catch (notifyErr) {
+      console.error("⚠️ Failed to create notification:", notifyErr);
+    }
 
     res.json(passwordEntry);
   } catch (err) {

@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import jwt  from 'jsonwebtoken';
 import Password from '../models/Password.js';
 import bcryptjs from 'bcryptjs';
+import { createNotification } from "../utils/createNotification.js";
 const passwordRouter = express.Router();
 const SECRET_HEX = process.env.PASSWORD_ENCRYPTION_KEY;
 if (!SECRET_HEX) {
@@ -79,7 +80,7 @@ passwordRouter.get('/', authenticateToken, async (req, res) => {
 
 // 🔐 Update a password
 // Assuming Express and middleware (like auth) are already in place
-passwordRouter.put('/:id', authenticateToken, async (req, res) => {
+passwordRouter.put("/:id", authenticateToken, async (req, res) => {
   const userId = req.user?._id; // Set via auth middleware
   const { website, username, password, currentPassword } = req.body;
 
@@ -95,26 +96,37 @@ passwordRouter.put('/:id', authenticateToken, async (req, res) => {
     }
 
     const decryptedStoredPassword = decrypt(entry.password);
-console.log("Decrypted stored password:", decryptedStoredPassword);
-console.log("Current password provided:", currentPassword);
+    console.log("Decrypted stored password:", decryptedStoredPassword);
+    console.log("Current password provided:", currentPassword);
+
     if (decryptedStoredPassword !== currentPassword) {
-  return res.status(403).json({
-    error: "Current password does not match.",
-    reason: "incorrect_current_password"
-  });
-}
+      return res.status(403).json({
+        error: "Current password does not match.",
+        reason: "incorrect_current_password",
+      });
+    }
 
-
-    // ✅ Update fields — encryption assumed in pre('save') middleware
+    // ✅ Update fields (encryption handled in pre('save') middleware)
     entry.website = website ?? entry.website;
     entry.username = username ?? entry.username;
     entry.password = password ?? entry.password;
 
     await entry.save();
 
+    // ✅ Trigger in-app notification after password change
+    try {
+      await createNotification({
+        userId,
+        message: `🔐 Password for "${entry.website}" was successfully updated.`,
+        type: "info",
+      });
+    } catch (notifyErr) {
+      console.error("⚠️ Failed to create notification:", notifyErr);
+    }
+
     const updatedEntry = {
       ...entry.toObject(),
-      password: decrypt(entry.password), // Decrypt before sending
+      password: decrypt(entry.password), // Decrypt before sending to frontend
     };
 
     res.json(updatedEntry);

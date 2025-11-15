@@ -697,6 +697,7 @@ authRouter.post("/signup", async (req, res) => {
 
 
 authRouter.post('/update-pin',authenticateToken, async (req, res) => {
+  const token = req.headers['authorization']?.split(' ')[1];
   const { email, newPin } = req.body;
 
   if (!email || !newPin) {
@@ -713,6 +714,19 @@ authRouter.post('/update-pin',authenticateToken, async (req, res) => {
 
     // Set the new PIN
     user.pin = newPin;
+const site = "Seekurify"; // or get from req.body if provided
+    const userId = user._id;
+
+
+     try {
+    await createNotification({
+      userId,
+      message: `🔐 Pin for "${site}" was successfully changed.`,
+      type: "info",
+    });
+        } catch (notifyErr) {
+          console.error("⚠️ Failed to create notification:", notifyErr);
+        }
 
     // Save (triggers pre-save hook and hashes the PIN)
     await user.save();
@@ -1056,18 +1070,19 @@ authRouter.post('/logout', authenticateToken, (req, res) => {
 
 
 
-authRouter.post("/createNewNotification", authenticateToken, async (req, res) => {
-  try {
-    const { message, type } = req.body;
-    const userId = req.user.id;
+// authRouter.post("/createNewNotification", authenticateToken, async (req, res) => {
+//   try {
+//     const { message, type } = req.body;
+//     const userId = req.user.id;
 
-    const notification = await Notification.create({ userId, message, type });
-    res.status(201).json(notification);
-  } catch (error) {
-    console.error("Error creating notification:", error);
-    res.status(500).json({ error: "Failed to create notification" });
-  }
-});
+//     const notification = await createNotification({ userId, message, type });
+//     res.status(201).json(notification);
+//   } catch (error) {
+//     console.error("Error creating notification:", error);
+//     res.status(500).json({ error: "Failed to create notification" });
+//   }
+// });
+
 
 // Get all notifications for a user
 // router.get("/", authenticateToken, async (req, res) => {
@@ -1080,18 +1095,49 @@ authRouter.post("/createNewNotification", authenticateToken, async (req, res) =>
 //   }
 // });
 
-// Mark as read
-authRouter.put("/:id/readNotification", authenticateToken, async (req, res) => {
+
+authRouter.post("/notifications", authenticateToken, async (req, res) => {
   try {
-    const notification = await Notification.findByIdAndUpdate(
-      req.params.id,
+    const userId = req.user._id; // JWT payload must have _id
+    const notifications = await Notification.find({ userId }).sort({ createdAt: -1 });
+    res.json(notifications);
+  } catch (err) {
+    console.error("Error fetching notifications:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ✅ Mark a single notification as read
+authRouter.put("/:id/read", authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    const notification = await Notification.findOneAndUpdate(
+      { _id: id, userId },
       { read: true },
       { new: true }
     );
-    res.json(notification);
-  } catch (error) {
-    console.error("Error marking as read:", error);
+
+    if (!notification)
+      return res.status(404).json({ error: "Notification not found or not owned by user" });
+
+    res.json({ success: true, notification });
+  } catch (err) {
+    console.error("Error marking notification as read:", err);
     res.status(500).json({ error: "Failed to mark notification as read" });
+  }
+});
+
+// ✅ Optional: Mark all notifications as read
+authRouter.put("/notifications/read-all", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    await Notification.updateMany({ userId, read: false }, { read: true });
+    res.json({ success: true, message: "All notifications marked as read" });
+  } catch (err) {
+    console.error("Error marking all notifications as read:", err);
+    res.status(500).json({ error: "Failed to mark all notifications as read" });
   }
 });
 
