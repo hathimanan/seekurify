@@ -109,8 +109,8 @@ const [sidebarExpanded,setSidebarExpanded] = useState(true);
    try {
     setIsLoading(true);
 
-    const token = localStorage.getItem("token");
-
+const queryParams = new URLSearchParams(location.search);
+const token = queryParams.get("token");
     const res = await fetch(`${API_BASE_URL}/auth/update-pin`, {
       method: "POST",
       headers: { 

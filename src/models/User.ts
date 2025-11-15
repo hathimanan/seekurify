@@ -16,6 +16,10 @@ export interface IUser extends Document {
   hasPaid?: boolean;
   name?: string;
   profileImage?: string;
+  expiresAt?: Date;
+  expireAfterDays?: number;
+  lastReminderSent?: Date;
+
 }
 
 // 2. Password strength checker
@@ -45,6 +49,9 @@ const userSchema: Schema<IUser> = new Schema({
   hasPaid: { type: Boolean, default: false }, // ✅ Add this
 name: { type: String, required: false, trim: true },
 profileImage: { type: String }, // Base64 or URL
+  expiresAt: { type: Date },                       // actual expiry date
+expireAfterDays: { type: Number, default: 90 },  // default expiry period
+lastReminderSent: { type: Date }
 });
 
 // 4. Hashing middleware

@@ -611,11 +611,11 @@ authRouter.post("/signup", async (req, res) => {
     await newUser.save();
 
     // 4️⃣ Create email verification token (15 min expiry)
-    const emailToken = jwt.sign(
-      { email, newUser: true },
-      process.env.JWT_SECRET,
-      { expiresIn: "15m" }
-    );
+  const emailToken = jwt.sign(
+  { id: newUser._id, email, newUser: true },
+  process.env.JWT_SECRET,
+  { expiresIn: "15m" }
+);
 
     const verifyLink = `${process.env.REACT_APP_BASE_URL}/set-new-pin?token=${emailToken}`;
 
@@ -696,12 +696,11 @@ authRouter.post("/signup", async (req, res) => {
 
 
 
-authRouter.post('/update-pin',authenticateToken, async (req, res) => {
-  const token = req.headers['authorization']?.split(' ')[1];
-  const { email, newPin } = req.body;
+authRouter.post('/update-pin', authenticateToken, async (req, res) => {
+  const { newPin } = req.body;
 
-  if (!email || !newPin) {
-    return res.status(400).json({ error: 'Email and new PIN are required' });
+  if (!newPin) {
+    return res.status(400).json({ error: 'New PIN is required' });
   }
 
   if (newPin.length !== 4) {
@@ -709,26 +708,19 @@ authRouter.post('/update-pin',authenticateToken, async (req, res) => {
   }
 
   try {
-    const user = await User.findOne({ email });
+    const userId = req.user.id;  // 🔥 FIX: trust JWT, not req.body.email
+    const user = await User.findById(userId);
+
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // Set the new PIN
     user.pin = newPin;
-const site = "Seekurify"; // or get from req.body if provided
-    const userId = user._id;
 
-
-     try {
-    await createNotification({
+    await Notification.create({
       userId,
-      message: `🔐 Pin for "${site}" was successfully changed.`,
+      message: `🔐 Your PIN was successfully changed.`,
       type: "info",
     });
-        } catch (notifyErr) {
-          console.error("⚠️ Failed to create notification:", notifyErr);
-        }
 
-    // Save (triggers pre-save hook and hashes the PIN)
     await user.save();
 
     return res.status(200).json({ message: 'PIN updated successfully' });
@@ -738,6 +730,7 @@ const site = "Seekurify"; // or get from req.body if provided
   }
 });
 
+
 authRouter.get('/profile', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id; 
@@ -745,12 +738,33 @@ authRouter.get('/profile', authenticateToken, async (req, res) => {
 
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    res.json(user);
+    // Compute passwordDaysLeft (example: expiry after 90 days)
+    const PASSWORD_EXPIRY_DAYS = 90;
+
+    let passwordDaysLeft = null;
+    let isPasswordExpired = false;
+
+    if (user.passwordLastUpdated) {
+      const lastUpdated = new Date(user.passwordLastUpdated);
+      const now = new Date();
+      const diffMs = now.getTime() - lastUpdated.getTime();
+      const diffDays = PASSWORD_EXPIRY_DAYS - Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+      passwordDaysLeft = diffDays;
+      isPasswordExpired = diffDays <= 0;
+    }
+
+    res.json({
+      ...user.toObject(),
+      passwordDaysLeft,
+      isPasswordExpired
+    });
   } catch (err) {
     console.error('Profile fetch error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 authRouter.post('/change-password', authenticateToken, async (req, res) => {
   const user = await User.findById(req.user._id); // now safe
@@ -764,7 +778,21 @@ authRouter.post('/change-password', authenticateToken, async (req, res) => {
 
   // const hashedNewPassword = await bcrypt.hash(newPassword, 10);
   user.password = newPassword;
-  
+  const site = "Seekurify"; // or get from req.body if provided
+    const userId = user._id;
+try {
+  await Notification.create({
+  userId,
+  message: `🔐 Password for your "${site}" account was successfully changed.`,
+  type: "info",
+});
+}
+      catch (notifyErr) { 
+          console.error("⚠️ Failed to create notification:", notifyErr);
+        }
+
+
+
   await user.save();
  console.log('Received currentPassword:', req.body.currentPassword);
   console.log('Received newPassword:', req.body.newPassword);
