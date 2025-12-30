@@ -152,6 +152,8 @@ handler: async (req, res, next, options) => {
     if (req.body?.email) {
       const victim = await User.findOne({ email: req.body.email }).select('_id');
       if (victim?._id) {
+        victim.lastSuspiciousLogin = new Date();
+await victim.save();
         pushAlert(String(victim._id), "suspiciousLogin", {
           type: "rate_limited",
           ip: clientIp,
@@ -357,7 +359,7 @@ const hashedPassword = await bcrypt.hash(newPassword, 10);
 
 await User.updateOne(
   { email },
-  { $set: { password: hashedPassword } }
+  { $set: { password: hashedPassword, lastPasswordChange: new Date() } }
 );
   // Clear reset token after use
   resetTokens.delete(email);
@@ -506,18 +508,76 @@ authRouter.post('/verify-pin', async (req, res) => {
     const isValidPin = await bcryptjs.compare(pin, storedPin);
     if (!isValidPin) return res.status(400).json({ error: 'Invalid PIN' });
 
+    // -----------------------------------------------
+    // ✔️ Check if password change is required
+    // -----------------------------------------------
+    let shouldForcePasswordChange = false;
+
+const failedLogins = await LoginEvent.find({
+  userId: user._id,
+  success: false
+})
+.sort({ timestamp: 1 }) // oldest → newest
+.select('timestamp');
+
+let suspiciousWindowEnd =null;
+
+for (let i = 0; i <= failedLogins.length - 5; i++) {
+  const windowStart = failedLogins[i].timestamp;
+  const windowEnd = failedLogins[i + 4].timestamp;
+
+  if (windowEnd.getTime() - windowStart.getTime() <= 5 * 60 * 1000) {
+    suspiciousWindowEnd = windowEnd;
+  }
+}
+
+// If suspicious window exists AND password not changed after it
+if (
+  suspiciousWindowEnd &&
+  (
+    !user.lastPasswordChange ||
+    (user.lastPasswordChange.getTime && user.lastPasswordChange.getTime() === 0) ||
+    user.lastPasswordChange <= suspiciousWindowEnd
+  )
+) {
+  shouldForcePasswordChange = true;
+}
+
+// ---------------------------------------------
+// CONDITION 2: Password older than 30 days
+// ---------------------------------------------
+
+const THIRTY_DAYS_AGO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+if (
+  user.lastPasswordChange &&
+  user.lastPasswordChange.getTime &&
+  user.lastPasswordChange.getTime() > 0 &&
+  user.lastPasswordChange < THIRTY_DAYS_AGO
+) {
+  shouldForcePasswordChange = true;
+}
+
+
+    // -----------------------------------------------
+
     const token = jwt.sign(
       { _id: user._id, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
 
-    return res.json({ token });
+    return res.json({ 
+      token,
+      shouldForcePasswordChange   // ← send this flag to frontend
+    });
+
   } catch (err) {
     console.error('❌ Error verifying PIN:', err instanceof Error ? err.message : err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 export const updatePin = async (req, res) => {
@@ -778,6 +838,9 @@ authRouter.post('/change-password', authenticateToken, async (req, res) => {
 
   // const hashedNewPassword = await bcrypt.hash(newPassword, 10);
   user.password = newPassword;
+  // Update password change timestamp for security checks
+  user.lastPasswordChange = new Date();
+
   const site = "Seekurify"; // or get from req.body if provided
     const userId = user._id;
 try {

@@ -69,14 +69,28 @@ passwordRouter.get('/', authenticateToken, async (req, res) => {
   const userId = req.user._id;
 
   try {
-    const passwords = await Password.find({ userId });
-    res.set('Cache-Control', 'private, max-age=300'); // Cache for 5 minutes for the specific user
-    res.json(passwords);
+    const passwords = await Password.find({ userId }).lean(); // <-- KEY FIX
+
+    // Compute expires + daysLeft manually after lean()
+    const now = new Date();
+    const enriched = passwords.map(p => ({
+  ...p,
+  password: decrypt(p.password), // ✅ FIX: decrypt before sending
+  isExpired: p.expiresAt ? now > new Date(p.expiresAt) : false,
+  daysLeft: p.expiresAt
+    ? Math.ceil((new Date(p.expiresAt) - now) / (1000 * 60 * 60 * 24))
+    : null
+}));
+
+
+    res.set('Cache-Control', 'private, max-age=300');
+    res.json(enriched);
   } catch (error) {
     console.error("Error retrieving passwords:", error);
     res.status(500).json({ error: "Server error, please try again." });
   }
 });
+
 
 // 🔐 Update a password
 // Assuming Express and middleware (like auth) are already in place

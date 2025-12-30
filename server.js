@@ -188,7 +188,6 @@ app.get(/^\/(?!api).*/, (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
   req.session.destroy(err => {
   res.clearCookie("connect.sid"); // default cookie name
-  res.send('Session cleared');  
 });
 });
 

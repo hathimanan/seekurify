@@ -56,7 +56,9 @@ const passwordSchema = new mongoose.Schema({
   notes: { type: String, default: '' },
   expiresAt: { type: Date },                       // actual expiry date
 expireAfterDays: { type: Number, default: 90 },  // default expiry period
-lastReminderSent: { type: Date }
+lastReminderSent: { type: Date },
+lastChanged: { type: Date, default: Date.now},
+isExpired: { type: Boolean, default: false }
 });
 
 // Encrypt password before saving
@@ -73,11 +75,19 @@ passwordSchema.pre('save', function (next) {
 
   try {
     this.password = encrypt(this.password);
-    this.updatedAt = new Date();
+      const now = new Date();
+    this.updatedAt = now;
     if (this.isModified('password')) {
     const now = new Date();
     this.expiresAt = new Date(now.getTime() + this.expireAfterDays * 24*60*60*1000);
     this.updatedAt = now;
+
+    if (!isEncrypted(this.password)) {
+      this.password = encrypt(this.password);
+    }
+    this.expiresAt = new Date(now.getTime() + this.expireAfterDays * 24 * 60 * 60 * 1000);
+    this.lastChanged = now;
+
   }
     next();
   } catch (err) {

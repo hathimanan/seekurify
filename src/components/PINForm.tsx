@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../services/api';
 import { Logo } from './ui/logo';
+import PasswordChangeModal from './PasswordChangeModal';
 
 interface PINFormProps {
   email: string;
@@ -14,13 +15,15 @@ interface PINFormProps {
 interface VerifyPinResponse {
   token?: string;
   error?: string;
+  shouldForcePasswordChange?: boolean;
 }
 
-export const PINForm: React.FC<PINFormProps> = ({ email, onBack, onVerifyPIN }) => {
+export const PINForm: React.FC<PINFormProps> = ({ email, onBack }) => {
   const [pin, setPin] = useState(['', '', '', '']);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -39,6 +42,11 @@ export const PINForm: React.FC<PINFormProps> = ({ email, onBack, onVerifyPIN }) 
       inputRefs.current[index + 1]?.focus();
     }
   };
+
+const openPasswordChangeModal = () => {
+  setShowPasswordChangeModal(true);
+};
+
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace' && !pin[index] && index > 0) {
@@ -59,36 +67,57 @@ export const PINForm: React.FC<PINFormProps> = ({ email, onBack, onVerifyPIN }) 
     inputRefs.current[Math.min(pastedData.length, 3)]?.focus();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const fullPin = pin.join('');
-    if (fullPin.length !== 4) return;
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  const fullPin = pin.join('');
+  if (fullPin.length !== 4) return;
 
-    try {
-      setIsLoading(true);
+  setIsLoading(true);
+  setError('');
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/verify-pin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, pin: fullPin }),
+    });
 
-      const response = await fetch(`${API_BASE_URL}/auth/verify-pin`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, pin: fullPin }),
-      });
+    console.log('verify-pin status:', response.status);
 
-      const data: VerifyPinResponse = await response.json();
-
-      if (response.ok && data.token) {
-        localStorage.setItem('token', data.token);
-        onVerifyPIN?.(fullPin);
-        navigate('/homepageAfterLogin');
-      } else {
-        setError(data.error || 'Invalid PIN');
-      }
-    } catch (err: unknown) {
-      console.error('Error verifying PIN:', err);
-      setError('Failed to verify PIN. Please try again.');
-    } finally {
-      setIsLoading(false);
+    // Guard against empty response
+    if (response.status === 204) {
+      throw new Error('Empty response from server');
     }
-  };
+
+    // Guard non-JSON content-type
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('verify-pin non-JSON body:', text);
+      throw new Error('Invalid server response');
+    }
+
+    const data: VerifyPinResponse = await response.json();
+    console.log('verify-pin body:', data);
+
+    if (!response.ok || !data.token) {
+      throw new Error(data.error || 'Invalid PIN');
+    }
+
+    localStorage.setItem('token', data.token);
+
+    if (data.shouldForcePasswordChange) {
+      setShowPasswordChangeModal(true);
+      return;
+    }
+
+    navigate('/homepageAfterLogin', { replace: true });
+  } catch (err: any) {
+    setError(err.message || 'Failed to verify PIN. Please try again.');
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-100 to-purple-200 flex items-center justify-center px-4 py-10">
@@ -158,6 +187,13 @@ export const PINForm: React.FC<PINFormProps> = ({ email, onBack, onVerifyPIN }) 
             </div>
           </form>
         </div>
+
+
+{showPasswordChangeModal && (
+  <PasswordChangeModal
+  />
+)}
+
 
         <div className="mt-6 text-center">
           <button

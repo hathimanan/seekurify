@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const loginEventSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    required: true,
+    required: false,
     ref: 'User'
   },
   timestamp: {

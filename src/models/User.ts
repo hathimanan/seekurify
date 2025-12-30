@@ -19,6 +19,8 @@ export interface IUser extends Document {
   expiresAt?: Date;
   expireAfterDays?: number;
   lastReminderSent?: Date;
+lastSuspiciousLogin: Date,
+lastPasswordChange: Date,
 
 }
 
@@ -51,7 +53,9 @@ name: { type: String, required: false, trim: true },
 profileImage: { type: String }, // Base64 or URL
   expiresAt: { type: Date },                       // actual expiry date
 expireAfterDays: { type: Number, default: 90 },  // default expiry period
-lastReminderSent: { type: Date }
+lastReminderSent: { type: Date },
+lastSuspiciousLogin: { type: Date, default: Date.now },
+lastPasswordChange: { type: Date, default: Date.now },
 });
 
 // 4. Hashing middleware

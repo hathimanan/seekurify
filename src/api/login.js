@@ -26,7 +26,7 @@ loginRouter.post('/', async (req, res) => {
     const token = jwt.sign(
       { _id: user._id, email: user.email },
       process.env.secretKey,
-      { expiresIn: '1h' }
+      { expiresIn: '3m' }
     );
 
     console.log('Sending:', { email, password });

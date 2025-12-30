@@ -94,15 +94,19 @@ dashboardRouter.put('/passwords/:id', authenticateToken, async (req, res) => {
     }
 
     if (site) passwordEntry.site = site;
-    if (password) passwordEntry.password = encrypt(password); // Encrypt new password
+    if (password) {
+      passwordEntry.password = encrypt(password); // Encrypt new password
+      passwordEntry.lastChanged = new Date().toISOString(); // ✅ Update lastChanged
+      passwordEntry.updatedAt = new Date().toISOString();   // optional
+    }
 
     // ✅ Trigger notification after password change
     try {
-await createNotification({
-  userId,
-  message: `🔐 Password for "${site}" was successfully changed.`,
-  type: "info",
-});
+      await createNotification({
+        userId,
+        message: `🔐 Password for "${site}" was successfully changed.`,
+        type: "info",
+      });
     } catch (notifyErr) {
       console.error("⚠️ Failed to create notification:", notifyErr);
     }
@@ -113,6 +117,7 @@ await createNotification({
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 // DELETE /passwords/:id - Delete a password by ID
 dashboardRouter.delete('/passwords/:id', authenticateToken, (req, res) => {

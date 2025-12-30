@@ -31,6 +31,9 @@ interface PasswordEntry {
   category: string;
   notes: string;
   createdAt: string;
+  lastChanged: string;
+  updatedAt?: string;
+  isExpired?: boolean;
   // for payment
 }
 
@@ -117,6 +120,58 @@ export const Dashboard: React.FC = () => {
 
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+const [showExpiryModal, setShowExpiryModal] = useState(false);
+const [expiredPassword, setExpiredPassword] = useState<PasswordEntry | null>(null);
+  const totalPasswords = filteredPasswords.length;
+
+
+  const DAYS_90 = 90;
+const now = Date.now();
+
+const oldPasswords = filteredPasswords.filter(p => {
+  if (!p.updatedAt) return false;  // skip if no timestamp
+  const lastUpdated = new Date(p.updatedAt).getTime();
+  const ageInDays = (now - lastUpdated) / (1000 * 60 * 60 * 24);
+  return ageInDays > DAYS_90;
+}).length;
+
+const strongPasswords = filteredPasswords.filter(p => p.password.length > 15).length;
+const websiteCountMap: Record<string, number> = {};
+
+filteredPasswords.forEach(p => {
+  if (p.website) {
+    websiteCountMap[p.website] = (websiteCountMap[p.website] || 0) + 1;
+  }
+});
+const mostUsedWebsites = Object.keys(websiteCountMap).length > 0
+  ? Math.max(...Object.values(websiteCountMap))
+  : 0;
+const weakPasswords = filteredPasswords.filter(p => p.password.length <= 5).length;
+
+const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000; // 90 days in ms
+
+const passwordsChanged90Days = filteredPasswords.filter(p => {
+  if (!p.lastChanged) return false;
+
+  let lastChangedTime: number;
+
+  if (typeof p.lastChanged === "string") {
+    const d = new Date(p.lastChanged);
+    if (isNaN(d.getTime())) return false;
+    lastChangedTime = d.getTime();
+  } else if (typeof p.lastChanged === "number") {
+    lastChangedTime = p.lastChanged;
+  } else {
+    // any other type is ignored
+    return false;
+  }
+
+  return lastChangedTime >= ninetyDaysAgo && lastChangedTime <= now;
+}).length;
+
+
+filteredPasswords.forEach(p => console.log(p.lastChanged));
+
   const navigate = useNavigate();
 
   const handleReverifyPinSubmit = async (e: React.FormEvent) => {
@@ -207,35 +262,66 @@ export const Dashboard: React.FC = () => {
 
 
   // FRONTEND: Dashboard.tsx (Core Fixes)
+useEffect(() => {
+  let isMounted = true;
 
-  useEffect(() => {
-    let isMounted = true;
+  const initialize = async () => {
+    if (!isMounted) return;
 
-    const initialize = async () => {
-      if (!isMounted) return;
+    // 1. Payment check
+    await checkPaymentStatus();
 
-      // ✅ 1. Check payment status
-      await checkPaymentStatus();
+    // 2. Get token once
+    const token = localStorage.getItem("token");
+    if (!token) return;
 
-      // ✅ 2. Fetch profile image
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) return;
+    // 3. Fetch profile image
+    try {
+      const res = await fetch(`${API_BASE_URL}/profile`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-        const res = await fetch(`${API_BASE_URL}/profile`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+      if (!res.ok) throw new Error("Failed to fetch profile");
 
-        if (!res.ok) throw new Error("Failed to fetch profile");
-
-        const data = await res.json();
-        if (isMounted && data.profileImage) {
-          setProfileImage(data.profileImage); // make sure you have `const [profileImage, setProfileImage] = useState<string>("");`
-        }
-      } catch (err) {
-        console.error("Failed to fetch profile image:", err);
+      const data = await res.json();
+      if (isMounted && data.profileImage) {
+        setProfileImage(data.profileImage);
       }
-    };
+    } catch (err) {
+      console.error("Failed to fetch profile image:", err);
+    }
+
+    // 4. Fetch passwords
+    try {
+      const res = await fetch("/api/passwords", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+      if (isMounted) {
+        setPasswords(data);
+      }
+   
+
+
+      // Check if any password is expired
+const expired = data.find((p: PasswordEntry) => p.isExpired);
+if (expired) {
+  setExpiredPassword(expired);
+  setShowExpiryModal(true);
+
+  // 🔒 prevent other modals
+  setShowPayModal(false);
+  setShowTrialModal(false);
+  setShowOnlyPayModal(false);
+  setShowReverifyPinModal(false);
+}
+
+        }
+     catch (err) {
+      console.error("Failed to fetch passwords:", err);
+    }
+  };
 
     initialize();
     // setShowPassword(false);
@@ -449,6 +535,54 @@ export const Dashboard: React.FC = () => {
     setTimeout(() => checkPaymentStatus(), 0);
   };
 
+
+  const PasswordExpiryModal = ({
+  password,
+  onClose,
+}: {
+  password: PasswordEntry;
+  onClose: () => void;
+}) => {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-fadeIn">
+
+        <h2 className="text-2xl font-bold text-red-600 text-center">
+          Password Expired ⚠️
+        </h2>
+
+        <p className="mt-4 text-gray-700 text-center">
+          The password for
+          <span className="font-semibold"> {password.website}</span> has expired.
+          Please update it to stay secure.
+        </p>
+
+        <div className="mt-6 flex gap-3">
+          <button
+            onClick={onClose}
+            className="w-1/2 py-2 rounded-xl border border-gray-300 hover:bg-gray-100"
+          >
+            Later
+          </button>
+
+          <button
+            onClick={() => {
+              onClose();
+              navigate(`/passwords/edit/${password._id}`);
+            }}
+            className="w-1/2 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold"
+          >
+            Update Now
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
+
+
   // ----------------------------
   // Handle Pay Now
   // ----------------------------
@@ -530,6 +664,8 @@ export const Dashboard: React.FC = () => {
 
 
 
+
+
   // ----------------------------
   // Conditional rendering
   // ----------------------------
@@ -540,6 +676,16 @@ export const Dashboard: React.FC = () => {
       </div>
     );
   }
+
+  if (showExpiryModal && expiredPassword) {
+  return (
+    <PasswordExpiryModal
+      password={expiredPassword}
+      onClose={() => setShowExpiryModal(false)}
+    />
+  );
+}
+
 
   if (showOnlyPayModal) {
     return (
@@ -940,6 +1086,38 @@ const checkPasswordReuse = (newPassword: string) => {
             <p className="text-gray-700 mt-1">Welcome, <span className="font-semibold">{user?.email}</span></p>
           </div>
 
+
+<div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+  {/* Total Passwords Stored */}
+  <div className="bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl p-6 flex flex-col items-center justify-center text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+    <div className="text-4xl font-extrabold">{totalPasswords}</div>
+    <div className="mt-2 text-lg font-medium">Total Passwords</div>
+  </div>
+
+  {/* Total Strong Passwords */}
+<div className="bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-xl p-6 flex flex-col items-center justify-center text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+  <div className="text-4xl font-extrabold">{strongPasswords}</div>
+  <div className="mt-2 text-lg font-medium">Strong Passwords</div>
+</div>
+
+
+
+  {/* Total Weak Passwords */}
+  <div className="bg-gradient-to-br from-red-400 to-red-600 rounded-xl p-6 flex flex-col items-center justify-center text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+    <div className="text-4xl font-extrabold">{weakPasswords}</div>
+    <div className="mt-2 text-lg font-medium">Weak Passwords</div>
+  </div>
+
+  {/* Passwords Changed in Last 90 Days */}
+  <div className="bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl p-6 flex flex-col items-center justify-center text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+    <div className="text-4xl font-extrabold">{passwordsChanged90Days}</div>
+    <div className="mt-2 text-lg font-medium">Changed in 90 Days</div>
+  </div>
+</div>
+
+<br/>
+
+
           {/* Saved Passwords */}
           <div className="bg-white shadow-xl rounded-2xl p-6 border border-gray-200">
   <div className="flex justify-between items-center mb-6">
@@ -977,22 +1155,42 @@ const checkPasswordReuse = (newPassword: string) => {
       </p>
     </div>
   ) : (
-    <div className={`grid gap-5 grid-cols-1 sm:grid-cols-2 ${gridColsClass}`}>
-{filteredPasswords.map((password) => (
-          <div
-          key={password._id}
+<div className={`grid gap-6 grid-cols-1 sm:grid-cols-2 ${gridColsClass}`}>
+  {filteredPasswords.map((password) => (
+    <div
+      key={password._id}
+      className={`
+        w-full 
+        bg-gradient-to-br ${
+          password.password.length <= 5 
+            ? 'from-red-400 to-red-600' 
+            : 'from-blue-400 to-blue-600'
+        }
+        text-white 
+        rounded-3xl 
+        p-6 
+        shadow-lg 
+        hover:shadow-xl 
+        hover:scale-105 
+        transition-all 
+        duration-300 
+        transform 
+        group
+        ${cardCount === 1 ? 'col-span-full' : ''} 
+      `}
+    >
+      <div className="flex items-center justify-between mb-5">
+        <div
           className={`
-            w-full bg-gradient-to-br from-blue-500 to-blue-600 text-white 
-            rounded-2xl p-5 shadow-md hover:shadow-lg hover:scale-[1.02] 
-            transition transform duration-200 group
-            ${cardCount === 1 ? 'col-span-full' : ''} 
+            w-14 h-14 
+            ${getWebsiteColor(password.website)} 
+            rounded-xl 
+            flex items-center justify-center 
+            text-white font-semibold text-xl 
+            shadow-lg
           `}
         >
-          <div className="flex items-center justify-between mb-4">
-            <div
-              className={`w-12 h-12 ${getWebsiteColor(password.website)} rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-md`}
-            >
-              {getWebsiteIcon(password.website)}
+          {getWebsiteIcon(password.website)}
             </div>
 
                       <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition">
@@ -1156,8 +1354,8 @@ const checkPasswordReuse = (newPassword: string) => {
                       <p className="font-semibold truncate">{password.website}</p>
                       <p className="text-sm opacity-80">Username</p>
                       <p className="font-semibold truncate">{password.username}</p>
-                      <p className="text-sm opacity-80">Password</p>
-                      <p className="font-semibold tracking-widest">••••••••</p>
+                      {/* <p className="text-sm opacity-80">Password</p>
+                      <p className="font-semibold tracking-widest"></p> */}
                     </div>
                   </div>
                 ))}
@@ -1369,6 +1567,13 @@ const checkPasswordReuse = (newPassword: string) => {
             }
 
 
+
+ {showExpiryModal && expiredPassword && (
+      <PasswordExpiryModal
+        password={expiredPassword}
+        onClose={() => setShowExpiryModal(false)}
+      />
+    )}
 
 
 
