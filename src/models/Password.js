@@ -6,10 +6,27 @@ import dotenv from 'dotenv';
 // dotenv.config({ path: '.env.development' });
 // Ensure encryption key is provided
 const SECRET_HEX = process.env.PASSWORD_ENCRYPTION_KEY;
-if (!SECRET_HEX) { 
-  throw new Error('Missing PASSWORD_ENCRYPTION_KEY in environment');
+let SECRET_KEY;
+
+if (!SECRET_HEX) {
+  if (process.env.NODE_ENV === 'production') {
+    // In production we must fail loudly
+    throw new Error('Missing PASSWORD_ENCRYPTION_KEY in environment (required in production)');
+  } else {
+    // Development fallback: generate a temporary key (non-persistent)
+    // or use an explicit DEV_PASSWORD_ENCRYPTION_KEY if provided for reproducibility
+    const devHex = process.env.DEV_PASSWORD_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
+    console.warn('⚠️ PASSWORD_ENCRYPTION_KEY is not set. Using a temporary development key. Do NOT use this in production.');
+    SECRET_KEY = Buffer.from(devHex, 'hex');
+  }
+} else {
+  SECRET_KEY = Buffer.from(SECRET_HEX, 'hex');
 }
-const SECRET_KEY = Buffer.from(SECRET_HEX, 'hex'); // 32-byte key
+
+// Ensure we have the expected 32-byte key
+if (!Buffer.isBuffer(SECRET_KEY) || SECRET_KEY.length !== 32) {
+  throw new Error('PASSWORD_ENCRYPTION_KEY must be a 64-character hex string (32 bytes)');
+}
 
 // Encrypt plaintext using AES-256-CBC
 export function encrypt(text) {

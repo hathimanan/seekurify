@@ -7,6 +7,7 @@ import Header from "../components/ui/Header";
 import Footer from "../components/ui/Footer";
 import { API_BASE_URL } from '../services/api';
 import { Logo } from './ui/logo';
+import { encryptForShare } from '../utils/encryptForShare';
 // import  from "../components/ui/use-toast";
 import {
   Dialog,
@@ -15,7 +16,7 @@ import {
   DialogTitle,
 } from "../components/ui/dialog";
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, Copy, FileSearch, BarChart3, KeyRound, ShieldCheck, Phone } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Copy, FileSearch, BarChart3, KeyRound, ShieldCheck, Phone, Share2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
 import { Eye, Pencil } from "lucide-react";
 import { set } from 'mongoose';
@@ -121,7 +122,15 @@ export const Dashboard: React.FC = () => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
 const [showExpiryModal, setShowExpiryModal] = useState(false);
+const [passwordToExpire, setPasswordToExpire] = useState<PasswordEntry | null>(null);
+const [showExpiryWarning, setShowExpiryWarning] = useState(false);
+const [showShareModal, setShowShareModal] = useState(false);
+const [selectedPassword, setSelectedPassword] = useState<any>(null);
+const [shareLink, setShareLink] = useState<string | null>(null);
+const [shareExpiry, setShareExpiry] = useState(15); // minutes
+const [isSharing, setIsSharing] = useState(false);
 const [expiredPassword, setExpiredPassword] = useState<PasswordEntry | null>(null);
+const [editPasswordId, setEditPasswordId] = useState<string | null>(null);
   const totalPasswords = filteredPasswords.length;
 
 
@@ -332,6 +341,24 @@ if (expired) {
     };
   }, [viewingPassword, location.pathname]);
 
+
+  useEffect(() => {
+  if (editingPassword) {
+    setPasswordFormData({
+      website: editingPassword.website || '',
+      username: editingPassword.username || '',
+      password: '',                 // 🔐 never prefill password
+      category: editingPassword.category || '',
+      notes: editingPassword.notes || '',
+    });
+
+    setCurrentPassword('');
+    setShowCurrentPassword(false);
+    setShowNewPassword(false);
+  }
+}, [editingPassword]);
+
+
   useEffect(() => {
   if (!searchQuery.trim()) {
     setFilteredPasswords(passwords);
@@ -536,12 +563,14 @@ if (expired) {
   };
 
 
-  const PasswordExpiryModal = ({
+ const PasswordExpiryModal = ({
   password,
   onClose,
+  onUpdate,
 }: {
   password: PasswordEntry;
   onClose: () => void;
+  onUpdate: (password: PasswordEntry) => void;
 }) => {
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4">
@@ -568,7 +597,7 @@ if (expired) {
           <button
             onClick={() => {
               onClose();
-              navigate(`/passwords/edit/${password._id}`);
+              onUpdate(password); // 🔥 OPEN EDIT MODAL
             }}
             className="w-1/2 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold"
           >
@@ -582,6 +611,10 @@ if (expired) {
 };
 
 
+const handleOpenEditPassword = (password: PasswordEntry) => {
+  setEditingPassword(password);   // 🎯 exact password
+  setShowEditModal(true);
+};
 
   // ----------------------------
   // Handle Pay Now
@@ -682,7 +715,8 @@ if (expired) {
     <PasswordExpiryModal
       password={expiredPassword}
       onClose={() => setShowExpiryModal(false)}
-    />
+  onUpdate={handleOpenEditPassword}
+      />
   );
 }
 
@@ -914,6 +948,7 @@ if (expired) {
 
 
 
+
   const handleDeletePassword = async (_id: string) => {
     if (!_id) return;
     setIsDeleting(_id);
@@ -978,6 +1013,52 @@ const checkPasswordReuse = (newPassword: string) => {
     (entry) => entry.password.trim() === newPassword.trim()
   );
 };
+
+const handleSharePassword = async () => {
+  if (!selectedPassword) return;
+
+  setIsSharing(true);
+  setError('');
+  setSuccessMessage('');
+
+  try {
+    const plaintext = selectedPassword.password;
+    const secret = crypto.randomUUID(); // client-side decryption secret
+
+    // Derive key using the secret
+    const encrypted = await encryptForShare(plaintext, secret);
+
+    // Create share on backend (no per-share PIN; verification will use the creator's account PIN)
+    const res = await apiService.createPasswordShare(selectedPassword._id, {
+      encryptedData: encrypted.encryptedData,
+      iv: encrypted.iv,
+      salt: encrypted.salt, // persist salt server-side
+      expiresAt: new Date(Date.now() + shareExpiry * 60 * 1000).toISOString(),
+      metadata: {
+        website: selectedPassword.website,
+        username: selectedPassword.username,
+      },
+      // no `pin` field -> use stored account PIN for verification
+    });
+
+    const shareLink = `${window.location.origin}/share/${res.shareId}#${secret}`;
+    setShareLink(shareLink);
+
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setSuccessMessage(`Share link copied! Use your account PIN to verify.`);
+    } catch (err) {
+      console.warn('Clipboard write failed:', err);
+      setSuccessMessage(`Share link generated — use your account PIN to verify (copy manually)`);
+    }
+  } catch (err) {
+    console.error('Failed to generate share link:', err);
+    setError(err instanceof Error ? err.message : 'Failed to create share link');
+  } finally {
+    setIsSharing(false);
+  }
+};
+
 
 
 
@@ -1287,6 +1368,29 @@ const checkPasswordReuse = (newPassword: string) => {
                               <TooltipContent>Delete Password</TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
+
+
+                          {/* Share Button */}
+<TooltipProvider>
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <Button
+        variant="outline"
+        size="icon"
+        className="hover:bg-blue-100 hover:text-blue-600 rounded-full transition"
+        onClick={() => {
+          setConfirmId(password._id);
+          setSelectedPassword(password);   // store full password object
+          setShowShareModal(true);          // open share modal
+        }}
+      >
+        <Share2 className="w-4 h-4" />
+      </Button>
+    </TooltipTrigger>
+    <TooltipContent>Share Password</TooltipContent>
+  </Tooltip>
+</TooltipProvider>
+
                         </div>
 
                         <Dialog open={showCopyModal} onOpenChange={setShowCopyModal}>
@@ -1362,6 +1466,128 @@ const checkPasswordReuse = (newPassword: string) => {
               </div>
             )
             }
+
+{showShareModal && selectedPassword && (
+  <Dialog open={showShareModal} onOpenChange={setShowShareModal}>
+    <DialogContent className="sm:max-w-md rounded-2xl shadow-lg border border-blue-200 bg-blue-50 p-6">
+      <DialogHeader>
+        <div className="flex flex-col items-center gap-3 text-center">
+          {/* 🔗 Icon */}
+          <div className="w-12 h-12 flex items-center justify-center rounded-full bg-blue-100">
+            <span className="text-blue-600 text-2xl">🔗</span>
+          </div>
+
+          {/* Title */}
+          <DialogTitle className="text-lg font-semibold text-blue-700">
+            Share Password Securely
+          </DialogTitle>
+
+          {/* Subtext */}
+          <p className="text-sm text-gray-700">
+            Generate a time-limited, encrypted link to share this password safely.
+          </p>
+        </div>
+      </DialogHeader>
+
+      {/* Content */}
+      <div className="space-y-4 mt-4">
+        {error && (
+          <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-2 rounded-md">
+            {error}
+          </div>
+        )}
+        {successMessage && (
+          <div className="bg-green-100 border border-green-300 text-green-700 px-4 py-2 rounded-md">
+            {successMessage}
+          </div>
+        )}
+        {/* Password Info */}
+        <div className="bg-white rounded-xl p-3 border text-sm">
+          <p className="text-gray-500">Website</p>
+          <p className="font-semibold truncate">{selectedPassword.website}</p>
+        </div>
+
+        {/* Expiry */}
+        <div>
+          <label className="text-sm font-medium text-gray-700">
+            Link expiry
+          </label>
+          <select
+            value={shareExpiry}
+            onChange={(e) => setShareExpiry(Number(e.target.value))}
+            className="mt-1 w-full border border-gray-300 rounded-xl p-2 focus:ring-2 focus:ring-blue-500"
+          >
+            <option value={5}>5 minutes</option>
+            <option value={15}>15 minutes</option>
+            <option value={60}>1 hour</option>
+            <option value={1440}>24 hours</option>
+          </select>
+        </div>
+
+        {/* Share Link */}
+        {shareLink && (
+          <div className="bg-white border rounded-xl p-3 text-sm break-all">
+            <p className="text-gray-500 mb-1">Secure share link</p>
+            <p className="font-mono text-xs text-gray-800">{shareLink}</p>
+
+            <div className="flex justify-end mt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    if (shareLink) {
+                      await navigator.clipboard.writeText(shareLink);
+                      setSuccessMessage('Link copied to clipboard');
+                    }
+                  } catch (err) {
+                    console.error('Copy failed:', err);
+                    setError('Failed to copy link to clipboard');
+                  }
+                }}
+              >
+                Copy link
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Security Note */}
+        <div className="text-xs text-gray-600 bg-blue-100 rounded-xl p-3">
+          🔒 This link can be opened only once and expires automatically.
+          <div className="mt-2 text-xs text-gray-500">
+            Note: This share uses your account PIN for verification — please share your account PIN securely with the recipient.
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3 pt-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowShareModal(false);
+              setShareLink(null); // reset previous link
+              setError('');
+              setSuccessMessage('');
+            }}
+            className="rounded-xl"
+          >
+            Cancel
+          </Button>
+
+          <Button
+            onClick={handleSharePassword}
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
+            disabled={isSharing}
+          >
+            {isSharing ? 'Generating...' : 'Generate Link'}
+          </Button>
+        </div>
+      </div>
+    </DialogContent>
+  </Dialog>
+)}
+
 
             {
               showReverifyPinModal && !pinError && (
@@ -1572,7 +1798,8 @@ const checkPasswordReuse = (newPassword: string) => {
       <PasswordExpiryModal
         password={expiredPassword}
         onClose={() => setShowExpiryModal(false)}
-      />
+  onUpdate={handleOpenEditPassword}
+        />
     )}
 
 

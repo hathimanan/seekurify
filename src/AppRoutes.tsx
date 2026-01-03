@@ -14,6 +14,9 @@ import Profile from "./components/Profile";
 import ChangePasswordForm from "./components/ChangePasswordForm";
 import PrivacyPolicy from "./components/PrivacyPolicy";
 import TermsAndConditions from "./components/TermsAndConditions";
+import SharedPasswordLanding from "./components/SharedPasswordLanding";
+import VerifySharedPassword from "./components/VerifySharedPassword";
+
 // import StrongPasswords from "./components/tips/StrongPasswords";
 // import TwoFactorAuthentication from "./components/tips/TwoFactorAuthentication";
 // import AvoidSuspiciousLinks from "./components/tips/AvoidSuspiciousLinks";
@@ -79,6 +82,13 @@ const AppRoutes = () => {
 
         <Route path="/forgot-password" element={<ForgotPasswordForm/>} />
 
+<Route path="/share/:token" element={<SharedPasswordLanding />} />
+{/* <Route  path="/share/:shareId/request-otp"
+  element={<VerifySharedPassword />}
+/> */}
+<Route  path="/share/:shareId/verify"
+  element={<VerifySharedPassword />}
+/>
           <Route path="/reset-password" element={<ForgotPasswordForm/>} />
 
         <Route path="/warning" element={<WarningScreen />} />

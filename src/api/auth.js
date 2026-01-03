@@ -21,6 +21,7 @@ import LoginEvent from '../models/LoginEvent.model.js';
 import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
 import PasswordChangeEvent from '../models/PasswordChangeEvent.model.js';
+import Password from '../models/Password.js';
 import { getPasswordStrength } from '../models/User.ts';
 import Razorpay from "razorpay";
 import Trial from "../models/Trial.js";
@@ -29,6 +30,9 @@ import axios from 'axios';            // ← you reference axios but never impor
 import { pushAlert } from '../realtime/socketHub.js';
 import { UAParser } from 'ua-parser-js'; // Add this import at the top
 import Notification from '../models/Notification.model.js';
+
+import passwordShare from "../models/passwordShare.js";
+
 import mongoose from 'mongoose';
 
 import sendResetEmail from '../emailService.js' ;
@@ -82,7 +86,7 @@ async function sendSuspiciousLoginEmail(ip, email) {
         </span>
       </li>
     </ul>
-    <a href="${process.env.REACT_APP_BASE_URL}/reset-password" 
+    <a href="${process.env.REACT_APP_BASE_URL}/change-password" target="_blank"
        style="display: inline-block; padding: 10px 20px; margin: 10px 0; background-color: #d9534f; color: #fff; text-decoration: none; border-radius: 5px;">
        Reset Password
     </a>
@@ -1231,5 +1235,229 @@ authRouter.put("/notifications/read-all", authenticateToken, async (req, res) =>
     res.status(500).json({ error: "Failed to mark all notifications as read" });
   }
 });
+
+
+// 🔗 Create encrypted password share (client-side encrypted)
+authRouter.post("/:id/share", authenticateToken, async (req, res) => {
+  const { encryptedData, iv, salt, expiresAt, metadata, pin } = req.body;
+
+  if (!encryptedData || !iv || !expiresAt) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  // If a PIN is provided, validate and hash it; if omitted, verification will
+  // fall back to the creator's stored account PIN.
+  let pinHash = undefined;
+  if (pin !== undefined) {
+    if (typeof pin !== 'string' || !/^\d{4,6}$/.test(pin)) {
+      return res.status(400).json({ error: 'Invalid PIN format. Must be 4-6 digits.' });
+    }
+    pinHash = await bcryptjs.hash(pin, 10);
+  }
+
+  try {
+    const password = await Password.findOne({
+      _id: req.params.id,
+      userId: req.user._id,
+    });
+
+    if (!password) return res.status(404).json({ error: "Password not found" });
+
+    const share = await passwordShare.create({
+      encryptedData,
+      iv,
+      salt,
+      expiresAt: new Date(expiresAt),
+      metadata,
+      pinHash,          // store hashed PIN (or undefined to use owner's account PIN)
+      createdBy: req.user._id,
+      oneTime: true,
+      used: false,
+      verified: false
+    });
+
+    res.status(201).json({ shareId: share._id });
+  } catch (err) {
+    console.error("Password share failed:", err);
+    res.status(500).json({ error: err.message || "Server error" });
+  }
+});
+
+
+// 🔓 Access shared password (one-time, no auth)
+// 🔓 Access shared password (one-time, no auth / no OTP / no PIN)
+authRouter.get("/share/:shareId", async (req, res) => {
+  try {
+    const { shareId } = req.params;
+    const share = await passwordShare.findById(shareId);
+
+    if (!share) return res.status(404).json({ error: "Invalid link" });
+
+    // If share not explicitly verified, allow access when the requester
+    // presents a valid JWT belonging to the share creator (owner).
+    if (!share.verified) {
+      const authHeader = req.headers['authorization'];
+      if (authHeader) {
+        const token = authHeader.split(' ')[1];
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'defaultsecret');
+          if (!decoded || (!decoded._id && !decoded.id)) {
+            return res.status(403).json({ error: 'PIN not verified' });
+          }
+
+          const userIdFromToken = decoded._id || decoded.id;
+          if (String(userIdFromToken) !== String(share.createdBy)) {
+            return res.status(403).json({ error: 'PIN not verified' });
+          }
+          // If token belongs to the owner we allow access even if share.verified is false
+        } catch (err) {
+          return res.status(403).json({ error: 'PIN not verified' });
+        }
+      } else {
+        return res.status(403).json({ error: 'PIN not verified' });
+      }
+    }
+
+    if (share.expiresAt < new Date()) return res.status(410).json({ error: "Link expired" });
+    if (share.oneTime && share.used) return res.status(403).json({ error: "Link already used" });
+
+    // Return the encrypted payload to the client so decryption happens client-side
+    // (the server intentionally does not hold the decryption secret)
+    console.log(`Returning encrypted payload for shareId=${shareId}`);
+    res.json({
+      encryptedData: share.encryptedData,
+      iv: share.iv,
+      salt: share.salt,
+      metadata: share.metadata || {},
+      website: share.metadata?.website || "Unknown",
+      viewOnce: share.oneTime === true
+    });
+  } catch (err) {
+    console.error("Share access failed:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+
+// 🖥️ Fetch share metadata (SAFE – no secret)
+authRouter.get("/share/:shareId/meta", async (req, res) => {
+  try {
+    console.log(`Incoming meta request for shareId=${req.params.shareId} from ip=${req.ip || req.headers['x-forwarded-for'] || 'unknown'}`);
+
+    const share = await passwordShare.findById(req.params.shareId)
+      .populate("createdBy", "email");
+
+    if (!share) {
+      return res.status(404).json({ error: "Invalid link" });
+    }
+
+    if (share.expiresAt < new Date()) {
+      return res.status(410).json({ error: "Link expired" });
+    }
+
+    if (share.oneTime && share.used) {
+      return res.status(403).json({ error: "Link already used" });
+    }
+
+    res.json({
+      siteName: share.metadata?.website || "Unknown",
+      sharedBy: share.createdBy?.email || "Someone",
+      expiresAt: share.expiresAt,
+      viewOnce: share.oneTime,
+    });
+  } catch (err) {
+    console.error("Meta fetch failed:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /share/:shareId/consume - mark a one-time share as used after client confirms successful decryption
+authRouter.post("/share/:shareId/consume", async (req, res) => {
+  try {
+    const { shareId } = req.params;
+
+    // Atomic update: only mark as used if it wasn't already
+    const updated = await passwordShare.findOneAndUpdate(
+      { _id: shareId, oneTime: true, used: { $ne: true } },
+      { $set: { used: true, usedAt: new Date() } },
+      { new: true }
+    );
+
+    if (!updated) {
+      // Either the share doesn't exist or was already used
+      const existing = await passwordShare.findById(shareId);
+      if (!existing) return res.status(404).json({ error: "Invalid link" });
+      console.log(`Consume called but share ${shareId} already used`);
+      return res.json({ success: true, alreadyUsed: true });
+    }
+
+    console.log(`Marked share ${shareId} as used`);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Consume endpoint failed:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+
+
+// 🔐 Verify shared password access (OTP / PIN step)
+// 🔒 Verify shared password via PIN only
+authRouter.post("/share/:shareId/verify", async (req, res) => {
+  try {
+    const { shareId } = req.params;
+    const { pin } = req.body;
+
+    // 1️⃣ Basic validation
+    if (!pin || typeof pin !== "string") {
+      return res.status(400).json({ error: "PIN is required" });
+    }
+
+    // 2️⃣ Fetch share
+    const share = await passwordShare.findById(shareId);
+    if (!share) {
+      return res.status(404).json({ error: "Invalid share link" });
+    }
+
+    // 3️⃣ Expiry check (safe)
+    if (share.expiresAt && share.expiresAt < new Date()) {
+      return res.status(410).json({ error: "Share link expired" });
+    }
+
+    // 🚫 DO NOT check `used` here
+    // This endpoint only verifies PIN
+
+    // 4️⃣ Share must have its own PIN
+    if (!share.pinHash) {
+      return res.status(401).json({ error: "PIN not configured for this share" });
+    }
+
+    // 5️⃣ Compare PIN
+    const pinMatches = await bcryptjs.compare(pin.trim(), share.pinHash);
+    if (!pinMatches) {
+      return res.status(401).json({ error: "Invalid PIN" });
+    }
+
+    // 6️⃣ Mark as verified
+    share.verified = true;
+    share.verifiedAt = new Date();
+    await share.save();
+
+    // 7️⃣ Success
+    return res.json({
+      success: true,
+      message: "PIN verified successfully",
+    });
+
+  } catch (err) {
+    console.error("Share PIN verification failed:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+
+
+
+
 
 export default authRouter;

@@ -20,6 +20,19 @@ interface SignupCredentials {
   password: string;
 }
 
+export interface CreatePasswordSharePayload {
+  encryptedData: string;
+  iv: string;
+  salt?: string;
+  expiresAt: string;
+  metadata?: {
+    website?: string;
+    username?: string;
+  };
+  pin?: string;
+}
+
+
 interface PasswordEntry {
   website: string;
   username: string;
@@ -41,8 +54,50 @@ private getAuthHeaders() {
   };
 }
 
+async createPasswordShare(
+  passwordId: string,
+  payload: CreatePasswordSharePayload
+) {
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    authService.logout();
+    throw new Error("User not authenticated.");
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/auth/${passwordId}/share`,
+    {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to share password");
+  }
+
+  return response.json(); // { shareId }
+}
 
 
+
+// public access (no auth header)
+async getSharedPassword(shareId: string) {
+  const response = await fetch(
+    `${API_BASE_URL}/auth/share/${shareId}`,
+    { method: "GET" }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to access shared password");
+  }
+
+  return response.json(); // { encryptedData, iv }
+}
 
 
 

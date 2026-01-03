@@ -9,7 +9,8 @@ export default defineConfig({
         target: "http://localhost:5000", // backend server
         changeOrigin: true,              // handles CORS & virtual hosted sites
         secure: false,                   // allow self-signed SSL if needed
-        rewrite: (path) => path.replace(/^\/api/, ""), // strip /api if backend doesn’t use it
+        // Do not strip `/api` so the backend mounted at `/api/*` receives the same path
+        rewrite: (path) => path, 
       },
     },
   },
