@@ -155,6 +155,8 @@ export const SecurityAwareness: React.FC = () => {
 
   const [selectedTip, setSelectedTip] = useState<Tip | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+    const [darkMode, setDarkMode] = useState(false);
+  
 
   const openModal = (tip: Tip) => {
     setSelectedTip(tip);
@@ -168,6 +170,16 @@ export const SecurityAwareness: React.FC = () => {
 
   const token = localStorage.getItem('token');
   useEffect(() => {
+
+
+
+      const saved = localStorage.getItem("darkMode");
+  if (saved === "true") {
+    document.documentElement.classList.add("dark");
+    setDarkMode(true);
+  }
+
+
     let isMounted = true; // prevent state updates after unmount
 
     // Interval for rotating attacks
@@ -207,6 +219,19 @@ export const SecurityAwareness: React.FC = () => {
     };
   }, []); // no token dependency needed, read it directly inside effect
 
+const toggleDarkMode = () => {
+  const next = !darkMode;
+  setDarkMode(next);
+
+  if (next) {
+    document.documentElement.classList.add("dark");
+    localStorage.setItem("darkMode", "true");
+  } else {
+    document.documentElement.classList.remove("dark");
+    localStorage.setItem("darkMode", "false");
+  }
+};
+
 
   const handleLogout = async () => {
     try {
@@ -226,7 +251,10 @@ export const SecurityAwareness: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-pink-100 flex flex-col">
+<div className="min-h-screen flex flex-col 
+  bg-gradient-to-br from-indigo-100 via-white to-pink-100
+  dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-800 dark:to-gray-700
+  text-gray-900 dark:text-gray-100">
       <title> Security Awareness </title>
       <Header
         token={localStorage.getItem("token") || ""}
@@ -235,6 +263,17 @@ export const SecurityAwareness: React.FC = () => {
         sidebarExpanded={sidebarExpanded}
         setSidebarExpanded={setSidebarExpanded}
       />
+
+    <div className="flex justify-end px-6 py-3 border-b border-gray-200 dark:border-gray-800">
+      <button
+        onClick={toggleDarkMode}
+        aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+        className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-800 text-sm font-medium shadow hover:scale-105 transition"
+      >
+        {darkMode ? "☀ Light Mode" : "🌙 Dark Mode"}
+      </button>
+    </div>
+
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}

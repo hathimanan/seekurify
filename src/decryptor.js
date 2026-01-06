@@ -1,8 +1,17 @@
 import crypto from 'crypto';
 
 const algorithm = 'aes-256-cbc';
-const rawKey = String(process.env.PASSWORD_ENCRYPTION_KEY) || 'my_very_secure_fallback_key';
-const encryptionKey = crypto.createHash('sha256').update(rawKey).digest();
+// Accept a 64-char hex PASSWORD_ENCRYPTION_KEY (preferred) or fall back to a SHA-256-derived key
+const rawKeyEnv = process.env.PASSWORD_ENCRYPTION_KEY;
+let encryptionKey;
+if (rawKeyEnv && /^[0-9a-fA-F]{64}$/.test(rawKeyEnv)) {
+  // Environment key supplied as hex (32 bytes) — use directly
+  encryptionKey = Buffer.from(rawKeyEnv, 'hex');
+} else {
+  // Fallback: hash the provided value (or fallback string) to 32 bytes
+  const fallback = String(rawKeyEnv) || 'my_very_secure_fallback_key';
+  encryptionKey = crypto.createHash('sha256').update(fallback).digest();
+}
 
 function decrypt(encrypted) {
   try {
@@ -33,3 +42,5 @@ const decrypted = decrypt(encryptedString);
 console.log('Key type:', typeof encryptionKey); // Should be 'object'
 console.log('Key length:', encryptionKey.length); // Should be 32
 console.log('🔓 Decrypted password:', decrypted);
+
+export { decrypt };

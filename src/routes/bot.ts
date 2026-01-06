@@ -2,7 +2,7 @@
 import express from "express";
 import type { Request, Response } from "express";
 import OpenAI from "openai";
-import SYSTEM_PROMPT from "../config/systemPrompt.ts";
+import { SYSTEM_PROMPT } from "../config/systemPrompt.ts";
 import { getCybersecurityContent } from "../lib/knowledgeBase.ts";
 
 const botRouter = express.Router();
@@ -10,7 +10,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 botRouter.post("/ask", async (req: Request, res: Response) => {
   try {
-    const { userQuestion, userLevel } = req.body;
+    const { userQuestion, userLevel, format } = req.body;
     if (!userQuestion)
       return res.status(400).json({ error: "Question required." });
 
@@ -42,6 +42,10 @@ Your response **MUST** be in JSON format as shown below:
 }
 
 User Level: ${userLevel || "Beginner"}
+Requested Response Format: ${format || "concise"}
+
+Important: If the requested response format is "detailed", strictly follow the DETAILED rules in the SYSTEM_PROMPT: produce at least three sections with markdown headings, each section should contain 2–3 paragraphs, and the total length should be 200–300 words.
+
 Cybersecurity Reference: ${reference}
 User Question: ${userQuestion}
 `;
@@ -71,7 +75,43 @@ User Question: ${userQuestion}
       };
     }
 
-    res.json(parsed);
+    // If the user requested DETAILED format, validate and re-prompt once if needed
+    let finalParsed = parsed;
+    if ((format === 'detailed' || format === 'DETAILED') && parsed && parsed.answer) {
+      const meetsDetailed = (ans: string) => {
+        const wordCount = (ans.match(/\S+/g) || []).length;
+        const headingCount = (ans.match(/^#{1,6}\s+/gm) || []).length;
+        return wordCount >= 180 && headingCount >= 3;
+      };
+
+      if (!meetsDetailed(parsed.answer)) {
+        const expandPrompt = `${dynamicPrompt}\n\nThe previous answer did not meet the DETAILED format requirements. Please expand the 'answer' field to include at least three sections with markdown headings, 2-3 paragraphs per section, and a total length of 200-300 words. Return the result in the same JSON schema.`;
+
+        const retry = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: expandPrompt },
+          ],
+          max_tokens: 1200,
+          temperature: 0.7,
+        });
+
+        const retryRaw = retry.choices[0]?.message?.content?.trim();
+        try {
+          finalParsed = JSON.parse(retryRaw!);
+        } catch {
+          finalParsed = {
+            answer: retryRaw || parsed.answer,
+            widgetType: parsed.widgetType || null,
+            widgetData: parsed.widgetData || {},
+            suggestions: parsed.suggestions || [],
+          };
+        }
+      }
+    }
+
+    res.json(finalParsed);
   } catch (error: any) {
     console.error("Bot error:", error);
     res

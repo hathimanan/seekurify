@@ -131,6 +131,7 @@ const [shareExpiry, setShareExpiry] = useState(15); // minutes
 const [isSharing, setIsSharing] = useState(false);
 const [expiredPassword, setExpiredPassword] = useState<PasswordEntry | null>(null);
 const [editPasswordId, setEditPasswordId] = useState<string | null>(null);
+const [darkMode, setDarkMode] = useState(false);
   const totalPasswords = filteredPasswords.length;
 
 
@@ -272,6 +273,16 @@ filteredPasswords.forEach(p => console.log(p.lastChanged));
 
   // FRONTEND: Dashboard.tsx (Core Fixes)
 useEffect(() => {
+
+
+      const saved = localStorage.getItem("darkMode");
+  if (saved === "true") {
+    document.documentElement.classList.add("dark");
+    setDarkMode(true);
+  }
+
+
+
   let isMounted = true;
 
   const initialize = async () => {
@@ -372,6 +383,21 @@ if (expired) {
     setFilteredPasswords(filtered);
   }
 }, [searchQuery, passwords]);
+
+
+
+const toggleDarkMode = () => {
+  const next = !darkMode;
+  setDarkMode(next);
+
+  if (next) {
+    document.documentElement.classList.add("dark");
+    localStorage.setItem("darkMode", "true");
+  } else {
+    document.documentElement.classList.remove("dark");
+    localStorage.setItem("darkMode", "false");
+  }
+};
 
 
   // toggle used specifically for the "View Password" modal visibility (mask/unmask)
@@ -1087,7 +1113,7 @@ const handleSharePassword = async () => {
   const token = localStorage.getItem('token');
   return (
 
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300">
+<div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300 dark:from-gray-900 dark:via-gray-800 dark:to-gray-700">
       <title>Password Manager</title>
 
       <Header
@@ -1097,6 +1123,18 @@ const handleSharePassword = async () => {
         sidebarExpanded={sidebarExpanded}
         setSidebarExpanded={setSidebarExpanded}
       />
+
+  <div className="flex justify-end px-6 py-3 border-b border-gray-200 dark:border-gray-800">
+      <button
+        onClick={toggleDarkMode}
+        aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+        className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-800 text-sm font-medium shadow hover:scale-105 transition"
+      >
+        {darkMode ? "☀ Light Mode" : "🌙 Dark Mode"}
+      </button>
+    </div>
+
+
       <title> Password Manager </title>
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}

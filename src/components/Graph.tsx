@@ -36,8 +36,16 @@ interface GraphProps {
   value?: number;
 }
 
-const Graph: React.FC<GraphProps> = ({ title, data, type = 'line' }) => {
-  const total = data.reduce((sum, d) => sum + d.value, 0);
+const Graph: React.FC<GraphProps> = ({
+  title,
+  data,
+  type = 'line',
+  xKey = 'date',
+  yKey = 'value',
+}) => {
+  const total = data.reduce((sum, d) => sum + Number(d[yKey as keyof typeof d] || 0), 0);
+
+  const allZero = total === 0 || data.length === 0;
 
   return (
     <div className="bg-gray-700 text-white p-4 rounded-2xl shadow-lg w-full h-64 flex flex-col justify-between">
@@ -46,38 +54,42 @@ const Graph: React.FC<GraphProps> = ({ title, data, type = 'line' }) => {
         <p className="text-xl font-semibold">Total: {total}</p>
       </div>
 
-      <FixedResponsiveContainer width="100%" height="80%">
-        {type === 'line' ? (
-          <FixedLineChart data={data}>
-            <CartesianGrid stroke="#ccc" strokeDasharray="3 3" />
-            <FixedXAxis dataKey="date" angle={-45} textAnchor="end" height={60} />
-            <FixedYAxis />
-            <Tooltip />
-            <FixedLegend />
-            <FixedLine type="monotone" dataKey="value" stroke="#00bcd4" strokeWidth={2} dot />
-          </FixedLineChart>
-        ) : (
-          <FixedBarChart data={data}>
-            <CartesianGrid stroke="#ccc" strokeDasharray="3 3" />
-            <FixedXAxis dataKey="category" />
-            <FixedYAxis />
-            <Tooltip />
-            <FixedLegend />
-      <FixedBar dataKey="value">
-        {data.map((entry, index) => {
-          let fillColor = "#82ca9d"; // default
-          if (entry.category === "Poor") fillColor = "red";
-          else if (entry.category === "Medium") fillColor = "orange";
-          else if (entry.category === "Good") fillColor = "yellow";
-          else if (entry.category === "Strong") fillColor = "green";
+      {allZero ? (
+        <div className="flex-1 flex items-center justify-center text-gray-300">No data to display</div>
+      ) : (
+        <FixedResponsiveContainer width="100%" height="80%">
+          {type === 'line' ? (
+            <FixedLineChart data={data}>
+              <CartesianGrid stroke="#ccc" strokeDasharray="3 3" />
+              <FixedXAxis dataKey={xKey} angle={-45} textAnchor="end" height={60} />
+              <FixedYAxis />
+              <Tooltip />
+              <FixedLegend />
+              <FixedLine type="monotone" dataKey={yKey} stroke="#00bcd4" strokeWidth={2} dot />
+            </FixedLineChart>
+          ) : (
+            <FixedBarChart data={data}>
+              <CartesianGrid stroke="#ccc" strokeDasharray="3 3" />
+              <FixedXAxis dataKey={xKey} />
+              <FixedYAxis />
+              <Tooltip />
+              <FixedLegend />
+              <FixedBar dataKey={yKey}>
+                {data.map((entry, index) => {
+                  const category = entry.category || '';
+                  let fillColor = '#4ade80'; // default greenish
+                  if (category === 'Poor') fillColor = '#ef4444'; // red
+                  else if (category === 'Medium') fillColor = '#f97316'; // orange
+                  else if (category === 'Good') fillColor = '#f59e0b'; // amber
+                  else if (category === 'Strong') fillColor = '#16a34a'; // green
 
-          return <Cell key={`cell-${index}`} fill={fillColor} />;
-        })}
-      </FixedBar>
-                
-      </FixedBarChart>
-        )}
-      </FixedResponsiveContainer>
+                  return <Cell key={`cell-${index}`} fill={fillColor} />;
+                })}
+              </FixedBar>
+            </FixedBarChart>
+          )}
+        </FixedResponsiveContainer>
+      )}
     </div>
   );
 };

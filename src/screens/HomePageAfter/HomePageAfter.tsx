@@ -27,10 +27,18 @@ export const HomePageAfter = (): JSX.Element => {
   const [showPasswordExpiryModal, setShowPasswordExpiryModal] = useState(false);
   const [expireAfterDays, setExpireAfterDays] = useState(null);
   const [sidebarExpanded, setSidebarExpanded] = useState(true); // ✅ sidebar toggle state
+const [darkMode, setDarkMode] = useState(false);
+
 
   useEffect(() => {
     const fetchProfileImage = async () => {
       if (!token) return;
+
+        const saved = localStorage.getItem("darkMode");
+  if (saved === "true") {
+    document.documentElement.classList.add("dark");
+    setDarkMode(true);
+  }
 
       try {
         const res = await fetch(`${API_BASE_URL}/profile`, {
@@ -73,6 +81,19 @@ export const HomePageAfter = (): JSX.Element => {
     fetchProfileImage();
   }, [token]);
 
+  const toggleDarkMode = () => {
+  const next = !darkMode;
+  setDarkMode(next);
+
+  if (next) {
+    document.documentElement.classList.add("dark");
+    localStorage.setItem("darkMode", "true");
+  } else {
+    document.documentElement.classList.remove("dark");
+    localStorage.setItem("darkMode", "false");
+  }
+};
+  
   const handleLogout = () => {
     logout();
     navigate("/");
@@ -102,7 +123,7 @@ export const HomePageAfter = (): JSX.Element => {
   if (loading) return <div className="min-h-screen flex items-center justify-center text-xl font-semibold">Loading...</div>;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50">
+<div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
       <title> Seekurify Home</title>
       {showPasswordExpiryModal && (
   <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -146,6 +167,17 @@ export const HomePageAfter = (): JSX.Element => {
         sidebarExpanded={sidebarExpanded}
         setSidebarExpanded={setSidebarExpanded}
       />
+
+
+       <div className="flex justify-end px-6 py-3 border-b border-gray-200 dark:border-gray-800">
+      <button
+        onClick={toggleDarkMode}
+        aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+        className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-800 text-sm font-medium shadow hover:scale-105 transition"
+      >
+        {darkMode ? "☀ Light Mode" : "🌙 Dark Mode"}
+      </button>
+    </div>
 
       {/* PIN Modal */}
       {showPinModal && (

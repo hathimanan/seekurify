@@ -49,17 +49,34 @@ export function isEncrypted(password) {
 
 
 // Decrypt ciphertext back to plaintext
-export function decrypt(data) {
-  if (typeof data !== 'string' || data.indexOf(':') === -1) {
-    // Nothing to decrypt or invalid format
-    return data;
+export function decrypt(encrypted) {
+  try {
+    if (!encrypted || typeof encrypted !== "string") return null;
+
+    const [ivHex, encryptedHex] = encrypted.split(":");
+    if (!ivHex || !encryptedHex) return null;
+
+    const iv = Buffer.from(ivHex, "hex");
+    const encryptedText = Buffer.from(encryptedHex, "hex");
+
+    const decipher = crypto.createDecipheriv(
+      algorithm,
+      Buffer.from(ENCRYPTION_KEY, "hex"),
+      iv
+    );
+
+    return Buffer.concat([
+      decipher.update(encryptedText),
+      decipher.final(),
+    ]).toString("utf8");
+
+  } catch (err) {
+    console.error("❌ Decryption failed – corrupted or legacy data");
+    return null; // ⬅️ THIS IS CRITICAL
   }
-  const [ivHex, encryptedHex] = data.split(':');
-  const iv = Buffer.from(ivHex, 'hex');
-  const encrypted = Buffer.from(encryptedHex, 'hex');
-  const decipher = crypto.createDecipheriv('aes-256-cbc', SECRET_KEY, iv);
-  return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
 }
+
+
 
 // Define the schema
 const passwordSchema = new mongoose.Schema({
@@ -82,35 +99,24 @@ isExpired: { type: Boolean, default: false }
 passwordSchema.pre('save', function (next) {
   if (!this.isModified('password')) return next();
 
-
-
-
-  if (isEncrypted(this.password)) {
-    // Already encrypted, skip re-encryption
-    return next();
-  }
-
   try {
-    this.password = encrypt(this.password);
-      const now = new Date();
-    this.updatedAt = now;
-    if (this.isModified('password')) {
-    const now = new Date();
-    this.expiresAt = new Date(now.getTime() + this.expireAfterDays * 24*60*60*1000);
-    this.updatedAt = now;
-
     if (!isEncrypted(this.password)) {
       this.password = encrypt(this.password);
     }
-    this.expiresAt = new Date(now.getTime() + this.expireAfterDays * 24 * 60 * 60 * 1000);
-    this.lastChanged = now;
 
-  }
+    const now = new Date();
+    this.updatedAt = now;
+    this.lastChanged = now;
+    this.expiresAt = new Date(
+      now.getTime() + this.expireAfterDays * 24 * 60 * 60 * 1000
+    );
+
     next();
   } catch (err) {
     next(err);
   }
 });
+
 
 // Transform to JSON: decrypt password field
 passwordSchema.set('toJSON', {

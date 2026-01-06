@@ -65,6 +65,9 @@ const [thankYouMap, setThankYouMap] = useState<Record<string, boolean>>({});
 });
 const [showSaved, setShowSaved] = useState(false);
   const [widgetData, setWidgetData] = useState<any>(null);
+  const [responseFormat, setResponseFormat] = useState<
+  "concise" | "detailed" | "bullets"
+>("detailed");
   const [chatHistory, setChatHistory] = useState<{
     question: string;
     answer: string;
@@ -176,15 +179,23 @@ const [showSaved, setShowSaved] = useState(false);
 
   // 🧠 Ask bot function
   const askBot = async (customQuestion?: string) => {
+
+     const finalQuestion = customQuestion || question;
+
+  const payload = {
+    userQuestion: finalQuestion,
+    userLevel: "Beginner",
+    format: responseFormat, // 👈 important
+  };
+
     const userQuestion = customQuestion || question;
     if (!userQuestion.trim()) return;
     setLoading(true);
 
     try {
-      const res = await axios.post("http://localhost:5000/api/ask", {
-        userQuestion,
-        userLevel: "Beginner",
-      });
+      const res = await axios.post("http://localhost:5000/api/ask", payload);
+
+      console.log('Bot API response:', res.data);
 
       const {
         answer: botAnswer,
@@ -391,6 +402,7 @@ const handleFeedback = async (answer: string, type: "up" | "down") => {
   });
 }
 
+
 return (
   <div
     className={`flex flex-col h-full transition-colors duration-300 ${
@@ -450,6 +462,31 @@ return (
       </div>
     )}
 
+
+    {/* 🧾 Response Format Selector */}
+<div className="flex gap-2 mb-2">
+  {[
+    { id: "concise", label: "⚡ Concise" },
+    { id: "detailed", label: "📖 Detailed" },
+    { id: "bullets", label: "📌 Bullet Points" },
+  ].map((opt) => (
+    <button
+      key={opt.id}
+      onClick={() => setResponseFormat(opt.id as any)}
+      className={`px-3 py-1 text-sm rounded-full transition ${
+        responseFormat === opt.id
+          ? "bg-blue-600 text-white"
+          : darkMode
+          ? "bg-gray-700 text-gray-200 hover:bg-gray-600"
+          : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+      }`}
+    >
+      {opt.label}
+    </button>
+  ))}
+</div>
+
+
     {/* 💬 Chat Area */}
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
       {/* Initial Nick Message */}
@@ -476,7 +513,7 @@ return (
           </div>
         </div>
       )}
-
+ 
       {/* 🧠 Chat History */}
       {chatHistory.map((item, index) => (
         <div key={index} className="space-y-2">

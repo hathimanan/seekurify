@@ -146,6 +146,7 @@ const SystemEventsPage: React.FC = () => {
         setLoginEvents(eventsData.loginEvents || []);
         setPasswordChanges(eventsData.passwordChanges || []);
         setInvalidLogins(eventsData.invalidLogins || []);
+        console.log('Password health data received from API:', eventsData.passwordHealth);
         setPasswordHealth(eventsData.passwordHealth || []);
 
         // ---------- Determine Modal ----------
@@ -427,6 +428,7 @@ const SystemEventsPage: React.FC = () => {
 
 
   if (!pinVerified && currentModal === "reVerifyPin") {
+  return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-red-200">
 
@@ -472,6 +474,7 @@ const SystemEventsPage: React.FC = () => {
         </form>
       </div>
     </div>
+  );
 
   }
 
@@ -603,12 +606,17 @@ const SystemEventsPage: React.FC = () => {
 
             <div className="bg-gray-800 rounded-2xl shadow-lg p-6 flex flex-col hover:scale-105 transition-transform duration-200">
               <h3 className="text-white font-semibold mb-4 text-lg flex items-center gap-2">🔐 Password Health</h3>
-              <Graph
-                title="Password Health"
-                data={passwordHealth.map(e => ({ category: e.category, value: e.count }))}
-                type="bar"
-                xKey="category"
-              />
+       <Graph
+  title="Password Health"
+  type="bar"
+  xKey="category"
+  yKey="value"
+  data={passwordHealth.map(e => ({
+    category: e.category,
+    value: e.count
+  }))}
+/>
+
 
             </div>
 
@@ -655,4 +663,9 @@ const SystemEventsPage: React.FC = () => {
   );
 };
 
+
+
+
 export default SystemEventsPage;
+
+
