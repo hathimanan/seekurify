@@ -3,6 +3,8 @@ declare module "*.png" {
   export default value;
 }
 
+declare module '@heroicons/react/solid';
+
 declare module "*.jpg" {
   const value: string;
   export default value;

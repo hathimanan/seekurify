@@ -30,10 +30,48 @@ import WarningScreen from "./components/WarningScreen";
 import { FeaturesPage } from "./components/FeaturesPage";
 import Insights from "./components/Insights";
 import BotChat from "./components/ui/BotChat";
-
+import React from 'react';
+import { useAuth } from './context/AuthContext';
 
 const AppRoutes = () => {
   const navigate = useNavigate();
+  const { isAuthenticated, isLoading, logout } = useAuth();
+
+  // If the user becomes unauthenticated, ensure they are logged out and redirected to /login
+  // Skip redirect while auth is initializing (isLoading)
+React.useEffect(() => {
+  if (isLoading) return; // Wait for Auth to finish
+
+  const token = localStorage.getItem("token");
+  const googleToken = localStorage.getItem("googleToken");
+   if(googleToken){
+    localStorage.setItem("token", googleToken); // Fix assignment
+      }
+const currentPath = window.location.pathname;
+  const searchParams = window.location.search;
+const isPublicRoute = [
+    "/HomePageBefore", "/login", "/signup", "/forgot-password", 
+    "/reset-password", "/features", "/", "/insights", "/set-new-pin"
+  ].includes(currentPath);
+
+ const hasSetNewPinToken = currentPath === "/set-new-pin" && 
+                           new URLSearchParams(searchParams).has("token");
+
+  if (!isAuthenticated && !token && !googleToken && !isPublicRoute && !hasSetNewPinToken) {
+    navigate("/HomePageBefore", { replace: true });
+  }
+
+
+  // CASE 2: Authenticated → prevent user from accessing login/signup again
+  if (isAuthenticated) {
+    if (currentPath === "/login" || currentPath === "/signup") {
+      navigate("/homepageAfterLogin", { replace: true });
+    }
+    return;
+  }
+}, [isAuthenticated, isLoading, navigate]);
+
+
 
   return (
     <Routes>
@@ -83,6 +121,7 @@ const AppRoutes = () => {
         <Route path="/forgot-password" element={<ForgotPasswordForm/>} />
 
 <Route path="/share/:token" element={<SharedPasswordLanding />} />
+<Route path="share/:googleToken" element={<SharedPasswordLanding />} />
 {/* <Route  path="/share/:shareId/request-otp"
   element={<VerifySharedPassword />}
 /> */}

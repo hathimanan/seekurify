@@ -5,7 +5,7 @@ import { Card, CardContent } from './ui/card';
 import { OTPForm } from './OTPForm';
 import { ForgotPasswordForm } from './ForgotPasswordForm';
 import { PINForm } from './PINForm';
-import { GoogleSignInButton } from './GoogleSignInButton';
+// import { GoogleSignInButton } from './GoogleSignInButton';
 import { useNavigate } from 'react-router-dom';
 import { apiService, API_BASE_URL } from '../services/api';
 import { ArrowLeft } from 'lucide-react';
@@ -27,7 +27,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode }) => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showPIN, setShowPIN] = useState(false);
   const [success, setSuccess] = useState(false);
-  const { login } = useAuth();
+  const { login, verifyPin } = useAuth();
   const navigate = useNavigate();
 
   // Step 1: Handle Login
@@ -121,16 +121,11 @@ const handleSubmit = async (e: React.FormEvent) => {
   // Step 3: Handle PIN Verification
   const handleVerifyPIN = async (pin: string) => {
     try {
-      await apiService.verifyPin(otpPayload?.email ?? '', pin);
-      login(email, password);
-
-      await fetch('/homepageAfterLogin', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-    } catch (err) {
-      setError('Incorrect PIN');
+      await verifyPin(otpPayload?.email ?? '', pin); // updates AuthContext
+      // Immediately navigate after successful verify
+      navigate('/homepageAfterLogin', { replace: true });
+    } catch (err: any) {
+      setError(err?.message || 'Incorrect PIN');
     }
   };
 
@@ -249,6 +244,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                     id="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="off"
+                    
                     className="w-full px-4 py-3 border border-gray-300 rounded-md bg-white/80 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition shadow-sm"
                     placeholder='Enter your password here'
                   />
@@ -274,19 +271,19 @@ const handleSubmit = async (e: React.FormEvent) => {
               </form>
 
               <div className="mt-6 space-y-3">
-                <GoogleSignInButton
+                {/* <GoogleSignInButton
                   onSuccess={() => {
                     setSuccess(true);
                   }}
-                />
+                /> */}
 
-                <Button
+                {/* <Button
                   type="button"
                   className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 py-3 px-4 rounded-md font-medium flex items-center justify-center space-x-2 transition shadow-sm hover:shadow-md"
                 >
                   <span>Sign In with Microsoft</span>
                   <span className="text-xl">⊞</span>
-                </Button>
+                </Button> */}
               </div>
 
               <div className="mt-6 text-center">

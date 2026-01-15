@@ -7,118 +7,179 @@ import { getCybersecurityContent } from "../lib/knowledgeBase.ts";
 
 const botRouter = express.Router();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Safely parse JSON with fallback
+const safeParseRetry = (response: any, fallback: any) => {
+  try {
+    const raw = response?.choices?.[0]?.message?.content?.trim() || "";
+    const parsed = JSON.parse(raw);
+    if (typeof parsed.answer === "string") {
+      return parsed;
+    }
+    return fallback;
+  } catch {
+    return fallback;
+  }
+};
+const [isDetailedFormat, safeJsonParse, makeFallback] = [
+  // Check if text meets detailed format rules
+  (text: string) => { 
+    const headingCount = (text.match(/## /g) || []).length;
+    const paragraphCount = (text.match(/\n\n/g) || []).length;
+    return headingCount >= 3 && paragraphCount >= 3;
+  },
+  // Safely parse JSON
+  (raw: string) => {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  },
+  // Create fallback JSON
+  (raw: string) => {
+    return {
+      answer: raw,
+      widgetType: "null",
+      widgetData: {},
+      suggestions: []
+    };
+  }
+];
+
 
 botRouter.post("/ask", async (req: Request, res: Response) => {
   try {
     const { userQuestion, userLevel, format } = req.body;
-    if (!userQuestion)
+
+    if (!userQuestion || !userQuestion.trim()) {
       return res.status(400).json({ error: "Question required." });
+    }
 
     const reference = getCybersecurityContent(userQuestion);
+
+    // 🔥 Strict formatting rules passed to model
+    const FORMAT_RULES = `
+==================== FORMATTING RULES ====================
+You MUST format the "answer" based on the 'format' parameter:
+
+1. bullet
+   - Use "-" bullets
+   - 4–8 bullets
+   - No paragraphs
+
+2. numbered
+   - Use "1. 2. 3."
+   - At least 3 points
+
+3. paragraph
+   - 2–3 paragraphs
+   - Each paragraph 3–5 sentences
+
+4. concise
+   - Max 2–3 sentences
+   - No bullets
+
+5. detailed
+   - 3+ markdown headings (## Heading)
+   - Each heading has 2–3 paragraphs
+   - 200–300 words
+   - No bullets
+==========================================================
+`;
 
     const dynamicPrompt = `
 ${SYSTEM_PROMPT}
 
-You are an AI cybersecurity assistant that not only answers user queries
-but also decides if a special interactive widget should be shown in the UI.
+${FORMAT_RULES}
 
-Available widget types:
-- "linkScanner": For scanning URLs or links.
-- "quiz": For short cybersecurity quizzes.
-- "stepByStep": For step-by-step tutorials or procedures.
-
-Your response **MUST** be in JSON format as shown below:
+YOUR TASK:
+Return ONLY a JSON object in this schema:
 
 {
-  "answer": "Your clear explanation or answer to the question.",
+  "answer": "formatted text",
   "widgetType": "null | linkScanner | quiz | stepByStep",
-  "widgetData": {
-     // depends on widgetType
-     // For stepByStep: { steps: ["Step 1...", "Step 2..."] }
-     // For quiz: { question: "Which is phishing?", options: ["A", "B", "C"] }
-     // For linkScanner: {}
-  },
+  "widgetData": {},
   "suggestions": ["related question 1", "related question 2"]
 }
 
 User Level: ${userLevel || "Beginner"}
-Requested Response Format: ${format || "concise"}
-
-Important: If the requested response format is "detailed", strictly follow the DETAILED rules in the SYSTEM_PROMPT: produce at least three sections with markdown headings, each section should contain 2–3 paragraphs, and the total length should be 200–300 words.
-
-Cybersecurity Reference: ${reference}
+Requested Format: ${format || "concise"}
+Reference Context: ${reference}
 User Question: ${userQuestion}
+
+FOLLOW THE FORMAT RULES EXACTLY.
 `;
 
-    const completion = await openai.chat.completions.create({
+    // -----------------------------
+    // 1) Primary Model Request
+    // -----------------------------
+    const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: dynamicPrompt },
+        { role: "user", content: dynamicPrompt }
       ],
-      max_tokens: 800,
-      temperature: 0.7,
+      max_tokens: 1200,
+      temperature: 0.7
     });
 
-    const rawResponse = completion.choices[0]?.message?.content?.trim();
+    const raw = response?.choices?.[0]?.message?.content?.trim() || "";
 
-    // 🧠 Attempt to parse structured JSON output
-    let parsed;
-    try {
-      parsed = JSON.parse(rawResponse!);
-    } catch {
-      parsed = {
-        answer: rawResponse || "Sorry, I couldn't parse the structured response.",
-        widgetType: null,
-        widgetData: {},
-        suggestions: [],
-      };
+    // Try parsing JSON safely
+    let parsed = safeJsonParse(raw);
+
+    // If parsing failed, create fallback
+    if (!parsed || typeof parsed.answer !== "string") {
+      parsed = makeFallback(raw);
     }
 
-    // If the user requested DETAILED format, validate and re-prompt once if needed
+    // -----------------------------
+    // 2) If detailed formatting requested — validate
+    // -----------------------------
     let finalParsed = parsed;
-    if ((format === 'detailed' || format === 'DETAILED') && parsed && parsed.answer) {
-      const meetsDetailed = (ans: string) => {
-        const wordCount = (ans.match(/\S+/g) || []).length;
-        const headingCount = (ans.match(/^#{1,6}\s+/gm) || []).length;
-        return wordCount >= 180 && headingCount >= 3;
-      };
 
-      if (!meetsDetailed(parsed.answer)) {
-        const expandPrompt = `${dynamicPrompt}\n\nThe previous answer did not meet the DETAILED format requirements. Please expand the 'answer' field to include at least three sections with markdown headings, 2-3 paragraphs per section, and a total length of 200-300 words. Return the result in the same JSON schema.`;
+    if (format === "detailed") {
+      if (!isDetailedFormat(parsed.answer)) {
+        const expandPrompt = `
+The previous answer did NOT meet detailed formatting rules.
+Rewrite and expand ONLY the "answer" field to follow:
 
+- 3 markdown headings minimum
+- 2–3 paragraphs per heading
+- 200–300 words
+- No bullet points
+
+Return ONLY JSON in the original schema.
+`;
+
+        // Retry expansion
         const retry = await openai.chat.completions.create({
           model: "gpt-4o-mini",
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: expandPrompt },
+            { role: "user", content: expandPrompt }
           ],
-          max_tokens: 1200,
-          temperature: 0.7,
+          max_tokens: 1600,
+          temperature: 0.7
         });
 
-        const retryRaw = retry.choices[0]?.message?.content?.trim();
-        try {
-          finalParsed = JSON.parse(retryRaw!);
-        } catch {
-          finalParsed = {
-            answer: retryRaw || parsed.answer,
-            widgetType: parsed.widgetType || null,
-            widgetData: parsed.widgetData || {},
-            suggestions: parsed.suggestions || [],
-          };
-        }
+        finalParsed = safeParseRetry(retry, parsed);
       }
     }
 
+    // -----------------------------
+    // Send the final valid JSON
+    // -----------------------------
     res.json(finalParsed);
-  } catch (error: any) {
-    console.error("Bot error:", error);
-    res
-      .status(500)
-      .json({ error: "AI Bot failed. Please try again later." });
+
+  } catch (err) {
+    console.error("Bot error:", err);
+    return res.status(500).json({
+      error: "AI Bot failed. Please try again later."
+    });
   }
 });
+
 
 
 export default botRouter;

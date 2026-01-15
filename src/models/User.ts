@@ -56,6 +56,7 @@ expireAfterDays: { type: Number, default: 90 },  // default expiry period
 lastReminderSent: { type: Date },
 lastSuspiciousLogin: { type: Date, default: Date.now },
 lastPasswordChange: { type: Date, default: Date.now },
+
 });
 
 // 4. Hashing middleware

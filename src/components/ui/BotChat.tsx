@@ -76,6 +76,7 @@ const [showSaved, setShowSaved] = useState(false);
     widgetData: any;
     feedback: "up" | "down" | null;
     media?: Media;
+    format?: "concise" | "detailed" | "bullets";
   }[]>([]);
 
 
@@ -177,6 +178,20 @@ const [showSaved, setShowSaved] = useState(false);
   return null;
 };
 
+// 🔧 Format answers into markdown bullets when requested
+const ensureBulletMarkdown = (text: string) => {
+  if (!text) return text;
+  // if already contains list markers like -, *, • or numbers, return as-is
+  const hasListMarker = /(^|\n)[\s]*([-*•]|\d+\.)\s+/.test(text);
+  if (hasListMarker) return text;
+  // Split into lines by newlines or by sentence boundaries (., ?, !)
+  const parts = text
+    .split(/\n{1,}|\.\s+|\?\s+|!\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return parts.map((p) => `- ${p.replace(/\.$/, "")}`).join("\n");
+};
+
   // 🧠 Ask bot function
   const askBot = async (customQuestion?: string) => {
 
@@ -217,7 +232,8 @@ const [showSaved, setShowSaved] = useState(false);
           widgetType,
           widgetData,
           feedback,
-          media: media || undefined // Explicitly handle null case
+          media: media || undefined, // Explicitly handle null case
+          format: responseFormat,
         }
       ]);
 
@@ -450,7 +466,23 @@ return (
                   darkMode ? "bg-gray-700" : "bg-gray-100"
                 }`}
               >
-                <ReactMarkdown>{msg}</ReactMarkdown>
+                <ReactMarkdown
+                  components={{
+                    ul: ({ children, ...props }) => (
+                      <ul {...props} className="list-none p-0 m-0 space-y-2">
+                        {children}
+                      </ul>
+                    ),
+                    li: ({ children, ...props }) => (
+                      <li {...props} className="flex items-start">
+                        <span className="text-blue-600 mr-2 mt-1">•</span>
+                        <span className="flex-1">{children}</span>
+                      </li>
+                    ),
+                  }}
+                >
+                  {msg}
+                </ReactMarkdown>
               </li>
             ))}
           </ul>
@@ -565,7 +597,24 @@ return (
     </p>
   ) : (
     <>
-      <ReactMarkdown>{item.answer}</ReactMarkdown>
+<ReactMarkdown
+  components={{
+    ul: ({ children, ...props }) => (
+      <ul {...props} className="list-none p-0 m-0 space-y-2">
+        {children}
+      </ul>
+    ),
+    li: ({ children, ...props }) => (
+      <li {...props} className="flex items-start">
+        <span className="text-blue-600 mr-2 mt-1">•</span>
+        <span className="flex-1">{children}</span>
+      </li>
+    ),
+  }}
+>
+  {item.format === "bullets" ? ensureBulletMarkdown(item.answer) : item.answer}
+</ReactMarkdown>
+
       
       {/* 🖼️ Rich Media Rendering */}
       {item.media && (
@@ -797,16 +846,17 @@ return (
           rows={2}
         />
         <button
-          onClick={() => askBot()}
-          disabled={loading}
-          className={`px-4 py-2 rounded transition w-full sm:w-auto ${
-            loading
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700 text-white"
-          }`}
-        >
-          Send
-        </button>
+  onClick={() => askBot()}
+  disabled={loading || question.trim().length === 0}
+  className={`px-4 py-2 rounded transition w-full sm:w-auto ${
+    loading || question.trim().length === 0
+      ? "bg-gray-400 cursor-not-allowed"
+      : "bg-blue-600 hover:bg-blue-700 text-white"
+  }`}
+>
+  Send
+</button>
+
       </div>
     </div>
   </div>

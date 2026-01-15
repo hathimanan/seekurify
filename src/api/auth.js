@@ -197,6 +197,12 @@ function authenticateToken(req, res, next) {
   if (!authHeader) return res.status(401).json({ error: 'Missing auth header' });
 
   const token = authHeader.split(' ')[1];
+
+  const googleToken = req.params.googleToken;
+
+  if(googleToken){
+    token = googleToken;
+  }
   if (!token) return res.status(401).json({ error: 'Token missing' });
 
   jwt.verify(token, process.env.JWT_SECRET || 'defaultsecret', (err, user) => {
@@ -390,7 +396,7 @@ authRouter.post('/send-otp', async (req, res) => {
     const otpToken = jwt.sign(
       { email, otp },
       process.env.secretKeyOTP,
-      { expiresIn: '10m' }
+      { expiresIn: '5m' }
     );
 
     // 🔐 4. Get a fresh Gmail access token
@@ -568,7 +574,7 @@ if (
     const token = jwt.sign(
       { _id: user._id, email: user.email },
       process.env.JWT_SECRET,
-      { expiresIn: '1h' }
+      { expiresIn: '15m' }
     );
 
     return res.json({ 
@@ -678,7 +684,7 @@ authRouter.post("/signup", async (req, res) => {
   const emailToken = jwt.sign(
   { id: newUser._id, email, newUser: true },
   process.env.JWT_SECRET,
-  { expiresIn: "15m" }
+  { expiresIn: "5m" }
 );
 
     const verifyLink = `${process.env.REACT_APP_BASE_URL}/set-new-pin?token=${emailToken}`;

@@ -43,7 +43,7 @@ interface DeviceInfo {
   status: 'active' | 'inactive';
 }
 
-type ModalState = "none" | "pay" | "trial" | "onlyPay" | "verifyPin" | "reVerifyPin";
+type ModalState = "none" | "pay" | "trial" | "onlyPay" | "verifyPin" | "reVerifyPin" | null;
 
 const SystemEventsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -53,6 +53,13 @@ const SystemEventsPage: React.FC = () => {
   const [pinInput, setPinInput] = useState("");
   const [pinVerified, setPinVerified] = useState(false);
   const [pinError, setPinError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [infoMessage, setInfoMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [tryFree, setTryFree] = useState<string | null>(null);
+  const [selectPlanForPurchase, setSelectPlanForPurchase] = useState<string | null>(null);
+  
 
   // ---------- Modal State ----------
   const [currentModal, setCurrentModal] = useState<ModalState>("none");
@@ -85,7 +92,9 @@ const SystemEventsPage: React.FC = () => {
   const [isReverified, setIsReverified] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo[]>([]);
-
+const [trialPlan, setTrialPlan] = useState<'free' | 'pro' | 'premium' | null>(null);
+const [trialAcknowledged, setTrialAcknowledged] = useState(false);
+const [selectedPlan, setSelectedPlan] = useState<'pro' | 'premium' | 'business' | null>(null);
 
   // ---------- Fetch Dashboard & Payment Info ----------
   useEffect(() => {
@@ -179,6 +188,12 @@ const SystemEventsPage: React.FC = () => {
     fetchData();
   }, []);
 
+
+   const handleTryFree = (plan: 'free' | 'pro' = 'free') => {
+    // delegate to API call
+    handleStartTrial(plan);
+  };
+
   // ---------- PIN Verification ----------
   const handlePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -212,26 +227,57 @@ const SystemEventsPage: React.FC = () => {
   };
 
   // ---------- Payment Handlers ----------
-  const handleStartTrial = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE_URL}/auth/start-trial`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      setTrialActive(true);
-      setTrialMessage(data.message);
-      const end = new Date(data.endDate);
-      const diffDays = Math.ceil((end.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-      setTrialDaysLeft(diffDays);
-      setCurrentModal("verifyPin");
-    } catch (err: any) {
-      console.error(err);
-      setTrialMessage(err.message || "Trial start failed");
-      setCurrentModal("trial");
-    }
-  };
+ const handleStartTrial = async (plan: 'free' | 'pro' | 'premium' = 'free') => {
+     try {
+       const token = localStorage.getItem('token');
+       if (!token) throw new Error('User not authenticated');
+ 
+       const response = await fetch(`${API_BASE_URL}/auth/start-trial/`, {
+         method: 'POST',
+         headers: {
+           'Content-Type': 'application/json',
+           Authorization: `Bearer ${token}`,
+         },
+         body: JSON.stringify({ plan }),
+       });
+ 
+       const data = await response.json();
+       if (!response.ok) throw new Error(data.message || 'Failed to start trial');
+ 
+       // Persist trial state and plan
+       setTrialActive(true);
+       localStorage.setItem('trialActive', 'true');
+       localStorage.setItem('trialPlan', plan);
+       setTrialPlan(plan);
+ 
+       const planLabel = plan === 'free' ? 'Free' : plan === 'pro' ? 'Pro' : 'Premium';
+       setTrialMessage(`Your ${planLabel} trial has started! You have 7 days to explore.`);
+       if (!trialAcknowledged) {
+         setShowTrialModal(true);
+       }
+       setShowOnlyPayModal(false);
+       setShowReverifyPinModal(false);
+       setTrialAcknowledged(false); // user has not clicked OK yet
+ 
+     } catch (error) {
+       console.error('Error starting trial:', error);
+ 
+       setTrialMessage('Failed to start the trial. Please try again.');
+       // setShowTrialModal(true);
+     }
+   }; 
+
+     const handleSelectPlanForPurchase = (plan: 'pro' | 'premium' | 'business') => {
+    // Default to the minimum price in the visible range for each plan
+    const amountMap: Record<string, number> = { pro: 199, premium: 499, business: 1499 };
+    const planAmount = amountMap[plan] || paymentFormData.amount;
+    setPaymentFormData(prev => ({ ...prev, amount: planAmount }));
+    setSelectedPlan(plan);
+
+    // Close the pricing overlay and start payment for the selected plan
+    setShowPayModal(false);
+    handlePayNow(planAmount);
+  }; 
 
   const checkPaymentStatus = async (): Promise<void> => {
     try {
@@ -299,12 +345,14 @@ const SystemEventsPage: React.FC = () => {
 
 
 
-  const handlePayNow = async () => {
+  const handlePayNow = async (amountOverride?: number) => {
     try {
       if (!(window as any).Razorpay) {
         alert('Razorpay SDK failed to load.');
         return;
       }
+
+      const amountToUse = amountOverride ?? paymentFormData.amount;
 
       const token = localStorage.getItem('token');
       if (!token) throw new Error('User not authenticated');
@@ -319,6 +367,7 @@ const SystemEventsPage: React.FC = () => {
           currency: 'INR',
           receipt: `receipt_${Date.now()}`,
           ...paymentFormData,
+          amount: amountToUse,
         }),
       });
 
@@ -329,12 +378,12 @@ const SystemEventsPage: React.FC = () => {
 
       const options = {
         key,
-        amount: paymentFormData.amount * 100, // dynamic
+        amount: amountToUse * 100, // amount in paise
         currency: 'INR',
         name: 'Seekurify',
         description: 'Secure Payment Gateway',
         order_id: orderId,
-        prefill: paymentFormData,
+        prefill: { ...paymentFormData, amount: amountToUse },
         theme: { color: '#0f172a' },
         handler: async (response: any) => {
           try {
@@ -350,10 +399,13 @@ const SystemEventsPage: React.FC = () => {
             const result = await res.json();
             if (result.success) {
               setHasPaid(true);
-              setShowPayModal(false);
+              // Persist plan info locally for immediate UX; server is authoritative
+              if (selectedPlan) {
+                localStorage.setItem('plan', selectedPlan);
+              }
               localStorage.setItem('hasPaid', 'true');
               checkPaymentStatus();
-              window.location.href = '/siem-dashboard'; // ✅ full reload
+              window.location.href = '/dashboard'; // ✅ full reload
             } else {
               setError(result.message || 'Payment verification failed.');
             }
@@ -363,7 +415,7 @@ const SystemEventsPage: React.FC = () => {
           }
         },
         modal: {
-          ondismiss: () => console.log('Payment modal closed by user'),
+          ondismiss: () => {},
         },
       };
 
@@ -477,21 +529,107 @@ const SystemEventsPage: React.FC = () => {
   );
 
   }
+if (currentModal === "pay") {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-5xl p-8 relative animate-fadeIn">
+        {/* Close Button */}
+        <button
+          onClick={() => {
+            navigate(-1)
+          }}
+          className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 transition"
+        >
+          ✕
+        </button>
 
-  if (currentModal === "pay") {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-        <div className="bg-white p-6 rounded-xl w-full max-w-md text-center">
-          <h2 className="text-2xl font-bold mb-2">Upgrade Required</h2>
-          <p className="mb-4">Start trial or pay to access SIEM dashboard.</p>
-          <div className="flex gap-4 justify-center">
-            <Button onClick={handlePayNow} className="bg-green-600 hover:bg-green-700">Pay ₹100</Button>
-            <Button onClick={handleStartTrial} className="bg-blue-600 hover:bg-blue-700">Start Trial</Button>
+        <h2 className="text-4xl font-bold text-center mb-12">Pricing Plans</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+
+          {/* Free Plan */}
+          <div className="bg-white rounded-xl shadow p-6 flex flex-col">
+            <h3 className="text-xl font-semibold mb-2">Free</h3>
+            <p className="text-4xl font-bold mb-2">₹0<span className="text-lg font-normal">/mo</span></p>
+
+            <ul className="space-y-2 mb-6 text-gray-700">
+              <li>✔ Basic password vault</li>
+              <li>✔ Limited passwords</li>
+              <li>✔ No SIEM logs</li>
+            </ul>
+
+            <button onClick={() => handleTryFree?.('free')} className="mt-auto w-full border border-purple-600 text-purple-600 py-2 rounded-lg hover:bg-purple-50">
+              Try Free
+            </button> 
           </div>
+
+          {/* Pro Plan (Featured) */}
+          <div className="bg-purple-600 text-white rounded-xl shadow-xl p-6 transform scale-105 relative">
+            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-purple-700 text-white px-4 py-1 rounded-full text-sm font-semibold">
+              MOST POPULAR
+            </div>
+
+            <h3 className="text-xl font-semibold mb-2">Pro</h3>
+            <p className="text-4xl font-bold mb-2">₹199–299<span className="text-lg font-normal">/mo</span></p>
+
+            <ul className="space-y-2 mb-6">
+              <li>✔ Unlimited passwords</li>
+              <li>✔ 2FA security</li>
+              <li>✔ Breach alerts</li>
+              <li>✔ Basic SIEM summary</li>
+            </ul>
+
+            <button onClick={() => handleTryFree?.('pro')} className="w-full bg-white text-purple-700 py-2 rounded-lg mb-2 font-semibold hover:bg-gray-100">
+              Try Free
+            </button> 
+
+            <button onClick={() => handleSelectPlanForPurchase?.('pro')} className="w-full bg-purple-800 py-2 rounded-lg hover:bg-purple-900">
+              Buy Now
+            </button> 
+          </div>
+
+          {/* Premium Plan */}
+          <div className="bg-white rounded-xl shadow p-6 flex flex-col">
+            <h3 className="text-xl font-semibold mb-2">Premium</h3>
+            <p className="text-4xl font-bold mb-2">₹499–799<span className="text-lg font-normal">/mo</span></p>
+
+            <ul className="space-y-2 mb-6 text-gray-700">
+              <li>✔ File/URL scanning</li>
+              <li>✔ Full SIEM dashboards</li>
+              <li>✔ Anomaly alerts</li>
+              <li>✔ PIN/OTP security</li>
+              <li>✔ Device logs</li>
+            </ul>
+
+            <button onClick={() => handleSelectPlanForPurchase?.('premium')} className="mt-auto w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700">
+              Get Started
+            </button> 
+          </div>
+
+          {/* Business Plan */}
+          <div className="bg-white rounded-xl shadow p-6 flex flex-col">
+            <h3 className="text-xl font-semibold mb-2">Business</h3>
+            <p className="text-4xl font-bold mb-2">₹1499–2499<span className="text-lg font-normal">/team/mo</span></p>
+
+            <ul className="space-y-2 mb-6 text-gray-700">
+              <li>✔ Admin dashboard</li>
+              <li>✔ Team vaults</li>
+              <li>✔ Policy enforcement</li>
+              <li>✔ Audit logs</li>
+              <li>✔ Incident reports</li>
+            </ul>
+
+            <button onClick={() => navigate('/contact')} className="mt-auto w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700">
+              Contact Sales
+            </button>
+          </div>
+
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
+
 
   if (currentModal === "onlyPay") {
     return (
@@ -499,7 +637,7 @@ const SystemEventsPage: React.FC = () => {
         <div className="bg-white p-6 rounded-xl w-full max-w-md text-center">
           <h2 className="text-2xl font-bold mb-2">Subscription Expired</h2>
           <p className="mb-4">Your trial has expired. Please pay to continue.</p>
-          <Button onClick={handlePayNow} className="bg-green-600 hover:bg-green-700 w-full">Pay ₹100</Button>
+          <Button onClick={() => handlePayNow} className="bg-green-600 hover:bg-green-700 w-full">Pay ₹100</Button>
         </div>
       </div>
     );

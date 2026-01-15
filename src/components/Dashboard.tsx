@@ -19,8 +19,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit, Trash2, Copy, FileSearch, BarChart3, KeyRound, ShieldCheck, Phone, Share2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
 import { Eye, Pencil } from "lucide-react";
-import { set } from 'mongoose';
-import { reload } from 'firebase/auth';
+
 import { motion } from 'framer-motion';
 
 interface PasswordEntry {
@@ -58,14 +57,39 @@ interface PaymentEntry {
 
 // Website icons mapping
 const getWebsiteIcon = (website: string) => {
-  const domain = website.toLowerCase();
-  if (domain.includes('google')) return 'G';
-  if (domain.includes('facebook')) return 'f';
-  if (domain.includes('yahoo')) return 'Y!';
-  if (domain.includes('twitter') || domain.includes('x.com')) return 'X';
-  if (domain.includes('amazon')) return 'a';
+  const name = website.toLowerCase();
+
+  // Social Media
+  if (name.includes("facebook")) return "f";
+  if (name.includes("instagram")) return "📸";
+  if (name.includes("twitter") || name.includes("x.com")) return "X";
+  if (name.includes("linkedin")) return "in";
+
+  // Email Services
+  if (name.includes("gmail") || name.includes("google")) return "G";
+  if (name.includes("outlook") || name.includes("microsoft")) return "O";
+  if (name.includes("yahoo")) return "Y!";
+
+  // Developer Platforms
+  if (name.includes("github")) return "🐱";
+  if (name.includes("gitlab")) return "🦊";
+
+  // E-Commerce
+  if (name.includes("amazon")) return "a";
+  if (name.includes("flipkart")) return "F";
+
+  // Finance / Payment Apps
+  if (name.includes("paytm")) return "₹";
+  if (name.includes("phonepe")) return "P";
+
+  // Streaming
+  if (name.includes("netflix")) return "N";
+  if (name.includes("hotstar")) return "H";
+
+  // Default fallback
   return website.charAt(0).toUpperCase();
 };
+
 
 const getWebsiteColor = (website: string) => {
   const domain = website.toLowerCase();
@@ -105,6 +129,8 @@ export const Dashboard: React.FC = () => {
   const [showTrialModal, setShowTrialModal] = useState(false);
   const [trialMessage, setTrialMessage] = useState("");
   const [trialActive, setTrialActive] = useState(false);
+  const [trialPlan, setTrialPlan] = useState<string>('free');
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [showOnlyPayModal, setShowOnlyPayModal] = useState(false);
   const [isTrialExpired, setTrialExpired] = useState(false);
   const [showReuseWarning, setShowReuseWarning] = useState(false);
@@ -180,7 +206,7 @@ const passwordsChanged90Days = filteredPasswords.filter(p => {
 }).length;
 
 
-filteredPasswords.forEach(p => console.log(p.lastChanged));
+
 
   const navigate = useNavigate();
 
@@ -201,7 +227,7 @@ filteredPasswords.forEach(p => console.log(p.lastChanged));
       });
 
       const data = await response.json();
-      console.log("PIN verify response:", data);
+      
 
       if (data.token) {
         setIsReverified(true);
@@ -335,7 +361,7 @@ if (expired) {
   setShowTrialModal(false);
   setShowOnlyPayModal(false);
   setShowReverifyPinModal(false);
-}
+} 
 
         }
      catch (err) {
@@ -385,6 +411,13 @@ if (expired) {
 }, [searchQuery, passwords]);
 
 
+
+useEffect(() => {
+  const modalOpen = showPassword || showEditModal || showAddForm || showReverifyPinModal || showShareModal || showCopyModal || showDeleteConfirmationModal || showExpiryModal || showPayModal || showTrialModal || showReuseWarning;
+  if (modalOpen) document.body.style.overflow = 'hidden';
+  else document.body.style.overflow = '';
+  return () => { document.body.style.overflow = ''; };
+}, [showPassword, showEditModal, showAddForm, showReverifyPinModal, showShareModal, showCopyModal, showDeleteConfirmationModal, showExpiryModal, showPayModal, showTrialModal, showReuseWarning]);
 
 const toggleDarkMode = () => {
   const next = !darkMode;
@@ -437,18 +470,18 @@ const toggleDarkMode = () => {
       setIsLoading(true);
       const data = await apiService.getPasswords(cacheBuster);
       setPasswords(data);
-
+      
       // Decide modal based on backend states
       if (hasPaid || (trialActive && trialAcknowledged)) {
-        // setShowReverifyPinModal(true);
-        setShowPayModal(false);
+        // user has access — no payment modals
+        
       } else if (!hasPaid && trialActive && !trialAcknowledged) {
+        // trial in progress but not acknowledged — trial modal flow handled elsewhere
+        
         // setShowTrialModal(true);
-        setShowPayModal(false);
-        // } else {
-        //   setShowReverifyPinModal(false);
-        //   setShowPayModal(true);
-        // }
+      } else {
+        // unpaid and no trial — show pay modal
+        setShowPayModal(true);
       }
 
     } catch (err) {
@@ -486,6 +519,8 @@ const toggleDarkMode = () => {
       setHasPaid(data.hasPaid);
       setTrialActive(data.isTrialActive);
       setTrialExpired(data.isTrialExpired);
+
+      
 
       // Reset all modals first
       setShowPayModal(false);
@@ -538,7 +573,7 @@ const toggleDarkMode = () => {
     }
   };
 
-  const handleStartTrial = async () => {
+  const handleStartTrial = async (plan: 'free' | 'pro' | 'premium' = 'free') => {
     try {
       const token = localStorage.getItem('token');
       if (!token) throw new Error('User not authenticated');
@@ -549,17 +584,20 @@ const toggleDarkMode = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({ plan }),
       });
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Failed to start trial');
 
-      // Persist trial state
+      // Persist trial state and plan
       setTrialActive(true);
       localStorage.setItem('trialActive', 'true');
+      localStorage.setItem('trialPlan', plan);
+      setTrialPlan(plan);
 
-      // Show trial modal for acknowledgment
-      setTrialMessage('Your trial has started! You have 7 days to explore.');
+      const planLabel = plan === 'free' ? 'Free' : plan === 'pro' ? 'Pro' : 'Premium';
+      setTrialMessage(`Your ${planLabel} trial has started! You have 7 days to explore.`);
       if (!trialAcknowledged) {
         setShowTrialModal(true);
       }
@@ -573,7 +611,7 @@ const toggleDarkMode = () => {
       setTrialMessage('Failed to start the trial. Please try again.');
       // setShowTrialModal(true);
     }
-  };
+  }; 
 
   // ----------------------------
   // Trial modal OK handler
@@ -581,13 +619,32 @@ const toggleDarkMode = () => {
   const handleTrialModalOk = () => {
     setTrialAcknowledged(true);    // User acknowledged trial
     setShowTrialModal(false);
-    setShowPayModal(false);
+    // setShowPayModal(false);
     setShowOnlyPayModal(false);
     setShowReverifyPinModal(true); // Show PIN modal for trial users
     // Call checkPaymentStatus after state update
     setTimeout(() => checkPaymentStatus(), 0);
   };
 
+
+  // Activate a trial for a specific plan (free or pro). The backend will record the plan and trial period.
+  const handleTryFree = (plan: 'free' | 'pro' = 'free') => {
+    // delegate to API call
+    handleStartTrial(plan);
+  };
+
+  // Select a paid plan and immediately start the payment flow using Razorpay.
+  const handleSelectPlanForPurchase = (plan: 'pro' | 'premium' | 'business') => {
+    // Default to the minimum price in the visible range for each plan
+    const amountMap: Record<string, number> = { pro: 199, premium: 499, business: 1499 };
+    const planAmount = amountMap[plan] || paymentFormData.amount;
+    setPaymentFormData(prev => ({ ...prev, amount: planAmount }));
+    setSelectedPlan(plan);
+
+    // Close the pricing overlay and start payment for the selected plan
+    setShowPayModal(false);
+    handlePayNow(planAmount);
+  }; 
 
  const PasswordExpiryModal = ({
   password,
@@ -645,12 +702,14 @@ const handleOpenEditPassword = (password: PasswordEntry) => {
   // ----------------------------
   // Handle Pay Now
   // ----------------------------
-  const handlePayNow = async () => {
+  const handlePayNow = async (amountOverride?: number) => {
     try {
       if (!(window as any).Razorpay) {
         alert('Razorpay SDK failed to load.');
         return;
       }
+
+      const amountToUse = amountOverride ?? paymentFormData.amount;
 
       const token = localStorage.getItem('token');
       if (!token) throw new Error('User not authenticated');
@@ -665,6 +724,7 @@ const handleOpenEditPassword = (password: PasswordEntry) => {
           currency: 'INR',
           receipt: `receipt_${Date.now()}`,
           ...paymentFormData,
+          amount: amountToUse,
         }),
       });
 
@@ -675,12 +735,12 @@ const handleOpenEditPassword = (password: PasswordEntry) => {
 
       const options = {
         key,
-        amount: paymentFormData.amount * 100, // dynamic
+        amount: amountToUse * 100, // amount in paise
         currency: 'INR',
         name: 'Seekurify',
         description: 'Secure Payment Gateway',
         order_id: orderId,
-        prefill: paymentFormData,
+        prefill: { ...paymentFormData, amount: amountToUse },
         theme: { color: '#0f172a' },
         handler: async (response: any) => {
           try {
@@ -696,7 +756,10 @@ const handleOpenEditPassword = (password: PasswordEntry) => {
             const result = await res.json();
             if (result.success) {
               setHasPaid(true);
-              setShowPayModal(false);
+              // Persist plan info locally for immediate UX; server is authoritative
+              if (selectedPlan) {
+                localStorage.setItem('plan', selectedPlan);
+              }
               localStorage.setItem('hasPaid', 'true');
               checkPaymentStatus();
               window.location.href = '/dashboard'; // ✅ full reload
@@ -709,7 +772,7 @@ const handleOpenEditPassword = (password: PasswordEntry) => {
           }
         },
         modal: {
-          ondismiss: () => console.log('Payment modal closed by user'),
+          ondismiss: () => {},
         },
       };
 
@@ -779,7 +842,7 @@ const handleOpenEditPassword = (password: PasswordEntry) => {
           {/* Pay Button Only */}
           <div className="flex flex-col gap-4 mt-8">
             <button
-              onClick={handlePayNow}
+              onClick={() => handlePayNow}
               className="w-full px-6 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-lg shadow-md transition"
             >
               Proceed to Pay
@@ -814,61 +877,111 @@ const handleOpenEditPassword = (password: PasswordEntry) => {
     )
   }
 
-
-
+  // Show pay modal as a full-screen overlay (take precedence over page content)
   if (showPayModal) {
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 relative animate-fadeIn">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-5xl p-8 relative animate-fadeIn">
           {/* Close Button */}
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => {
+              setShowPayModal(false);
+              navigate(-1);
+            }}
             className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 transition"
           >
             ✕
           </button>
 
-          {/* Header */}
-          <div className="text-center">
-            <h2 className="text-3xl font-bold text-gray-900">Upgrade to Premium</h2>
-            <p className="text-lg text-gray-600 mt-2">
-              Get unlimited access to all premium features.
-            </p>
-          </div>
+          <h2 className="text-4xl font-bold text-center mb-12">Pricing Plans</h2>
 
-          {/* Amount Card */}
-          <div className="mt-8 bg-gray-50 border rounded-xl p-5 flex justify-between items-center">
-            <div>
-              <p className="text-lg font-semibold text-gray-800">Total</p>
-              <p className="text-sm text-gray-500">Monthly Subscription</p>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+
+            {/* Free Plan */}
+            <div className="bg-white rounded-xl shadow p-6 flex flex-col">
+              <h3 className="text-xl font-semibold mb-2">Free</h3>
+              <p className="text-4xl font-bold mb-2">₹0<span className="text-lg font-normal">/mo</span></p>
+
+              <ul className="space-y-2 mb-6 text-gray-700">
+                <li>✔ Basic password vault</li>
+                <li>✔ Limited passwords</li>
+                <li>✔ No SIEM logs</li>
+              </ul>
+
+              <button onClick={() => handleTryFree('free')} className="mt-auto w-full border border-purple-600 text-purple-600 py-2 rounded-lg hover:bg-purple-50">
+                Try Free
+              </button> 
             </div>
-            <p className="text-3xl font-extrabold text-green-600">₹100</p>
-          </div>
 
-          {/* Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 mt-8">
-            <button
-              onClick={handlePayNow}
-              className="w-full px-6 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-lg shadow-md transition"
-            >
-              Proceed to Pay
-            </button>
-            <button
-              onClick={handleStartTrial}
-              className="w-full px-6 py-3 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold text-lg shadow-md transition"
-            >
-              Start Free Trial (7 Days)
-            </button>
-          </div>
+            {/* Pro Plan (Featured) */}
+            <div className="bg-purple-600 text-white rounded-xl shadow-xl p-6 transform scale-105 relative">
+              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-purple-700 text-white px-4 py-1 rounded-full text-sm font-semibold">
+                MOST POPULAR
+              </div>
 
-          {/* Security Note */}
-          <div className="text-center mt-6 text-sm text-gray-500">
-            🔒 Secure checkout powered by our payment gateway.
+              <h3 className="text-xl font-semibold mb-2">Pro</h3>
+              <p className="text-4xl font-bold mb-2">₹199–299<span className="text-lg font-normal">/mo</span></p>
+
+              <ul className="space-y-2 mb-6">
+                <li>✔ Unlimited passwords</li>
+                <li>✔ 2FA security</li>
+                <li>✔ Breach alerts</li>
+                <li>✔ Basic SIEM summary</li>
+              </ul>
+
+              <button onClick={() => handleTryFree('pro')} className="w-full bg-white text-purple-700 py-2 rounded-lg mb-2 font-semibold hover:bg-gray-100">
+                Try Free
+              </button> 
+
+              <button onClick={() => handleSelectPlanForPurchase('pro')} className="w-full bg-purple-800 py-2 rounded-lg hover:bg-purple-900">
+                Buy Now
+              </button> 
+            </div>
+
+            {/* Premium Plan */}
+            <div className="bg-white rounded-xl shadow p-6 flex flex-col">
+              <h3 className="text-xl font-semibold mb-2">Premium</h3>
+              <p className="text-4xl font-bold mb-2">₹499–799<span className="text-lg font-normal">/mo</span></p>
+
+              <ul className="space-y-2 mb-6 text-gray-700">
+                <li>✔ File/URL scanning</li>
+                <li>✔ Full SIEM dashboards</li>
+                <li>✔ Anomaly alerts</li>
+                <li>✔ PIN/OTP security</li>
+                <li>✔ Device logs</li>
+              </ul>
+
+              <button onClick={() => handleSelectPlanForPurchase('premium')} className="mt-auto w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700">
+                Get Started
+              </button> 
+            </div>
+
+            {/* Business Plan */}
+            <div className="bg-white rounded-xl shadow p-6 flex flex-col">
+              <h3 className="text-xl font-semibold mb-2">Business</h3>
+              <p className="text-4xl font-bold mb-2">₹1499–2499<span className="text-lg font-normal">/team/mo</span></p>
+
+              <ul className="space-y-2 mb-6 text-gray-700">
+                <li>✔ Admin dashboard</li>
+                <li>✔ Team vaults</li>
+                <li>✔ Policy enforcement</li>
+                <li>✔ Audit logs</li>
+                <li>✔ Incident reports</li>
+              </ul>
+
+              <button onClick={() => navigate('/contact')} className="mt-auto w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700">
+                Contact Sales
+              </button>
+            </div>
+
           </div>
         </div>
       </div>
-    )
+    );
   }
+
+
+
 
 
   <Dialog open={!!error} onOpenChange={() => setError(error)}>
@@ -965,7 +1078,7 @@ const handleOpenEditPassword = (password: PasswordEntry) => {
       } else if (err.response?.status === 401) {
         setError("Your session has expired. Please log in again.");
         logout();
-        navigate("/login");
+        navigate("/HomePageBeforeLogin");
       } else {
         setError(err instanceof Error ? err.message : 'Failed to update password');
       }
@@ -981,7 +1094,17 @@ const handleOpenEditPassword = (password: PasswordEntry) => {
     try {
       await apiService.deletePassword(_id);
 
-      // ✅ Fetch fresh data after deletion
+      // Optimistically update UI: remove from local state immediately to avoid stale display
+      setPasswords((prev) => prev.filter((p) => p._id !== _id));
+      setFilteredPasswords((prev) => prev.filter((p) => p._id !== _id));
+
+      // If the currently viewing password was deleted, close the view modal
+      if (viewingPassword && viewingPassword._id === _id) {
+        setShowPassword(false);
+        setViewingPassword(null);
+      }
+
+      // Refresh from server to ensure full consistency
       await loadPasswords(Date.now());
     } catch (err) {
       console.error('Error deleting password:', err);
@@ -1457,36 +1580,7 @@ const handleSharePassword = async () => {
 
 
 
-                        {showDeleteConfirmationModal && confirmId && (confirmId === password._id) && (
-                          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                            <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-lg">
-                              <h3 className="text-lg font-bold mb-3">Confirm Delete</h3>
-                              <p className="text-gray-600 mb-4">Are you sure you want to delete this password?</p>
-
-                              <div className="flex justify-end gap-3">
-                                <button
-                                  onClick={() => setConfirmId(null)}
-                                  className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300"
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  onClick={async () => {
-                                    await handleDeletePassword(password._id);
-                                    setShowReverifyPinModal(false); // close PIN modal
-                                    setReverifyPinInput(''); // clear PIN input
-                                    setPinError(false); // reset error
-                                  }}
-                                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                                >
-                                  {isDeleting === password._id ? "Deleting..." : "Delete"}
-                                </button>
-
-                              </div>
-
-                            </div>
-                          </div>
-                        )}
+                        {/* Delete confirmation hoisted to top-level to ensure consistent stacking and to prevent background interaction. */}
                       </div>
                     </div>
 
@@ -1626,6 +1720,41 @@ const handleSharePassword = async () => {
   </Dialog>
 )}
 
+
+            {/* Hoisted Delete Confirmation Modal (renders once at top-level, above other modals) */}
+            {showDeleteConfirmationModal && confirmId && (
+              <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-60">
+                <div className="bg-white rounded-lg p-6 w-full max-w-sm shadow-lg">
+                  <h3 className="text-lg font-bold mb-3">Confirm Delete</h3>
+                  <p className="text-gray-600 mb-4">Are you sure you want to delete <strong>{passwords.find(p => p._id === confirmId)?.website || 'this password'}</strong>?</p>
+
+                  <div className="flex justify-end gap-3">
+                    <button
+                      onClick={() => { setShowDeleteConfirmationModal(false); setConfirmId(null); }}
+                      className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (confirmId) {
+                          await handleDeletePassword(confirmId);
+                          setShowDeleteConfirmationModal(false);
+                          setShowReverifyPinModal(false);
+                          setReverifyPinInput('');
+                          setPinError(false);
+                        }
+                      }}
+                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                    >
+                      {isDeleting === confirmId ? 'Deleting...' : 'Delete'}
+                    </button>
+
+                  </div>
+
+                </div>
+              </div>
+            )}
 
             {
               showReverifyPinModal && !pinError && (
@@ -2007,6 +2136,8 @@ const handleSharePassword = async () => {
 
 
 
+
+
             {/* Add Password Form */}
             {
               showAddForm && (
@@ -2014,18 +2145,57 @@ const handleSharePassword = async () => {
                   <div className="bg-white p-6 rounded-lg w-full max-w-md">
                     <h3 className="text-xl font-bold text-black mb-4">Add New Password</h3>
                     <form onSubmit={handleAddPassword} className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-black mb-1">
-                          Website/Service
-                        </label>
-                        <input
-                          type="text"
-                          value={passwordformData.website}
-                          onChange={(e) => setPasswordFormData({ ...passwordformData, website: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          required
-                        />
-                      </div>
+                     <div>
+  <label className="block text-sm font-medium text-black mb-1">
+    Website/Service
+  </label>
+
+  <select
+    value={passwordformData.website}
+    onChange={(e) =>
+      setPasswordFormData({
+        ...passwordformData,
+        website: e.target.value,
+      })
+    }
+    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+    required
+  >
+    <option value="">Select a website</option>
+    <option value="Facebook">Facebook</option>
+    <option value="Instagram">Instagram</option>
+    <option value="Twitter">Twitter</option>
+    <option value="LinkedIn">LinkedIn</option>
+    <option value="Gmail">Gmail</option>
+    <option value="Outlook">Outlook</option>
+    <option value="GitHub">GitHub</option>
+    <option value="GitLab">GitLab</option>
+    <option value="Amazon">Amazon</option>
+    <option value="Flipkart">Flipkart</option>
+    <option value="Paytm">Paytm</option>
+    <option value="PhonePe">PhonePe</option>
+    <option value="Netflix">Netflix</option>
+    <option value="Hotstar">Hotstar</option>
+    <option value="Custom">Other (Enter manually)</option>
+  </select>
+
+  {/* Conditional input for "Other / Custom" */}
+  {passwordformData.website === "Custom" && (
+    <input
+      type="text"
+      placeholder="Enter website name"
+      onChange={(e) =>
+        setPasswordFormData({
+          ...passwordformData,
+          website: e.target.value,
+        })
+      }
+      className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+      required
+    />
+  )}
+</div>
+
 
                       <div>
                         <label className="block text-sm font-medium text-black mb-1">
@@ -2142,6 +2312,14 @@ const handleSharePassword = async () => {
           </div >
         </main >
       </div >
+      
+
+
+
+
+
+
+      
       <Footer />
     </div >
   );

@@ -123,10 +123,10 @@ return (
           {/* Trust Signals */}
           <div className="mt-12 flex flex-wrap justify-center gap-6 text-gray-400 text-sm">
             <span className="flex items-center gap-2">
-              <Lock className="h-5 w-5 text-indigo-400" /> AES-256 Encryption
+              <Lock className="h-5 w-5 text-indigo-400" /> Highest Possible (AES Level) Encryption
             </span>
             <span className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-indigo-400" /> Zero-Knowledge Policy
+              <Activity className="h-5 w-5 text-indigo-400" /> Zero-Knowledge Proof
             </span>
             <span className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-indigo-400" /> OWASP Compliant

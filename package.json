@@ -14,6 +14,7 @@
     "test:full": "concurrently \"npm run vite\" \"npm run test:backend\""
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "@prisma/client": "^6.19.0",
     "@radix-ui/react-slot": "^1.1.0",
     "7zip-min": "^2.1.0",

@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiService } from '../services/api';
+import { useNavigate } from 'react-router-dom';
 
 interface User {
   id: string;
   email: string;
   username?: string;
-  pin?: string; // Optional, only needed for PIN-based login
+  pin?: string;
 }
 
 interface AuthContextType {
@@ -13,14 +14,13 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  verifyOtp: (email: string, otp: string,otpToken: string) => Promise<void>;
+  verifyOtp: (email: string, otp: string, otpToken: string) => Promise<void>;
   verifyPin: (email: string, pin: string) => Promise<void>;
   signup: (email: string, username: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
 
 function base64UrlDecode(str: string): string {
   str = str.replace(/-/g, '+').replace(/_/g, '/');
@@ -30,9 +30,7 @@ function base64UrlDecode(str: string): string {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
 
@@ -44,61 +42,90 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const navigate = useNavigate();
+
+  function isTokenExpired(token: string | null): boolean {
+    if (!token) return true;
+    try {
+      const base64Payload = token.split('.')[1];
+      const decodedPayload = base64UrlDecode(base64Payload);
+      const payload = JSON.parse(decodedPayload);
+
+      return payload.exp * 1000 < Date.now();
+    } catch (err) {
+      console.error('Failed to parse token expiry:', err);
+      return true;
+    }
+  }
+
   useEffect(() => {
     const token = localStorage.getItem('token');
+
     if (token) {
+      if (isTokenExpired(token)) {
+        console.warn('Token expired on load, logging out');
+        logout(); // <-- FIX: use logout function instead of manual clearing
+        setIsLoading(false);
+        return;
+      }
 
       try {
-              const base64Payload = token.split('.')[1];
-    const decodedPayload = base64UrlDecode(base64Payload);
-        const payload = JSON.parse(decodedPayload);
+        const base64Payload = token.split('.')[1];
+        const payload = JSON.parse(atob(base64Payload));
         setUser({ id: payload.id, email: payload.email });
       } catch (error) {
-        console.error('Invalid token:', error);
-        localStorage.removeItem('token');
+        console.error('Invalid token structure:', error);
+        logout();
       }
     }
+
     setIsLoading(false);
+
+    // Periodic token check
+    const interval = setInterval(() => {
+      const t = localStorage.getItem('token');
+      if (t && isTokenExpired(t)) {
+        console.warn('Token expired during active session');
+        logout(); // <-- FIX: centralize logic
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const login = async (email: string, password: string) => {
-    try {
-      await apiService.login({ email, password }); // No token expected here
-    } catch (error) {
-      throw error;
-    }
+    await apiService.login({ email, password });
   };
 
-  const verifyOtp = async (email: string, otp: string,otpToken: string) => {
-    try {
-      await apiService.onverifyOtp(email, otp, otpToken); // No token here either
-    } catch (error) {
-      throw error;
-    }
+  const verifyOtp = async (email: string, otp: string, otpToken: string) => {
+    await apiService.onverifyOtp(email, otp, otpToken);
   };
 
   const verifyPin = async (email: string, pin: string) => {
+    setIsLoading(true);
     try {
       const response = await apiService.verifyPin(email, pin);
+
       const token = response.token;
+      localStorage.setItem('token', token); // <-- FIX: store token
+
       const payload = JSON.parse(atob(token.split('.')[1]));
       setUser({ id: payload.id, email: payload.email });
-    } catch (error) {
-      throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const signup = async (email: string, username: string, password: string) => {
-    try {
-      await apiService.signup({ email, username, password });
-    } catch (error) {
-      throw error;
-    }
+    await apiService.signup({ email, username, password });
   };
 
   const logout = () => {
     apiService.logout();
-    setUser(null);
+
+    localStorage.removeItem('token'); // <-- FIX: token first
+    setUser(null);                    // <-- FIX: clear state
+    navigate('/HomePageBefore', { replace: true }); // <-- FIX: redirect always
   };
 
   const value = {
@@ -112,9 +139,5 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

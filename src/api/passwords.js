@@ -5,22 +5,34 @@ import Password from '../models/Password.js';
 import bcryptjs from 'bcryptjs';
 import { createNotification } from "../utils/createNotification.js";
 const passwordRouter = express.Router();
-const SECRET_HEX = process.env.PASSWORD_ENCRYPTION_KEY;
-if (!SECRET_HEX) {
-  throw new Error('Missing PASSWORD_ENCRYPTION_KEY in environment');
+function getSecretKey() {
+  const SECRET_HEX = process.env.PASSWORD_ENCRYPTION_KEY;
+  if (SECRET_HEX && /^[0-9a-fA-F]{64}$/.test(SECRET_HEX)) return Buffer.from(SECRET_HEX, 'hex');
+  if (process.env.DEV_PASSWORD_ENCRYPTION_KEY && /^[0-9a-fA-F]{64}$/.test(process.env.DEV_PASSWORD_ENCRYPTION_KEY)) return Buffer.from(process.env.DEV_PASSWORD_ENCRYPTION_KEY, 'hex');
+  if (process.env.NODE_ENV === 'production') throw new Error('Missing PASSWORD_ENCRYPTION_KEY in environment');
+  const devHex = process.env.DEV_PASSWORD_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
+  console.warn('⚠️ PASSWORD_ENCRYPTION_KEY is not set. Using a temporary development key. Do NOT use this in production.');
+  return Buffer.from(devHex, 'hex');
 }
-const SECRET_KEY = Buffer.from(SECRET_HEX, 'hex'); // 32-byte key
 
 function decrypt(data) {
   if (typeof data !== 'string' || data.indexOf(':') === -1) {
     // Nothing to decrypt or invalid format
     return data;
   }
-  const [ivHex, encryptedHex] = data.split(':');
-  const iv = Buffer.from(ivHex, 'hex');
-  const encrypted = Buffer.from(encryptedHex, 'hex');
-  const decipher = crypto.createDecipheriv('aes-256-cbc', SECRET_KEY, iv);
-  return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+  
+  try {
+    const [ivHex, encryptedHex] = data.split(':');
+    const iv = Buffer.from(ivHex, 'hex');
+    const encrypted = Buffer.from(encryptedHex, 'hex');
+    const SECRET_KEY = getSecretKey();
+    const decipher = crypto.createDecipheriv('aes-256-cbc', SECRET_KEY, iv);
+    return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString('utf8');
+  } catch (error) {
+    console.error('Decryption error (passwords route):', error && error.message ? error.message : error);
+    // Avoid exposing ciphertext in API responses — return empty string for failed decrypts
+    return '';
+  }
 }
 
 const authenticateToken = (req, res, next) => {

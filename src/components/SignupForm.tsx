@@ -5,6 +5,8 @@ import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { ArrowLeft } from 'lucide-react';
 import { Logo } from './ui/logo';
+import { InformationCircleIcon } from "@heroicons/react/24/solid";
+
 
 export const SignupForm: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -216,11 +218,34 @@ const checkPasswordStrength = (pwd: string) => {
 
             {/* Password */}
             <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Password
+            <label
+    htmlFor="password"
+    className="flex items-center justify-between text-sm font-medium text-gray-700 mb-1"
+  >
+                <span>Password</span>
+
+    <div className="relative flex items-center group cursor-pointer">
+  {/* Heroicon */}
+  <InformationCircleIcon className="h-5 w-5 text-gray-500 group-hover:text-indigo-600 transition" />
+
+  {/* Tooltip */}
+  <div className="absolute right-0 top-full mt-2 z-50 w-72 p-3 bg-white border border-gray-300 
+    rounded-lg shadow-lg text-sm text-gray-700 opacity-0 group-hover:opacity-100 
+    transition-opacity duration-200 pointer-events-none">
+    
+    <p className="mb-1 font-medium">Password Requirements:</p>
+    <ul className="list-disc list-inside text-gray-600 space-y-1">
+      <li>Must be 8–16 characters long</li>
+      <li>At least one uppercase letter (A–Z)</li>
+      <li>At least one lowercase letter (a–z)</li>
+      <li>At least one number (0–9)</li>
+      <li>At least one symbol (!@#$%^&* etc.)</li>
+    </ul>
+  </div>
+
+</div>
+
+
               </label>
               <input
                 type="password"
@@ -232,6 +257,10 @@ const checkPasswordStrength = (pwd: string) => {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200"
                 
               />
+{/* Icon Wrapper */}
+
+
+
                 {passwordError && <p className="text-red-500 text-sm mt-1">{passwordError}</p>}
 
                   {password && (
