@@ -1,11 +1,12 @@
 import React from "react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, BarChart3, FileSearch, KeyRound, Phone, ShieldCheck } from "lucide-react";
+import { ArrowLeft, BarChart3, FileSearch, KeyRound, Phone, ShieldAlert, ShieldCheck } from "lucide-react";
 import Header from "../components/ui/Header";
 import Footer from "../components/ui/Footer";
 import { API_BASE_URL } from '../services/api';
 import { motion } from "framer-motion";
+import { useState } from "react";
 
 interface HeaderProps {
   token: string;
@@ -19,6 +20,35 @@ const PrivacyPolicy: React.FC = () => {
   const [profileImage, setProfileImage] = React.useState<string | undefined>(undefined); // ✅ state for profile image
   const token = localStorage.getItem("token") || "";
   const [current, setCurrent] = React.useState(0);
+ const [phishingDetectorEnabled, setPhishingDetectorEnabled] = useState<boolean>(false);
+  const [featuresLoaded, setFeaturesLoaded] = useState(false);
+
+
+
+useEffect(() => {
+    const fetchFeatureFlags = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/feature-flags/read`);
+        
+        if (!res.ok) {
+          throw new Error('Failed to fetch feature flags');
+        }
+        
+        const data = await res.json();
+        
+        console.log('✅ Header feature flags loaded:', data);
+        setPhishingDetectorEnabled(data.phishingDetectorEnabled === true);
+        
+      } catch (err) {
+        console.error("❌ Failed to load header feature flags:", err);
+        setPhishingDetectorEnabled(false); // Safe default
+      } finally {
+        setFeaturesLoaded(true);
+      }
+    };
+
+    fetchFeatureFlags();
+  }, []);
 
 
     useEffect(() => {
@@ -101,6 +131,10 @@ const handleLogout = async () => {
             { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
             { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
             { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
+...(phishingDetectorEnabled ? [
+      { label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> }
+    ] : [])
+
           ].map(({ label, path, icon }) => (
             <div
               key={path}

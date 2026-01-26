@@ -96,71 +96,144 @@ const [trialPlan, setTrialPlan] = useState<'free' | 'pro' | 'premium' | null>(nu
 const [trialAcknowledged, setTrialAcknowledged] = useState(false);
 const [selectedPlan, setSelectedPlan] = useState<'pro' | 'premium' | 'business' | null>(null);
 
-  // ---------- Fetch Dashboard & Payment Info ----------
+const [pinVerificationSIEMEnabled, setPinVerificationSIEMEnabled] = useState<boolean | null>(null);
+ const [phishingDetectorEnabled, setPhishingDetectorEnabled] = useState<boolean>(false);
+  const [featuresLoaded, setFeaturesLoaded] = useState(false);
+
+
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        console.log('Token for devices fetch:', token);
-
-        const [resProfile, resPayment, resEvents, resDevices] = await Promise.all([
-          fetch(`${API_BASE_URL}/profile`, {
-            headers: { Authorization: `Bearer ${token}` }
-          }),
-          fetch(`${API_BASE_URL}/auth/check-payment`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` }
-          }),
-          fetch(`${API_BASE_URL}/siem-dashboard`, {
-            headers: { Authorization: `Bearer ${token}` }
-          }),
-          fetch(`${API_BASE_URL}/auth/devices`, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }),
-        ]);
-
-        console.log('Device fetch response:', {
-          status: resDevices.status,
-          statusText: resDevices.statusText
-        });
-
-        if (!resDevices.ok) {
-          const errorText = await resDevices.text();
-          console.error('Devices fetch failed:', errorText);
-          setDeviceInfo([]);
-        } else {
-          const deviceData = await resDevices.json();
-          console.log('Device data received:', deviceData);
-          setDeviceInfo(deviceData.devices || []);
+      const fetchFeatureFlags = async () => {
+        try {
+          const res = await fetch(`${API_BASE_URL}/feature-flags/read`);
+          
+          if (!res.ok) {
+            throw new Error('Failed to fetch feature flags');
+          }
+          
+          const data = await res.json();
+          
+          console.log('✅ Header feature flags loaded:', data);
+          setPhishingDetectorEnabled(data.phishingDetectorEnabled === true);
+          
+        } catch (err) {
+          console.error("❌ Failed to load header feature flags:", err);
+          setPhishingDetectorEnabled(false); // Safe default
+        } finally {
+          setFeaturesLoaded(true);
         }
+      };
+  
+      fetchFeatureFlags();
+    }, []);
+  
 
-        const profileData = await resProfile.json();
-        const paymentData = await resPayment.json();
-        const eventsData = await resEvents.json();
+// Add this useEffect BEFORE the main fetchData useEffect
+useEffect(() => {
+  const fetchFeatureFlags = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/feature-flags/read`);
+      
+      if (!res.ok) {
+        throw new Error('Failed to fetch feature flags');
+      }
+      
+      const data = await res.json();
+      
+      console.log('✅ SIEM Feature flags loaded:', data);
+      setPinVerificationSIEMEnabled(data.pinVerificationSIEM === true);
+      
+    } catch (err) {
+      console.error("❌ Failed to load SIEM feature flags:", err);
+      setPinVerificationSIEMEnabled(false); // Safe default
+    }
+  };
 
-        if (profileData?.profileImage) {
-          setProfileImage(profileData.profileImage);
-        }
+  fetchFeatureFlags();
+}, []); // ✅ Run once on mount
 
+// ==========================================
+// 2️⃣ Fetch Data ONLY After Feature Flags Load
+// ==========================================
+useEffect(() => {
+  // ✅ CRITICAL: Wait for feature flag to load
+  if (pinVerificationSIEMEnabled === null) {
+    console.log('⏳ Waiting for SIEM feature flags to load...');
+    return;
+  }
+
+  const fetchData = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      console.log('Token for devices fetch:', token);
+
+      const [resProfile, resPayment, resEvents, resDevices] = await Promise.all([
+        fetch(`${API_BASE_URL}/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch(`${API_BASE_URL}/auth/check-payment`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch(`${API_BASE_URL}/siem-dashboard`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch(`${API_BASE_URL}/auth/devices`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+      ]);
+
+      console.log('Device fetch response:', {
+        status: resDevices.status,
+        statusText: resDevices.statusText
+      });
+
+      if (!resDevices.ok) {
+        const errorText = await resDevices.text();
+        console.error('Devices fetch failed:', errorText);
+        setDeviceInfo([]);
+      } else {
+        const deviceData = await resDevices.json();
+        console.log('Device data received:', deviceData);
+        setDeviceInfo(deviceData.devices || []);
+      }
+
+      const profileData = await resProfile.json();
+      const paymentData = await resPayment.json();
+      const eventsData = await resEvents.json();
+
+      if (profileData?.profileImage) {
+        setProfileImage(profileData.profileImage);
+      }
+
+      setTrialActive(paymentData.isTrialActive);
+      setTrialExpired(paymentData.isTrialExpired);
+      setHasPaid(paymentData.hasPaid);
+
+      setLoginEvents(eventsData.loginEvents || []);
+      setPasswordChanges(eventsData.passwordChanges || []);
+      setInvalidLogins(eventsData.invalidLogins || []);
+      console.log('Password health data received from API:', eventsData.passwordHealth);
+      setPasswordHealth(eventsData.passwordHealth || []);
+
+      // ---------- Determine Modal (with Feature Flag) ----------
+      console.log('🔐 SIEM Modal Decision:', {
+        hasPaid: paymentData.hasPaid,
+        isTrialActive: paymentData.isTrialActive,
+        isTrialExpired: paymentData.isTrialExpired,
+        pinVerified: pinVerified,
+        pinVerificationSIEMEnabled, // Now guaranteed to be loaded
+      });
+
+      // ✅ Check if PIN verification is enabled for SIEM
+      if (pinVerificationSIEMEnabled === true) {
+        console.log('🔒 PIN verification ENABLED for SIEM');
+        
         if (pinError) {
           setCurrentModal("reVerifyPin");
-        }
-        setTrialActive(paymentData.isTrialActive);
-        setTrialExpired(paymentData.isTrialExpired);
-        setHasPaid(paymentData.hasPaid);
-
-        setLoginEvents(eventsData.loginEvents || []);
-        setPasswordChanges(eventsData.passwordChanges || []);
-        setInvalidLogins(eventsData.invalidLogins || []);
-        console.log('Password health data received from API:', eventsData.passwordHealth);
-        setPasswordHealth(eventsData.passwordHealth || []);
-
-        // ---------- Determine Modal ----------
-        if (paymentData.hasPaid) {
-          setCurrentModal("verifyPin"); // Always show verifyPin for paid users initially
+        } else if (paymentData.hasPaid) {
+          setCurrentModal("verifyPin");
         } else if (paymentData.isTrialActive) {
           setCurrentModal("verifyPin");
         } else if (paymentData.isTrialExpired) {
@@ -168,26 +241,54 @@ const [selectedPlan, setSelectedPlan] = useState<'pro' | 'premium' | 'business' 
         } else {
           setCurrentModal("pay");
         }
-
-        // Add these logs before the modal determination
-        console.log('Payment Data:', {
-          hasPaid: paymentData.hasPaid,
-          isTrialActive: paymentData.isTrialActive,
-          isTrialExpired: paymentData.isTrialExpired,
-          pinVerified: pinVerified
-        });
-
-      } catch (err) {
-        console.error(err);
-        setCurrentModal("pay");
-
-        setError("Failed to fetch dashboard data");
+      } else {
+        console.log('✅ PIN verification DISABLED for SIEM, skipping PIN modal');
+        setPinVerified(true); // Auto-verify
+        
+        // Still check payment status
+        if (paymentData.isTrialExpired && !paymentData.hasPaid) {
+          setCurrentModal("onlyPay");
+        } else if (!paymentData.hasPaid && !paymentData.isTrialActive) {
+          setCurrentModal("pay");
+        } else {
+          setCurrentModal("none"); // Full access
+        }
       }
-    };
 
-    fetchData();
-  }, []);
+    } catch (err) {
+      console.error(err);
+      setCurrentModal("pay");
+      setError("Failed to fetch dashboard data");
+    }
+  };
 
+  fetchData();
+}, [pinVerificationSIEMEnabled]);
+
+
+// Add this helper function after your state declarations
+const shouldRequirePinForSIEM = () => {
+  if (pinVerificationSIEMEnabled === null) {
+    console.log('⏳ SIEM feature flag not loaded yet');
+    return false;
+  }
+
+  const result = (
+    pinVerificationSIEMEnabled === true &&
+    !pinVerified &&
+    (hasPaid || trialActive)
+  );
+
+  console.log('🔐 SIEM PIN check:', {
+    pinVerificationSIEMEnabled,
+    pinVerified,
+    hasPaid,
+    trialActive,
+    result
+  });
+
+  return result;
+};
 
    const handleTryFree = (plan: 'free' | 'pro' = 'free') => {
     // delegate to API call
@@ -439,8 +540,8 @@ const [selectedPlan, setSelectedPlan] = useState<'pro' | 'premium' | 'business' 
 
   // ---------- Render ----------
 
-  if (!pinVerified && currentModal === "verifyPin") {
-    return (
+if (!pinVerified && currentModal === "verifyPin" && pinVerificationSIEMEnabled === true) {
+      return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 px-4">
         <title>System Events Dashboard</title>
         <div className="bg-gray-800 p-8 rounded-3xl shadow-2xl w-full max-w-md flex flex-col items-center">
@@ -479,8 +580,8 @@ const [selectedPlan, setSelectedPlan] = useState<'pro' | 'premium' | 'business' 
   }
 
 
-  if (!pinVerified && currentModal === "reVerifyPin") {
-  return (
+if (!pinVerified && currentModal === "reVerifyPin" && pinVerificationSIEMEnabled === true) {
+    return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-red-200">
 
@@ -662,8 +763,9 @@ if (currentModal === "pay") {
             { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
             { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
             { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
-                        { label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> },
-
+...(phishingDetectorEnabled ? [
+      { label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> }
+    ] : [])
           ].map(({ label, path, icon }) => (
             <div
               key={path}

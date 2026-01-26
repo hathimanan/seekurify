@@ -164,7 +164,8 @@ export const Dashboard: React.FC = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [pinverificationEnabled, setPinVerificationEnabled] = useState<boolean | null>(null);
   const totalPasswords = filteredPasswords.length;
-
+  const [phishingDetectorEnabled, setPhishingDetectorEnabled] = useState<boolean>(false);
+  const [featuresLoaded, setFeaturesLoaded] = useState(false);
 
   const DAYS_90 = 90;
   const now = Date.now();
@@ -302,31 +303,92 @@ export const Dashboard: React.FC = () => {
   });
 
 
-  // FRONTEND: Dashboard.tsx (Core Fixes)
-  useEffect(() => {
 
 
-    const saved = localStorage.getItem("darkMode");
-    if (saved === "true") {
-      document.documentElement.classList.add("dark");
-      setDarkMode(true);
+  // ==========================================
+// 1️⃣ Load Feature Flags FIRST (runs once)
+// ==========================================
+useEffect(() => {
+  const fetchFeatureFlags = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/feature-flags/read`);
+      
+      if (!res.ok) {
+        throw new Error('Failed to fetch feature flags');
+      }
+      
+      const data = await res.json();
+      
+      console.log('✅ Feature flags loaded:', data);
+      setPinVerificationEnabled(data.pinVerificationPasswordManager === true);
+      
+    } catch (err) {
+      console.error("❌ Failed to load feature flags:", err);
+      setPinVerificationEnabled(false);
     }
+  };
 
 
+  
 
-    let isMounted = true;
+  fetchFeatureFlags();
+}, []);
 
-    const initialize = async () => {
-      if (!isMounted) return;
 
-     
+useEffect(() => {
+    const fetchFeatureFlags = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/feature-flags/read`);
+        
+        if (!res.ok) {
+          throw new Error('Failed to fetch feature flags');
+        }
+        
+        const data = await res.json();
+        
+        console.log('✅ Header feature flags loaded:', data);
+        setPhishingDetectorEnabled(data.phishingDetectorEnabled === true);
+        
+      } catch (err) {
+        console.error("❌ Failed to load header feature flags:", err);
+        setPhishingDetectorEnabled(false); // Safe default
+      } finally {
+        setFeaturesLoaded(true);
+      }
+    };
 
-      // 1. Payment check
-      await checkPaymentStatus();
-    const currentPlan = selectedPlan || localStorage.getItem('plan') || 'free';
-      // 2. Get token once
+    fetchFeatureFlags();
+  }, []);
+
+
+// ==========================================
+// 2️⃣ Initialize App Data (runs once)
+// ==========================================
+useEffect(() => {
+  const saved = localStorage.getItem("darkMode");
+  if (saved === "true") {
+    document.documentElement.classList.add("dark");
+    setDarkMode(true);
+  }
+
+  let isMounted = true;
+
+  const initialize = async () => {
+    if (!isMounted) return;
+
+    setIsLoading(true);
+
+    try {
+      // 1. Check payment status
+      const planInfo = await checkPaymentStatus();
+      const currentPlan = planInfo || localStorage.getItem('plan') || 'free';
+
+      // 2. Get token
       const token = localStorage.getItem("token");
-      if (!token) return;
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
 
       // 3. Fetch profile image
       try {
@@ -334,11 +396,11 @@ export const Dashboard: React.FC = () => {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (!res.ok) throw new Error("Failed to fetch profile");
-
-        const data = await res.json();
-        if (isMounted && data.profileImage) {
-          setProfileImage(data.profileImage);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data.profileImage) {
+            setProfileImage(data.profileImage);
+          }
         }
       } catch (err) {
         console.error("Failed to fetch profile image:", err);
@@ -351,238 +413,205 @@ export const Dashboard: React.FC = () => {
         });
 
         const data = await res.json();
+        
         if (isMounted) {
           setPasswords(data);
-const totalPasswords = data.length;
-        setIsPlanLimitReached(currentPlan === 'free' && totalPasswords >= 3);
-        
-        console.log('✅ Plan initialized:', { currentPlan, totalPasswords, isPlanLimitReached: currentPlan === 'free' && totalPasswords >= 3 });
+          const totalPasswords = data.length;
+          setIsPlanLimitReached(currentPlan === 'free' && totalPasswords >= 3);
 
+          console.log('✅ Plan initialized:', { 
+            currentPlan, 
+            totalPasswords, 
+            isPlanLimitReached: currentPlan === 'free' && totalPasswords >= 3 
+          });
+
+          // Check if any password is expired
+          const expired = data.find((p: PasswordEntry) => p.isExpired);
+          if (expired) {
+            setExpiredPassword(expired);
+            setShowExpiryModal(true);
+            
+            // 🔒 prevent other modals when showing expiry
+            setShowPayModal(false);
+            setShowTrialModal(false);
+            setShowOnlyPayModal(false);
+            setShowReverifyPinModal(false);
+          }
         }
-        // Check if any password is expired
-        const expired = data.find((p: PasswordEntry) => p.isExpired);
-        if (expired) {
-          setExpiredPassword(expired);
-          setShowExpiryModal(true);
-
-          // 🔒 prevent other modals
-          setShowPayModal(false);
-          setShowTrialModal(false);
-          setShowOnlyPayModal(false);
-          setShowReverifyPinModal(false);
-        }
-
-      }
-      catch (err) {
+      } catch (err) {
         console.error("Failed to fetch passwords:", err);
       }
-    };
-
-    initialize();
-    // setShowPassword(false);
-
-
-    return () => {
-      isMounted = false;
-    };
-  }, [viewingPassword, location.pathname]);
-
-
-
-  useEffect(() => {
-  let isMounted = true;
-
-  const initialize = async () => {
-    if (!isMounted) return;
-
-    // 1. FIRST: Check payment status (updates plan states)
-
-    // 2. THEN: Load passwords with correct plan context
-
-    setIsLoading(true);
-const planInfo = await checkPaymentStatus();
-
-    const token = localStorage.getItem("token");
-    if (!token) return;
-    try {
-      const res = await fetch("/api/passwords", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      
+    } catch (err) {
+      console.error("Initialization error:", err);
+    } finally {
       if (isMounted) {
-        setPasswords(data);
-const currentPlan = planInfo || 'free'; 
-      if (currentPlan === 'free' && data.length >= 3) {
-        setIsPlanLimitReached(true);
-      } else {
-        setIsPlanLimitReached(false);
+        setIsLoading(false);
       }
-
-      }
-    } catch (err) {
-      console.error("Failed to fetch passwords:", err);
-    }
-
-    finally {
-      setIsLoading(false);
     }
   };
 
   initialize();
-  return () => { isMounted = false; };
-}, []);  // ✅ Empty deps - run once
 
-
-  useEffect(() => {
-    if (editingPassword) {
-      setPasswordFormData({
-        website: editingPassword.website || '',
-        username: editingPassword.username || '',
-        password: '',                 // 🔐 never prefill password
-        category: editingPassword.category || '',
-        notes: editingPassword.notes || '',
-      });
-
-      setCurrentPassword('');
-      setShowCurrentPassword(false);
-      setShowNewPassword(false);
-    }
-  }, [editingPassword]);
-
-
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredPasswords(passwords);
-    } else {
-      const query = searchQuery.toLowerCase();
-      const filtered = passwords.filter((p) =>
-        p.website.toLowerCase().includes(query) ||
-        p.username.toLowerCase().includes(query) ||
-        (p.notes && p.notes.toLowerCase().includes(query))
-      );
-      setFilteredPasswords(filtered);
-    }
-  }, [searchQuery, passwords]);
-
-
-
-  useEffect(() => {
-    const modalOpen = showPassword || showEditModal || showAddForm || showReverifyPinModal || showShareModal || showCopyModal || showDeleteConfirmationModal || showExpiryModal || showPayModal || showTrialModal || showReuseWarning;
-    if (modalOpen) document.body.style.overflow = 'hidden';
-    else document.body.style.overflow = '';
-    return () => { document.body.style.overflow = ''; };
-  }, [showPassword, showEditModal, showAddForm, showReverifyPinModal, showShareModal, showCopyModal, showDeleteConfirmationModal, showExpiryModal, showPayModal, showTrialModal, showReuseWarning]);
-
-  const toggleDarkMode = () => {
-    const next = !darkMode;
-    setDarkMode(next);
-
-    if (next) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("darkMode", "true");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("darkMode", "false");
-    }
+  return () => {
+    isMounted = false;
   };
+}, []); // ✅ Empty deps - run once on mount
 
-
-
- // Dashboard.tsx - Update the useEffect for feature flags
+// ==========================================
+// 3️⃣ Show PIN Modal When Ready
+// ==========================================
 useEffect(() => {
-  const fetchFeatureFlags = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/feature-flags/read`); // ✅ Correct syntax
-      
-      if (!res.ok) {
-        throw new Error('Failed to fetch feature flags');
-      }
-      
-      const data = await res.json();
-      
-      console.log('✅ Feature flags loaded:', data);
-      
-      // Set the PIN verification state
-      setPinVerificationEnabled(data.pinVerificationPasswordManager === true);
-      
-    } catch (err) {
-      console.error("❌ Failed to load feature flags:", err);
-      // Safe default: disable PIN verification on error
-      setPinVerificationEnabled(false);
-    }
-  };
+  // Wait for both feature flags and payment status to load
+  if (pinverificationEnabled === null || !paymentChecked) {
+    console.log('⏳ Waiting for feature flags and payment status...');
+    return;
+  }
+
+  // Don't show PIN modal if expiry modal is showing
+  if (showExpiryModal) {
+    console.log('⚠️ Expiry modal active, skipping PIN modal');
+    return;
+  }
+
+  const needsPin = shouldRequirePin();
   
-  fetchFeatureFlags();
-}, []);
+  console.log('🔐 PIN check:', {
+    pinverificationEnabled,
+    isReverified,
+    hasPaid,
+    trialActive,
+    showExpiryModal,
+    needsPin
+  });
 
+  // Show PIN modal if needed and not already shown
+  if (needsPin && !showReverifyPinModal && !isReverified) {
+    console.log('✅ Showing PIN modal');
+    setShowReverifyPinModal(true);
+  }
+}, [
+  pinverificationEnabled, 
+  paymentChecked, 
+  hasPaid, 
+  trialActive, 
+  isReverified,
+  showExpiryModal // Add this dependency
+]);
 
+// ==========================================
+// 4️⃣ Update Form When Editing Password
+// ==========================================
 useEffect(() => {
-  let isMounted = true;
+  if (editingPassword) {
+    setPasswordFormData({
+      website: editingPassword.website || '',
+      username: editingPassword.username || '',
+      password: '', // 🔐 never prefill password
+      category: editingPassword.category || '',
+      notes: editingPassword.notes || '',
+    });
 
-  const initialize = async () => {
-    if (!isMounted) return;
+    setCurrentPassword('');
+    setShowCurrentPassword(false);
+    setShowNewPassword(false);
+  }
+}, [editingPassword]);
 
-    const planInfo = await checkPaymentStatus(); // updates hasPaid, trialActive, etc.
-
-    // Only show PIN modal if:
-    // - pin verification is enabled
-    // - user has paid or trial is active
-    // - not already reverified
-    if (shouldRequirePin() && (hasPaid || trialActive)) {
-      setShowReverifyPinModal(true);
-    }
-  };
-
-
-  initialize();
-
-  return () => { isMounted = false; };
-}, [pinverificationEnabled, hasPaid, trialActive, isReverified]);
-
-
+// ==========================================
+// 5️⃣ Filter Passwords Based on Search
+// ==========================================
 useEffect(() => {
-  // Don't run if feature flags haven't loaded
-  if (pinverificationEnabled === null) return;
+  if (!searchQuery.trim()) {
+    setFilteredPasswords(passwords);
+  } else {
+    const query = searchQuery.toLowerCase();
+    const filtered = passwords.filter((p) =>
+      p.website.toLowerCase().includes(query) ||
+      p.username.toLowerCase().includes(query) ||
+      (p.notes && p.notes.toLowerCase().includes(query))
+    );
+    setFilteredPasswords(filtered);
+  }
+}, [searchQuery, passwords]);
+
+// ==========================================
+// 6️⃣ Prevent Body Scroll When Modal Open
+// ==========================================
+useEffect(() => {
+  const modalOpen = 
+    showPassword || 
+    showEditModal || 
+    showAddForm || 
+    showReverifyPinModal || 
+    showShareModal || 
+    showCopyModal || 
+    showDeleteConfirmationModal || 
+    showExpiryModal || 
+    showPayModal || 
+    showTrialModal || 
+    showReuseWarning;
+    
+  if (modalOpen) {
+    document.body.style.overflow = 'hidden';
+  } else {
+    document.body.style.overflow = '';
+  }
   
-  let isMounted = true;
-
-  const initialize = async () => {
-    if (!isMounted) return;
-
-    const planInfo = await checkPaymentStatus();
-
-    // Only show PIN modal if user has access
-    if (shouldRequirePin() && (hasPaid || trialActive)) {
-      setShowReverifyPinModal(true);
-    }
+  return () => { 
+    document.body.style.overflow = ''; 
   };
+}, [
+  showPassword, 
+  showEditModal, 
+  showAddForm, 
+  showReverifyPinModal, 
+  showShareModal, 
+  showCopyModal, 
+  showDeleteConfirmationModal, 
+  showExpiryModal, 
+  showPayModal, 
+  showTrialModal, 
+  showReuseWarning
+]);
 
-  initialize();
+// ==========================================
+// Helper Functions
+// ==========================================
+const toggleDarkMode = () => {
+  const next = !darkMode;
+  setDarkMode(next);
 
-  return () => { isMounted = false; };
-}, [pinverificationEnabled, hasPaid, trialActive, isReverified]);
+  if (next) {
+    document.documentElement.classList.add("dark");
+    localStorage.setItem("darkMode", "true");
+  } else {
+    document.documentElement.classList.remove("dark");
+    localStorage.setItem("darkMode", "false");
+  }
+};
 
 const shouldRequirePin = () => {
   // Don't require PIN if feature flag isn't loaded yet
-  if (pinverificationEnabled === null) return false;
-  
+  if (pinverificationEnabled === null) {
+    return false;
+  }
+
   // Only require PIN if:
   // 1. Feature is enabled
   // 2. User hasn't been reverified yet
   // 3. User is either paid OR on active trial
-  return (
-    pinverificationEnabled === true && 
-    !isReverified && 
+  const result = (
+    pinverificationEnabled === true &&
+    !isReverified &&
     (hasPaid || trialActive)
   );
+
+  return result;
 };
 
 
-  // toggle used specifically for the "View Password" modal visibility (mask/unmask)
-  const toggleShowPassword = () => setShowViewingPassword((prev) => !prev);
-
-
+// Current (correct name, correct implementation)
+const toggleShowPassword = () => setShowViewingPassword((prev) => !prev);
 
   const validateReverifyPin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -673,59 +702,21 @@ const checkPaymentStatus = async (): Promise<string | null> => {
     setTrialActive(data.isTrialActive);
     setTrialExpired(data.isTrialExpired);
 
-    // ─────────────────────────────
-    // Modal Logic (Improved)
-    // ─────────────────────────────
+    console.log('💰 Payment status:', {
+      plan: backendPlan,
+      hasPaid: data.hasPaid,
+      trialActive: data.isTrialActive,
+      trialExpired: data.isTrialExpired
+    });
 
-    const pinRequired = shouldRequirePin(); // flag-aware
-
-    // 1️⃣ Paid users
-    if (data.hasPaid && backendPlan !== 'free') {
-      if (pinRequired) {
-        // Persist state across redirect
-        localStorage.setItem('needsPin', 'true');
-        setShowReverifyPinModal(true);
-      }
-      return backendPlan;
-    }
-
-    // 2️⃣ Trial active
-    if (!data.hasPaid && data.isTrialActive && !data.isTrialExpired) {
-      if (pinRequired) {
-        localStorage.setItem('needsPin', 'true');
-        setShowReverifyPinModal(true);
-      }
-      return backendPlan;
-    }
-
-    // 3️⃣ Trial expired
+    // Handle trial expired (ONLY show payment modal, not PIN modal)
     if (!data.hasPaid && data.isTrialExpired) {
       setShowOnlyPayModal(true);
-      // Optionally still show PIN modal after payment
-      if (pinRequired) {
-        localStorage.setItem('needsPin', 'true');
-      }
-      return backendPlan;
-    }
-
-    // 4️⃣ Free / no trial
-    if (!data.hasPaid && !data.isTrialActive && !data.isTrialExpired) {
-      if (pinRequired) {
-        localStorage.setItem('needsPin', 'true');
-        setShowReverifyPinModal(true);
-      }
-      return backendPlan;
-    }
-
-    // Fallback: show PIN modal if required
-    if (pinRequired) {
-      localStorage.setItem('needsPin', 'true');
-      setShowReverifyPinModal(true);
     }
 
     return backendPlan;
   } catch (err) {
-    console.error('Payment status error:', err);
+    console.error('❌ Payment status error:', err);
     return null;
   } finally {
     setPaymentChecked(true);
@@ -734,47 +725,46 @@ const checkPaymentStatus = async (): Promise<string | null> => {
 
 
 
+  const handleStartTrial = async (plan: 'free' | 'pro' | 'premium') => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('User not authenticated');
 
-const handleStartTrial = async (plan: 'free' | 'pro' | 'premium') => {
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) throw new Error('User not authenticated');
+      const response = await fetch(`${API_BASE_URL}/auth/start-trial/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ plan }),
+      });
 
-    const response = await fetch(`${API_BASE_URL}/auth/start-trial/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ plan }),
-    });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Failed to start trial');
 
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || 'Failed to start trial');
+      setTrialActive(true);
+      setSelectedPlan(plan);
+      setTrialPlan(plan);
 
-    setTrialActive(true);
-    setSelectedPlan(plan);
-    setTrialPlan(plan);
+      localStorage.setItem('trialActive', 'true');
+      localStorage.setItem('trialPlan', plan);
+      // localStorage.setItem('plan', plan);
 
-    localStorage.setItem('trialActive', 'true');
-    localStorage.setItem('trialPlan', plan);
-    // localStorage.setItem('plan', plan);
+      setTrialMessage(`Your ${plan.toUpperCase()} trial has started! You have 7 days.`);
+      setShowTrialModal(true);
 
-    setTrialMessage(`Your ${plan.toUpperCase()} trial has started! You have 7 days.`);
-    setShowTrialModal(true);
-
-  } catch (err) {
-    console.error('Error starting trial:', err);
-    setTrialMessage('Failed to start the trial. Try again.');
-  }
-};
+    } catch (err) {
+      console.error('Error starting trial:', err);
+      setTrialMessage('Failed to start the trial. Try again.');
+    }
+  };
 
 
   // ----------------------------
   // Trial modal OK handler
   // ----------------------------
- const handleTrialModalOk = () => {
-  setTrialAcknowledged(true);
-  setShowTrialModal(false);
-  setShowReverifyPinModal(true);
-};
+  const handleTrialModalOk = () => {
+    setTrialAcknowledged(true);
+    setShowTrialModal(false);
+    setShowReverifyPinModal(true);
+  };
 
 
   // Activate a trial for a specific plan (free or pro). The backend will record the plan and trial period.
@@ -892,33 +882,33 @@ const handleStartTrial = async (plan: 'free' | 'pro' | 'premium') => {
         order_id: orderId,
         prefill: { ...paymentFormData, amount: amountToUse },
         theme: { color: '#0f172a' },
-     // Inside options.handler
-handler: async (response: any) => {
-  // Use 'selectedPlan' which was set when the user clicked the pricing card
-  const planToSubmit = selectedPlan; 
-try {
-  const res = await fetch(`${API_BASE_URL}/auth/payment-success`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({
-      ...response, // includes razorpay_order_id, etc.
-      plan: planToSubmit // 🎯 CRITICAL: This must be 'pro', 'premium', or 'business'
-    }),
-  });
-  
-  const result = await res.json();
-  if (result.success) {
-     localStorage.setItem('plan', result.plan); // Use what the server confirmed
-     window.location.href = '/dashboard';
-  }
+        // Inside options.handler
+        handler: async (response: any) => {
+          // Use 'selectedPlan' which was set when the user clicked the pricing card
+          const planToSubmit = selectedPlan;
+          try {
+            const res = await fetch(`${API_BASE_URL}/auth/payment-success`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+              body: JSON.stringify({
+                ...response, // includes razorpay_order_id, etc.
+                plan: planToSubmit // 🎯 CRITICAL: This must be 'pro', 'premium', or 'business'
+              }),
+            });
 
- else {
-      setError(result.message || 'Payment verification failed.');
-    }
-  } catch (err) {
-    setError('Server error while verifying payment.');
-  }
-},
+            const result = await res.json();
+            if (result.success) {
+              localStorage.setItem('plan', result.plan); // Use what the server confirmed
+              window.location.href = '/dashboard';
+            }
+
+            else {
+              setError(result.message || 'Payment verification failed.');
+            }
+          } catch (err) {
+            setError('Server error while verifying payment.');
+          }
+        },
         modal: {
           ondismiss: () => { },
         },
@@ -1059,8 +1049,8 @@ try {
                 onClick={() => handleTryFree('free')}
                 disabled={passwords.length > 3}
                 className={`mt-auto w-full border py-2 rounded-lg transition ${passwords.length > 3
-                    ? 'border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed'
-                    : 'border-purple-600 text-purple-600 hover:bg-purple-50'
+                  ? 'border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed'
+                  : 'border-purple-600 text-purple-600 hover:bg-purple-50'
                   }`}
               >
                 {passwords.length > 3 ? 'Limit Reached' : 'Try Free'}
@@ -1250,12 +1240,12 @@ try {
   const handleAddPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     const currentPlan = selectedPlan || localStorage.getItem('plan') || 'free';
-  console.log('🧪 Add password check:', { currentPlan, passwordsLength: passwords.length });
-  
-  if (currentPlan === 'free' && passwords.length >= 3) {
-    setShowPlanLimitModal(true);
-    return;
-  }
+    console.log('🧪 Add password check:', { currentPlan, passwordsLength: passwords.length });
+
+    if (currentPlan === 'free' && passwords.length >= 3) {
+      setShowPlanLimitModal(true);
+      return;
+    }
 
     if (checkPasswordReuse(passwordformData.password)) {
       setShowReuseWarning(true); // 👈 open modal instead of alert
@@ -1278,9 +1268,9 @@ try {
 
 
 
-const handleUpdatePassword = async (e: React.FormEvent) => {
-      // const data = await apiService.getPasswords({ params: { t: Date.now() } });
-e.preventDefault();
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    // const data = await apiService.getPasswords({ params: { t: Date.now() } });
+    e.preventDefault();
 
     if (
       checkPasswordReuse(passwordformData.password) &&
@@ -1515,8 +1505,9 @@ e.preventDefault();
             { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
             { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
             { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
-                        { label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> },
-            
+...(phishingDetectorEnabled ? [
+      { label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> }
+    ] : [])
           ].map(({ label, path, icon }) => (
             <div
               key={path}
@@ -1606,8 +1597,8 @@ e.preventDefault();
 
 
           <div className={`bg-gradient-to-br ${plan === 'free'
-              ? 'from-orange-400 to-orange-600'
-              : 'from-emerald-400 to-emerald-600'
+            ? 'from-orange-400 to-orange-600'
+            : 'from-emerald-400 to-emerald-600'
             } rounded-xl p-6 flex flex-col items-center justify-center text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105`}>
             <div className="text-3xl font-extrabold">{plan === 'free' ? 'FREE' : 'PREMIUM'}</div>
             <div className="mt-1 text-sm font-medium opacity-90">
@@ -1626,17 +1617,16 @@ e.preventDefault();
           <div className="bg-white shadow-xl rounded-2xl p-6 border border-gray-200">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-gray-800">Your Saved Passwords</h2>
-             <Button
-  onClick={() => setShowAddForm(true)}
-  className={`px-5 py-2 rounded-xl shadow-md transition ${
-    isPlanLimitReached
-      ? 'bg-gray-400 cursor-not-allowed text-gray-600'
-      : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white hover:shadow-lg'
-  }`}
->
-  {isPlanLimitReached ? '💎 Upgrade to Add More' : '+ Add New'}
-</Button>
-  </div>
+              <Button
+                onClick={() => setShowAddForm(true)}
+                className={`px-5 py-2 rounded-xl shadow-md transition ${isPlanLimitReached
+                    ? 'bg-gray-400 cursor-not-allowed text-gray-600'
+                    : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white hover:shadow-lg'
+                  }`}
+              >
+                {isPlanLimitReached ? '💎 Upgrade to Add More' : '+ Add New'}
+              </Button>
+            </div>
 
 
 
@@ -1735,39 +1725,34 @@ e.preventDefault();
                             </Tooltip>
                           </TooltipProvider>
 
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="hover:bg-green-100 hover:text-green-600 rounded-full transition"
-                                  onClick={() => {
-                                    setConfirmId(password._id);
-                                    setPinAction("view");
- 
- 
-     const pinRequired = shouldRequirePin(); // flag-aware
+                <TooltipProvider>
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <Button
+        variant="outline"
+        size="icon"
+        className="hover:bg-green-100 hover:text-green-600 rounded-full transition"
+        onClick={() => {
+          setConfirmId(password._id);
+          setPinAction("view");
 
-    // 1️⃣ Paid users
-      if (pinRequired) {
-        // Persist state across redirect
-        localStorage.setItem('needsPin', 'true');
-        setShowReverifyPinModal(true);
-      }
-       else {
-    handleViewPassword(password._id);
-  }                                  }}
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>View Password</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+          if (shouldRequirePin()) {
+            console.log('🔒 PIN required for viewing');
+            setShowReverifyPinModal(true);
+          } else {
+            console.log('✅ No PIN required, showing password directly');
+            handleViewPassword(password._id);
+          }
+        }}
+      >
+        <Eye className="w-4 h-4" />
+      </Button>
+    </TooltipTrigger>
+    <TooltipContent>View Password</TooltipContent>
+  </Tooltip>
+</TooltipProvider>
 
-                          {/* Edit Button */}
-                         <TooltipProvider>
+  <TooltipProvider>
   <Tooltip>
     <TooltipTrigger asChild>
       <Button
@@ -1777,11 +1762,12 @@ e.preventDefault();
         onClick={() => {
           setConfirmId(password._id);
           setPinAction("edit");
-          
+
           if (shouldRequirePin()) {
-            setShowReverifyPinModal(true);  // PIN → handleReverifyPinSubmit sets editingPassword
+            console.log('🔒 PIN required for editing');
+            setShowReverifyPinModal(true);
           } else {
-            // Direct edit path - PREPARE FORM FIRST (like handleReverifyPinSubmit does)
+            console.log('✅ No PIN required, opening edit modal directly');
             const pwdToEdit = passwords.find(p => p._id === password._id);
             if (pwdToEdit) {
               setEditingPassword(pwdToEdit);
@@ -1793,7 +1779,7 @@ e.preventDefault();
                 notes: pwdToEdit.notes,
               });
               setCurrentPassword('');
-              setShowEditModal(true);  // Open edit modal
+              setShowEditModal(true);
             }
           }
         }}
@@ -1806,30 +1792,32 @@ e.preventDefault();
 </TooltipProvider>
 
                           {/* Delete Button */}
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="hover:bg-red-100 hover:text-red-600 rounded-full transition"
-                                  onClick={() => {
-                                    setConfirmId(password._id);
-                                    setPinAction("delete");
+<TooltipProvider>
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <Button
+        variant="outline"
+        size="icon"
+        className="hover:bg-red-100 hover:text-red-600 rounded-full transition"
+        onClick={() => {
+          setConfirmId(password._id);
+          setPinAction("delete");
 
-  if (shouldRequirePin()) {
-    setShowReverifyPinModal(true);
-  } else {
-    setShowDeleteConfirmationModal(true);
-  }                                  }
-                                  }
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Delete Password</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+          if (shouldRequirePin()) {
+            console.log('🔒 PIN required for deleting');
+            setShowReverifyPinModal(true);
+          } else {
+            console.log('✅ No PIN required, showing delete confirmation directly');
+            setShowDeleteConfirmationModal(true);
+          }
+        }}
+      >
+        <Trash2 className="w-4 h-4" />
+      </Button>
+    </TooltipTrigger>
+    <TooltipContent>Delete Password</TooltipContent>
+  </Tooltip>
+</TooltipProvider>
 
 
                           {/* Share Button */}
@@ -2058,7 +2046,7 @@ e.preventDefault();
             )}
 
             {
-              showReverifyPinModal &&  pinverificationEnabled === true  && !pinError && (
+              showReverifyPinModal && pinverificationEnabled === true && !pinError && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                   <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-lg flex flex-col items-center">
 
@@ -2143,7 +2131,7 @@ e.preventDefault();
 
 
             {
-              showReverifyPinModal && pinverificationEnabled === true  && pinError && (
+              showReverifyPinModal && pinverificationEnabled === true && pinError && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                   <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-red-200">
 

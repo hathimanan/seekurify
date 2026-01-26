@@ -3,7 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import Header from "./ui/Header";
 import Footer from "./ui/Footer";
-import { ArrowLeft, BarChart3, FileSearch, KeyRound, Phone, ShieldCheck } from "lucide-react";
+import { ArrowLeft, BarChart3, FileSearch, KeyRound, Phone, ShieldAlert, ShieldCheck } from "lucide-react";
 import { API_BASE_URL } from '../services/api';
 import { useEffect } from "react";
 import { motion } from "framer-motion";
@@ -46,6 +46,35 @@ const [formData, setFormData] = useState<FormData>({
   const [profileImage, setProfileImage] = useState<string>(""); // ✅ state for header
   const [sidebarExpanded,setSidebarExpanded] = useState(true);
     const [darkMode, setDarkMode] = useState(false);
+
+      const [phishingDetectorEnabled, setPhishingDetectorEnabled] = useState<boolean>(false);
+      const [featuresLoaded, setFeaturesLoaded] = useState(false);
+
+      
+        useEffect(() => {
+            const fetchFeatureFlags = async () => {
+              try {
+                const res = await fetch(`${API_BASE_URL}/feature-flags/read`);
+                
+                if (!res.ok) {
+                  throw new Error('Failed to fetch feature flags');
+                }
+                
+                const data = await res.json();
+                
+                console.log('✅ Header feature flags loaded:', data);
+                setPhishingDetectorEnabled(data.phishingDetectorEnabled === true);
+                
+              } catch (err) {
+                console.error("❌ Failed to load header feature flags:", err);
+                setPhishingDetectorEnabled(false); // Safe default
+              } finally {
+                setFeaturesLoaded(true);
+              }
+            };
+        
+            fetchFeatureFlags();
+          }, []);
 
   useEffect(() => {
 
@@ -239,6 +268,9 @@ const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
         { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
         { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
+        ...(phishingDetectorEnabled ? [
+      { label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> }
+    ] : [])
       ].map(({ label, path, icon }) => (
         <div
           key={path}

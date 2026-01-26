@@ -9,22 +9,34 @@ const featureFlagRoutes = express.Router();
 // ============================================
 
 // PUBLIC ENDPOINT - Read feature flags for frontend
+// routes/featureFlags.js
+
 featureFlagRoutes.get("/read", async (req, res) => {
   try {
     const otpFlag = await featureflags.findOne({ key: "otp_verification" });
     const pinPMFlag = await featureflags.findOne({
       key: "pin_verification_password_manager",
     });
+    const pinSIEMFlag = await featureflags.findOne({
+      key: "pin_verification_siem",
+    });
+    const phishingDetectorFlag = await featureflags.findOne({
+      key: "phishing_detector", // ✅ Add Phishing Detector flag
+    });
 
     res.json({
       otpEnabled: otpFlag ? otpFlag.enabled : true,
       pinVerificationPasswordManager: pinPMFlag ? pinPMFlag.enabled : false,
+      pinVerificationSIEM: pinSIEMFlag ? pinSIEMFlag.enabled : false,
+      phishingDetectorEnabled: phishingDetectorFlag ? phishingDetectorFlag.enabled : false, // ✅ Add to response
     });
   } catch (err) {
     console.error("Error reading feature flags:", err);
     res.status(500).json({
       otpEnabled: true,
       pinVerificationPasswordManager: false,
+      pinVerificationSIEM: false,
+      phishingDetectorEnabled: false, // ✅ Safe default
     });
   }
 });

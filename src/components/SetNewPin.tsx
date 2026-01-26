@@ -159,18 +159,18 @@ const token = queryParams.get("token");
 
   return (
     <div className="p-0">
-      <Header
+      {/* <Header
         token={localStorage.getItem("token") || ""}
         handleLogout={handleLogout}
         profileImage={profileImage} // ✅ pass state
         sidebarExpanded={sidebarExpanded}
         setSidebarExpanded={setSidebarExpanded}
-      />
+      /> */}
 
 
         <div className="flex flex-1 overflow-hidden">
     {/* Sidebar */}
-    <motion.aside
+    {/* <motion.aside
       initial={false}
   animate={{ width: sidebarExpanded ? "18rem" : "4rem" }}
       transition={{ type: "spring", stiffness: 260, damping: 30 }}
@@ -197,7 +197,7 @@ const token = queryParams.get("token");
             </span>
           )}
         </div>
-      ))}
+      ))} */}
 
       {/* Expand/Collapse */}
       {/* <div
@@ -211,7 +211,7 @@ const token = queryParams.get("token");
           </span>
         )}
       </div> */}
-    </motion.aside>
+    {/* </motion.aside> */}
 
       <main className="flex-grow p-6 bg-gradient-to-br from-indigo-50 to-blue-100 rounded-lg">
         <div className="p-6 bg-gradient-to-br from-indigo-50 to-blue-100 min-h-screen rounded-lg">

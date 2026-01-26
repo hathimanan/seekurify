@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { ShieldAlert, ShieldCheck, Search, Loader2, AlertCircle } from 'lucide-react';
 import { ArrowLeft } from 'lucide-react';
 import { FileSearch, KeyRound, BarChart3, Phone } from 'lucide-react';
@@ -60,6 +61,9 @@ const [replyToField, setReplyToField] = useState("");
 const [toField, setToField] = useState("");
 const [ccField, setCcField] = useState("");
 const [bccField, setBccField] = useState("");
+  const [phishingDetectorEnabled, setPhishingDetectorEnabled] = useState<boolean>(false);
+  const [featuresLoaded, setFeaturesLoaded] = useState(false);
+
 
 type RecipientFields = {
   from: string;
@@ -68,6 +72,32 @@ type RecipientFields = {
   cc: string;
   bcc: string;
 };
+
+useEffect(() => {
+    const fetchFeatureFlags = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/feature-flags/read`);
+        
+        if (!res.ok) {
+          throw new Error('Failed to fetch feature flags');
+        }
+        
+        const data = await res.json();
+        
+        console.log('✅ Header feature flags loaded:', data);
+        setPhishingDetectorEnabled(data.phishingDetectorEnabled === true);
+        
+      } catch (err) {
+        console.error("❌ Failed to load header feature flags:", err);
+        setPhishingDetectorEnabled(false); // Safe default
+      } finally {
+        setFeaturesLoaded(true);
+      }
+    };
+
+    fetchFeatureFlags();
+  }, []);
+
 
 
 const triggerError = (msg: string) => {
@@ -322,8 +352,10 @@ if (brokenHeaderRegex.test(text)) {
             { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
             { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
             { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
-            { label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> },
-          ].map(({ label, path, icon }) => (
+...(phishingDetectorEnabled ? [
+      { label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> }
+    ] : [])
+            ].map(({ label, path, icon }) => (
             <div
               key={path}
               onClick={() => navigate(path)}

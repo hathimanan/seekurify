@@ -32,10 +32,37 @@ const Profile: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [profileImage, setProfileImage] = useState<string | undefined>(undefined); // ✅ state for profile image
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
-
+const [phishingDetectorEnabled, setPhishingDetectorEnabled] = useState<boolean>(false);
+  const [featuresLoaded, setFeaturesLoaded] = useState(false);
 
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+
+  useEffect(() => {
+      const fetchFeatureFlags = async () => {
+        try {
+          const res = await fetch(`${API_BASE_URL}/feature-flags/read`);
+          
+          if (!res.ok) {
+            throw new Error('Failed to fetch feature flags');
+          }
+          
+          const data = await res.json();
+          
+          console.log('✅ Header feature flags loaded:', data);
+          setPhishingDetectorEnabled(data.phishingDetectorEnabled === true);
+          
+        } catch (err) {
+          console.error("❌ Failed to load header feature flags:", err);
+          setPhishingDetectorEnabled(false); // Safe default
+        } finally {
+          setFeaturesLoaded(true);
+        }
+      };
+  
+      fetchFeatureFlags();
+    }, []);
 
   /** Fetch Profile on Mount */
   useEffect(() => {
@@ -245,8 +272,9 @@ return (
             { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
             { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
             { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
-                        { label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> },
-            
+...(phishingDetectorEnabled ? [
+      { label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> }
+    ] : [])            
           ].map(({ label, path, icon }) => (
             <div
               key={path}

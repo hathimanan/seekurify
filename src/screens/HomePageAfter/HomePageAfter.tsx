@@ -28,7 +28,36 @@ export const HomePageAfter = (): JSX.Element => {
   const [expireAfterDays, setExpireAfterDays] = useState(null);
   const [sidebarExpanded, setSidebarExpanded] = useState(true); // ✅ sidebar toggle state
 const [darkMode, setDarkMode] = useState(false);
+  const [phishingDetectorEnabled, setPhishingDetectorEnabled] = useState<boolean>(false);
+  const [featuresLoaded, setFeaturesLoaded] = useState(false);
 
+
+
+  useEffect(() => {
+      const fetchFeatureFlags = async () => {
+        try {
+          const res = await fetch(`${API_BASE_URL}/feature-flags/read`);
+          
+          if (!res.ok) {
+            throw new Error('Failed to fetch feature flags');
+          }
+          
+          const data = await res.json();
+          
+          console.log('✅ Header feature flags loaded:', data);
+          setPhishingDetectorEnabled(data.phishingDetectorEnabled === true);
+          
+        } catch (err) {
+          console.error("❌ Failed to load header feature flags:", err);
+          setPhishingDetectorEnabled(false); // Safe default
+        } finally {
+          setFeaturesLoaded(true);
+        }
+      };
+  
+      fetchFeatureFlags();
+    }, []);
+  
 
   useEffect(() => {
     const fetchProfileImage = async () => {
@@ -208,8 +237,10 @@ const [darkMode, setDarkMode] = useState(false);
             { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
             { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
             { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
-            { label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> },
-          ].map(({ label, path, icon }) => (
+...(phishingDetectorEnabled ? [
+      { label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> }
+    ] : [])
+            ].map(({ label, path, icon }) => (
             <div
               key={path}
               onClick={() => navigate(path)}
