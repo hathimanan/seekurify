@@ -156,6 +156,10 @@ export const SecurityAwareness: React.FC = () => {
   const [selectedTip, setSelectedTip] = useState<Tip | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
     const [darkMode, setDarkMode] = useState(false);
+const [featureFlags, setFeatureFlags] = useState({
+  securityChatbotEnabled: false,
+  // ... other flags
+});
 
       const [phishingDetectorEnabled, setPhishingDetectorEnabled] = useState<boolean>(false);
       const [featuresLoaded, setFeaturesLoaded] = useState(false);
@@ -171,6 +175,20 @@ export const SecurityAwareness: React.FC = () => {
     setIsModalOpen(false);
   };
 
+
+useEffect(() => {
+  const fetchFeatureFlags = async () => {
+    try {
+      const response = await fetch('/api/feature-flags/read');
+      const data = await response.json();
+      setFeatureFlags(data);
+    } catch (error) {
+      console.error('Error fetching feature flags:', error);
+    }
+  };
+
+  fetchFeatureFlags();
+}, []);
 
   useEffect(() => {
       const fetchFeatureFlags = async () => {
@@ -636,12 +654,14 @@ const toggleDarkMode = () => {
         </main>
 
         {/* Add fixed SecurityChatbotIcon */}
-        <div
-          className="fixed bottom-8 right-8 z-50 cursor-pointer"
-          onClick={() => setIsOpen(!isOpen)}
-        >
-          <SecurityChatbotIcon />
-        </div>
+        {featureFlags.securityChatbotEnabled && (
+  <div
+    className="fixed bottom-8 right-8 z-50 cursor-pointer"
+    onClick={() => setIsOpen(!isOpen)}
+  >
+    <SecurityChatbotIcon />
+  </div>
+)}
 
         {/* Chat Window */}
         {/* {!isOpen && (

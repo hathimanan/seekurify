@@ -65,9 +65,7 @@ const [thankYouMap, setThankYouMap] = useState<Record<string, boolean>>({});
 });
 const [showSaved, setShowSaved] = useState(false);
   const [widgetData, setWidgetData] = useState<any>(null);
-  const [responseFormat, setResponseFormat] = useState<
-  "concise" | "detailed" | "bullets"
->("detailed");
+const [responseFormat, setResponseFormat] = useState<"concise" | "detailed" | "bullet">("detailed");
   const [chatHistory, setChatHistory] = useState<{
     question: string;
     answer: string;
@@ -76,7 +74,7 @@ const [showSaved, setShowSaved] = useState(false);
     widgetData: any;
     feedback: "up" | "down" | null;
     media?: Media;
-    format?: "concise" | "detailed" | "bullets";
+    format?: "concise" | "detailed" | "bullet";
   }[]>([]);
 
 
@@ -494,30 +492,28 @@ return (
       </div>
     )}
 
-
     {/* 🧾 Response Format Selector */}
-<div className="flex gap-2 mb-2">
-  {[
-    { id: "concise", label: "⚡ Concise" },
-    { id: "detailed", label: "📖 Detailed" },
-    { id: "bullets", label: "📌 Bullet Points" },
-  ].map((opt) => (
-    <button
-      key={opt.id}
-      onClick={() => setResponseFormat(opt.id as any)}
-      className={`px-3 py-1 text-sm rounded-full transition ${
-        responseFormat === opt.id
-          ? "bg-blue-600 text-white"
-          : darkMode
-          ? "bg-gray-700 text-gray-200 hover:bg-gray-600"
-          : "bg-gray-200 text-gray-800 hover:bg-gray-300"
-      }`}
-    >
-      {opt.label}
-    </button>
-  ))}
-</div>
-
+    <div className="flex gap-2 mb-2 p-3">
+      {[
+        { id: "concise" as const, label: "⚡ Concise" },
+        { id: "detailed" as const, label: "📖 Detailed" },
+        { id: "bullet" as const, label: "📌 Bullet Points" },
+      ].map((opt) => (
+        <button
+          key={opt.id}
+          onClick={() => setResponseFormat(opt.id)}
+          className={`px-3 py-1 text-sm rounded-full transition ${
+            responseFormat === opt.id
+              ? "bg-blue-600 text-white"
+              : darkMode
+              ? "bg-gray-700 text-gray-200 hover:bg-gray-600"
+              : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
 
     {/* 💬 Chat Area */}
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -545,7 +541,7 @@ return (
           </div>
         </div>
       )}
- 
+
       {/* 🧠 Chat History */}
       {chatHistory.map((item, index) => (
         <div key={index} className="space-y-2">
@@ -588,130 +584,119 @@ return (
                       : "bg-blue-100"
                   }`}
                 >
-{/* Answer Text */}
-<div className="pr-8">
-  {index === chatHistory.length - 1 && isTyping ? (
-    <p>
-      {displayedText}
-      <span className="animate-pulse ml-1">▮</span>
-    </p>
-  ) : (
-    <>
-<ReactMarkdown
-  components={{
-    ul: ({ children, ...props }) => (
-      <ul {...props} className="list-none p-0 m-0 space-y-2">
-        {children}
-      </ul>
-    ),
-    li: ({ children, ...props }) => (
-      <li {...props} className="flex items-start">
-        <span className="text-blue-600 mr-2 mt-1">•</span>
-        <span className="flex-1">{children}</span>
-      </li>
-    ),
-  }}
->
-  {item.format === "bullets" ? ensureBulletMarkdown(item.answer) : item.answer}
-</ReactMarkdown>
+                  {/* Answer Text */}
+                  <div className="pr-8">
+                    {index === chatHistory.length - 1 && isTyping ? (
+                      <p>
+                        {displayedText}
+                        <span className="animate-pulse ml-1">▮</span>
+                      </p>
+                    ) : (
+                      <>
+                        <ReactMarkdown
+                          components={{
+                            ul: ({ children, ...props }) => (
+                              <ul {...props} className="list-none p-0 m-0 space-y-2">
+                                {children}
+                              </ul>
+                            ),
+                            li: ({ children, ...props }) => (
+                              <li {...props} className="flex items-start">
+                                <span className="text-blue-600 mr-2 mt-1">•</span>
+                                <span className="flex-1">{children}</span>
+                              </li>
+                            ),
+                          }}
+                        >
+                          {item.answer}
+                        </ReactMarkdown>
 
-      
-      {/* 🖼️ Rich Media Rendering */}
-      {item.media && (
-        <div className="mt-3">
-          {/* Debug logging wrapped in IIFE */}
-          {(() => {
-            if (item.media) {
-              console.log('Rendering media:', item.media);
-            }
-            return null;
-          })()}
+                        {/* 🖼️ Rich Media Rendering */}
+                        {item.media && (
+                          <div className="mt-3">
+                            {/* Image rendering */}
+                            {item.media?.type === "image" && item.media.src && (
+                              <div className="flex flex-col items-center">
+                                <img
+                                  src={item.media.src}
+                                  alt={item.media.caption || ""}
+                                  className="rounded-xl shadow-md max-w-xs sm:max-w-sm md:max-w-md mb-2"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = "none";
+                                  }}
+                                />
 
-          {/* Image rendering with type narrowing */}
-{item.media?.type === "image" && item.media.src && (
-  <div className="flex flex-col items-center">
-    <img
-      src={item.media.src}
-      alt={item.media.caption || ''}
-      className="rounded-xl shadow-md max-w-xs sm:max-w-sm md:max-w-md mb-2"
-      onError={(e) => {
-        e.currentTarget.style.display = 'none';
-      }}
-    />
+                                {item.media.caption && (
+                                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 italic">
+                                    {item.media.caption}
+                                  </p>
+                                )}
 
-    {item.media.caption && (
-      <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 italic">
-        {item.media.caption}
-      </p>
-    )}
+                                {/* 🌟 View & Download Buttons */}
+                                <div className="flex gap-2 mt-2">
+                                  <button
+                                    onClick={() => window.open(item.media?.src, "_blank")}
+                                    className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 text-sm"
+                                  >
+                                    View
+                                  </button>
+                                  <a
+                                    href={item.media.src}
+                                    download={item.media.caption || "image"}
+                                    className="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700 text-sm"
+                                  >
+                                    Download
+                                  </a>
+                                </div>
+                              </div>
+                            )}
 
-    {/* 🌟 View & Download Buttons */}
-    <div className="flex gap-2 mt-2">
-      {/* View button opens the image in a new tab */}
-      <button
-        onClick={() => window.open(item.media?.src, "_blank")}
-        className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 text-sm"
-      >
-        View
-      </button>
+                            {/* Table rendering */}
+                            {item.media?.type === "table" &&
+                              item.media.headers &&
+                              item.media.rows && (
+                                <table className="mt-3 border border-gray-300 rounded-lg text-sm">
+                                  <thead className="bg-indigo-100 dark:bg-blue-800">
+                                    <tr>
+                                      {item.media.headers.map((h, i) => (
+                                        <th key={i} className="px-4 py-2 border">
+                                          {h}
+                                        </th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {item.media.rows.map((row, rIdx) => (
+                                      <tr key={rIdx}>
+                                        {row.map((cell, cIdx) => (
+                                          <td key={cIdx} className="px-4 py-2 border">
+                                            {cell}
+                                          </td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
 
-      {/* Download button */}
-      <a
-        href={item.media.src}
-        download={item.media.caption || 'image'}
-        className="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700 text-sm"
-      >
-        Download
-      </a>
-    </div>
-  </div>
-)}
+                  {/* ⭐ Save Button */}
+                  <button
+                    onClick={() => handleSave(item.answer)}
+                    className={`absolute top-2 right-2 text-2xl transition ${
+                      savedMessages.includes(item.answer)
+                        ? "text-yellow-400"
+                        : "text-gray-400 hover:text-yellow-400"
+                    }`}
+                  >
+                    ★
+                  </button>
 
-
-          {/* Table rendering with type narrowing */}
-          {item.media?.type === "table" && item.media.headers && item.media.rows && (
-            <table className="mt-3 border border-gray-300 rounded-lg text-sm">
-              <thead className="bg-indigo-100 dark:bg-blue-800">
-                <tr>
-                  {item.media.headers.map((h: string, i: number) => (
-                    <th key={i} className="px-4 py-2 border">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {(item.media.rows as ReadonlyArray<ReadonlyArray<string>>).map((row, rIdx) => (
-                  <tr key={rIdx}>
-                    {(row as ReadonlyArray<string>).map((cell, cIdx) => (
-                      <td key={cIdx} className="px-4 py-2 border">
-                        {cell}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-    </>
-  )}
-</div>
-
-{/* ⭐ Save Button */}
-<button
-  onClick={() => handleSave(item.answer)}
-  className={`absolute top-2 right-2 text-2xl transition ${
-    savedMessages.includes(item.answer)
-      ? "text-yellow-400"
-      : "text-gray-400 hover:text-yellow-400"
-  }`}
->
-  ★
-</button>
-
-
+                  {/* 👍👎 Feedback */}
                   <div className="flex items-center gap-3 mt-3 text-lg">
                     <button
                       onClick={() => handleFeedback(item.answer, "up")}
@@ -735,14 +720,12 @@ return (
                     </button>
                   </div>
 
-
                   {/* ⚙️ Dynamic Widgets */}
                   {item.widgetType === "linkScanner" && <LinkScannerWidget />}
                   {item.widgetType === "quiz" && (
                     <QuizWidget
                       question={
-                        item.widgetData?.question ||
-                        "Which one looks suspicious?"
+                        item.widgetData?.question || "Which one looks suspicious?"
                       }
                       options={
                         item.widgetData?.options || [
@@ -806,9 +789,7 @@ return (
     {/* 💬 Predefined Questions */}
     <div
       className={`flex flex-wrap gap-2 p-3 border-t ${
-        darkMode
-          ? "border-gray-700 bg-gray-800"
-          : "border-gray-200 bg-gray-50"
+        darkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-50"
       }`}
     >
       {predefinedQuestions.map((q, i) => (
@@ -846,17 +827,16 @@ return (
           rows={2}
         />
         <button
-  onClick={() => askBot()}
-  disabled={loading || question.trim().length === 0}
-  className={`px-4 py-2 rounded transition w-full sm:w-auto ${
-    loading || question.trim().length === 0
-      ? "bg-gray-400 cursor-not-allowed"
-      : "bg-blue-600 hover:bg-blue-700 text-white"
-  }`}
->
-  Send
-</button>
-
+          onClick={() => askBot()}
+          disabled={loading || question.trim().length === 0}
+          className={`px-4 py-2 rounded transition w-full sm:w-auto ${
+            loading || question.trim().length === 0
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700 text-white"
+          }`}
+        >
+          Send
+        </button>
       </div>
     </div>
   </div>

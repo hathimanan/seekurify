@@ -21,14 +21,18 @@ featureFlagRoutes.get("/read", async (req, res) => {
       key: "pin_verification_siem",
     });
     const phishingDetectorFlag = await featureflags.findOne({
-      key: "phishing_detector", // ✅ Add Phishing Detector flag
+      key: "phishing_detector",
+    });
+    const securityChatbotFlag = await featureflags.findOne({
+      key: "security_chatbot", // ✅ Add Security Chatbot flag
     });
 
     res.json({
       otpEnabled: otpFlag ? otpFlag.enabled : true,
       pinVerificationPasswordManager: pinPMFlag ? pinPMFlag.enabled : false,
       pinVerificationSIEM: pinSIEMFlag ? pinSIEMFlag.enabled : false,
-      phishingDetectorEnabled: phishingDetectorFlag ? phishingDetectorFlag.enabled : false, // ✅ Add to response
+      phishingDetectorEnabled: phishingDetectorFlag ? phishingDetectorFlag.enabled : false,
+      securityChatbotEnabled: securityChatbotFlag ? securityChatbotFlag.enabled : false, // ✅ Add to response
     });
   } catch (err) {
     console.error("Error reading feature flags:", err);
@@ -36,7 +40,8 @@ featureFlagRoutes.get("/read", async (req, res) => {
       otpEnabled: true,
       pinVerificationPasswordManager: false,
       pinVerificationSIEM: false,
-      phishingDetectorEnabled: false, // ✅ Safe default
+      phishingDetectorEnabled: false,
+      securityChatbotEnabled: false, // ✅ Safe default
     });
   }
 });
