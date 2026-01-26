@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import defaultProfileIcon from "../../assets/default-profile.png";
 import { Menu, X, Bell } from "lucide-react";
 import { API_BASE_URL } from "../../services/api";
+import { jwtDecode } from "jwt-decode";
 
 interface HeaderProps {
   profileImage?: string;
@@ -12,6 +13,13 @@ interface HeaderProps {
   sidebarExpanded: boolean;
   setSidebarExpanded: React.Dispatch<React.SetStateAction<boolean>>;
 }
+
+
+type TokenPayload = {
+  id: string;
+  role: "admin" | "user";
+  exp: number;
+};
 
 const navItems = [
   { name: "Analyze Malware", path: "/malware-analysis" },
@@ -47,6 +55,8 @@ const Header: React.FC<HeaderProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
 
+
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(true);
 
@@ -83,6 +93,31 @@ const Header: React.FC<HeaderProps> = ({
     const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
   }, []);
+
+
+      const token = localStorage.getItem("token");
+
+ useEffect(() => {
+    if (!token) {
+      setIsAdmin(false);
+      return;
+    }
+
+   try {
+        const decoded = jwtDecode<TokenPayload>(token);
+    console.log(decoded);
+        // token expired?
+        if (decoded.exp * 1000 < Date.now()) {
+          localStorage.removeItem("token");
+          setIsAdmin(false);
+          return;
+        }
+  
+        setIsAdmin(decoded.role === "admin");
+      } catch {
+        setIsAdmin(false);
+      }
+    }, [token]);
 
 
    const markAsRead = async (id: string) => {
@@ -176,6 +211,19 @@ const Header: React.FC<HeaderProps> = ({
         {/* Logo */}
         <div className="flex items-center gap-3">
           <div className="flex flex-col items-center mb-4">
+            {isAdmin === true && (
+                <button
+      onClick={() => navigate("/feature-flags")}
+      className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow hover:bg-red-700 transition"
+    >
+      🛠 Admin Console
+    </button>
+
+    
+            )
+            
+            }
+
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-10 w-10 text-blue-400 mb-2"

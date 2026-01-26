@@ -7,6 +7,9 @@ export const API_BASE_URL =
     ? '/api' // ✅ in production, API is usually proxied under the same domain
     : 'http://localhost:5000/api'; // 👈 replace 5000 with your backend port
 
+    const FEATURE_FLAGS_ENDPOINT = `${API_BASE_URL}/feature-flags`;
+
+
 interface LoginCredentials {
   email: string;
   password?: string; // only needed at login
@@ -259,6 +262,25 @@ const response = await fetch(`${API_BASE_URL}/passwords`, {
   return response.json();
   }
 
+
+async detectPhishing(emailContent: string) {
+  // Debug: Log to see if the method is even being called
+  console.log("Attempting to scan:", emailContent.substring(0, 20) + "...");
+
+  const response = await fetch(`${API_BASE_URL}/detect-attacker`, {
+    method: 'POST',
+    headers: this.getAuthHeaders(), // Ensure this returns { 'Content-Type': 'application/json', ... }
+    body: JSON.stringify({ emailContent })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Backend failed to respond');
+  }
+
+  return response.json();
+}
+
 async updatePassword(id: string, passwordData: PasswordEntry & { currentPassword: string }) {
   const token = localStorage.getItem('token');
 
@@ -335,6 +357,28 @@ async deletePassword(id: string) {
 
   // otherwise parse and return JSON
   return resp.json();
+}
+
+
+
+ async getFlags(token: string) {
+  const res = await fetch(FEATURE_FLAGS_ENDPOINT, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.json();
+}
+
+
+async toggleFlag(token: string, key: string, payload: { enabled: boolean; rolloutPercentage: number }) {
+  const res = await fetch(`${API_BASE_URL}/feature-flags/toggle`, {
+    method: "POST",
+    headers: { 
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ key, ...payload })
+  });
+  return res.json();
 }
 
 

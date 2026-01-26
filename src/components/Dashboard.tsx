@@ -16,11 +16,12 @@ import {
   DialogTitle,
 } from "../components/ui/dialog";
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, Copy, FileSearch, BarChart3, KeyRound, ShieldCheck, Phone, Share2 } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Copy, FileSearch, BarChart3, KeyRound, ShieldCheck, Phone, Share2, ShieldAlert } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
 import { Eye, Pencil } from "lucide-react";
 
 import { motion } from 'framer-motion';
+import { set } from 'mongoose';
 
 interface PasswordEntry {
   _id: string;
@@ -147,63 +148,67 @@ export const Dashboard: React.FC = () => {
 
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
-const [showExpiryModal, setShowExpiryModal] = useState(false);
-const [passwordToExpire, setPasswordToExpire] = useState<PasswordEntry | null>(null);
-const [showExpiryWarning, setShowExpiryWarning] = useState(false);
-const [showShareModal, setShowShareModal] = useState(false);
-const [selectedPassword, setSelectedPassword] = useState<any>(null);
-const [shareLink, setShareLink] = useState<string | null>(null);
-const [shareExpiry, setShareExpiry] = useState(15); // minutes
-const [isSharing, setIsSharing] = useState(false);
-const [expiredPassword, setExpiredPassword] = useState<PasswordEntry | null>(null);
-const [editPasswordId, setEditPasswordId] = useState<string | null>(null);
-const [darkMode, setDarkMode] = useState(false);
+  const [showExpiryModal, setShowExpiryModal] = useState(false);
+  const [passwordToExpire, setPasswordToExpire] = useState<PasswordEntry | null>(null);
+  const [showExpiryWarning, setShowExpiryWarning] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [selectedPassword, setSelectedPassword] = useState<any>(null);
+  const [shareLink, setShareLink] = useState<string | null>(null);
+  const [shareExpiry, setShareExpiry] = useState(15); // minutes
+  const [isSharing, setIsSharing] = useState(false);
+  const [isPlanLimitReached, setIsPlanLimitReached] = useState(false);
+  const [showPlanLimitModal, setShowPlanLimitModal] = useState(false);
+  const [expiredPassword, setExpiredPassword] = useState<PasswordEntry | null>(null);
+  const [editPasswordId, setEditPasswordId] = useState<string | null>(null);
+  const [showPayModalWithoutFreePlan, setShowPayModalWithoutFreePlan] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [pinverificationEnabled, setPinVerificationEnabled] = useState<boolean | null>(null);
   const totalPasswords = filteredPasswords.length;
 
 
   const DAYS_90 = 90;
-const now = Date.now();
+  const now = Date.now();
 
-const oldPasswords = filteredPasswords.filter(p => {
-  if (!p.updatedAt) return false;  // skip if no timestamp
-  const lastUpdated = new Date(p.updatedAt).getTime();
-  const ageInDays = (now - lastUpdated) / (1000 * 60 * 60 * 24);
-  return ageInDays > DAYS_90;
-}).length;
+  const oldPasswords = filteredPasswords.filter(p => {
+    if (!p.updatedAt) return false;  // skip if no timestamp
+    const lastUpdated = new Date(p.updatedAt).getTime();
+    const ageInDays = (now - lastUpdated) / (1000 * 60 * 60 * 24);
+    return ageInDays > DAYS_90;
+  }).length;
 
-const strongPasswords = filteredPasswords.filter(p => p.password.length > 15).length;
-const websiteCountMap: Record<string, number> = {};
+  const strongPasswords = filteredPasswords.filter(p => p.password.length > 15).length;
+  const websiteCountMap: Record<string, number> = {};
 
-filteredPasswords.forEach(p => {
-  if (p.website) {
-    websiteCountMap[p.website] = (websiteCountMap[p.website] || 0) + 1;
-  }
-});
-const mostUsedWebsites = Object.keys(websiteCountMap).length > 0
-  ? Math.max(...Object.values(websiteCountMap))
-  : 0;
-const weakPasswords = filteredPasswords.filter(p => p.password.length <= 5).length;
+  filteredPasswords.forEach(p => {
+    if (p.website) {
+      websiteCountMap[p.website] = (websiteCountMap[p.website] || 0) + 1;
+    }
+  });
+  const mostUsedWebsites = Object.keys(websiteCountMap).length > 0
+    ? Math.max(...Object.values(websiteCountMap))
+    : 0;
+  const weakPasswords = filteredPasswords.filter(p => p.password.length <= 5).length;
 
-const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000; // 90 days in ms
+  const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000; // 90 days in ms
 
-const passwordsChanged90Days = filteredPasswords.filter(p => {
-  if (!p.lastChanged) return false;
+  const passwordsChanged90Days = filteredPasswords.filter(p => {
+    if (!p.lastChanged) return false;
 
-  let lastChangedTime: number;
+    let lastChangedTime: number;
 
-  if (typeof p.lastChanged === "string") {
-    const d = new Date(p.lastChanged);
-    if (isNaN(d.getTime())) return false;
-    lastChangedTime = d.getTime();
-  } else if (typeof p.lastChanged === "number") {
-    lastChangedTime = p.lastChanged;
-  } else {
-    // any other type is ignored
-    return false;
-  }
+    if (typeof p.lastChanged === "string") {
+      const d = new Date(p.lastChanged);
+      if (isNaN(d.getTime())) return false;
+      lastChangedTime = d.getTime();
+    } else if (typeof p.lastChanged === "number") {
+      lastChangedTime = p.lastChanged;
+    } else {
+      // any other type is ignored
+      return false;
+    }
 
-  return lastChangedTime >= ninetyDaysAgo && lastChangedTime <= now;
-}).length;
+    return lastChangedTime >= ninetyDaysAgo && lastChangedTime <= now;
+  }).length;
 
 
 
@@ -227,7 +232,7 @@ const passwordsChanged90Days = filteredPasswords.filter(p => {
       });
 
       const data = await response.json();
-      
+
 
       if (data.token) {
         setIsReverified(true);
@@ -298,76 +303,80 @@ const passwordsChanged90Days = filteredPasswords.filter(p => {
 
 
   // FRONTEND: Dashboard.tsx (Core Fixes)
-useEffect(() => {
+  useEffect(() => {
 
 
-      const saved = localStorage.getItem("darkMode");
-  if (saved === "true") {
-    document.documentElement.classList.add("dark");
-    setDarkMode(true);
-  }
-
-
-
-  let isMounted = true;
-
-  const initialize = async () => {
-    if (!isMounted) return;
-
-    // 1. Payment check
-    await checkPaymentStatus();
-
-    // 2. Get token once
-    const token = localStorage.getItem("token");
-    if (!token) return;
-
-    // 3. Fetch profile image
-    try {
-      const res = await fetch(`${API_BASE_URL}/profile`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) throw new Error("Failed to fetch profile");
-
-      const data = await res.json();
-      if (isMounted && data.profileImage) {
-        setProfileImage(data.profileImage);
-      }
-    } catch (err) {
-      console.error("Failed to fetch profile image:", err);
+    const saved = localStorage.getItem("darkMode");
+    if (saved === "true") {
+      document.documentElement.classList.add("dark");
+      setDarkMode(true);
     }
 
-    // 4. Fetch passwords
-    try {
-      const res = await fetch("/api/passwords", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
 
-      const data = await res.json();
-      if (isMounted) {
-        setPasswords(data);
+
+    let isMounted = true;
+
+    const initialize = async () => {
+      if (!isMounted) return;
+
+     
+
+      // 1. Payment check
+      await checkPaymentStatus();
+    const currentPlan = selectedPlan || localStorage.getItem('plan') || 'free';
+      // 2. Get token once
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      // 3. Fetch profile image
+      try {
+        const res = await fetch(`${API_BASE_URL}/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) throw new Error("Failed to fetch profile");
+
+        const data = await res.json();
+        if (isMounted && data.profileImage) {
+          setProfileImage(data.profileImage);
+        }
+      } catch (err) {
+        console.error("Failed to fetch profile image:", err);
       }
-   
 
+      // 4. Fetch passwords
+      try {
+        const res = await fetch("/api/passwords", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-      // Check if any password is expired
-const expired = data.find((p: PasswordEntry) => p.isExpired);
-if (expired) {
-  setExpiredPassword(expired);
-  setShowExpiryModal(true);
-
-  // 🔒 prevent other modals
-  setShowPayModal(false);
-  setShowTrialModal(false);
-  setShowOnlyPayModal(false);
-  setShowReverifyPinModal(false);
-} 
+        const data = await res.json();
+        if (isMounted) {
+          setPasswords(data);
+const totalPasswords = data.length;
+        setIsPlanLimitReached(currentPlan === 'free' && totalPasswords >= 3);
+        
+        console.log('✅ Plan initialized:', { currentPlan, totalPasswords, isPlanLimitReached: currentPlan === 'free' && totalPasswords >= 3 });
 
         }
-     catch (err) {
-      console.error("Failed to fetch passwords:", err);
-    }
-  };
+        // Check if any password is expired
+        const expired = data.find((p: PasswordEntry) => p.isExpired);
+        if (expired) {
+          setExpiredPassword(expired);
+          setShowExpiryModal(true);
+
+          // 🔒 prevent other modals
+          setShowPayModal(false);
+          setShowTrialModal(false);
+          setShowOnlyPayModal(false);
+          setShowReverifyPinModal(false);
+        }
+
+      }
+      catch (err) {
+        console.error("Failed to fetch passwords:", err);
+      }
+    };
 
     initialize();
     // setShowPassword(false);
@@ -379,57 +388,194 @@ if (expired) {
   }, [viewingPassword, location.pathname]);
 
 
-  useEffect(() => {
-  if (editingPassword) {
-    setPasswordFormData({
-      website: editingPassword.website || '',
-      username: editingPassword.username || '',
-      password: '',                 // 🔐 never prefill password
-      category: editingPassword.category || '',
-      notes: editingPassword.notes || '',
-    });
-
-    setCurrentPassword('');
-    setShowCurrentPassword(false);
-    setShowNewPassword(false);
-  }
-}, [editingPassword]);
-
 
   useEffect(() => {
-  if (!searchQuery.trim()) {
-    setFilteredPasswords(passwords);
-  } else {
-    const query = searchQuery.toLowerCase();
-    const filtered = passwords.filter((p) =>
-      p.website.toLowerCase().includes(query) ||
-      p.username.toLowerCase().includes(query) ||
-      (p.notes && p.notes.toLowerCase().includes(query))
-    );
-    setFilteredPasswords(filtered);
-  }
-}, [searchQuery, passwords]);
+  let isMounted = true;
 
+  const initialize = async () => {
+    if (!isMounted) return;
+
+    // 1. FIRST: Check payment status (updates plan states)
+
+    // 2. THEN: Load passwords with correct plan context
+
+    setIsLoading(true);
+const planInfo = await checkPaymentStatus();
+
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    try {
+      const res = await fetch("/api/passwords", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      
+      if (isMounted) {
+        setPasswords(data);
+const currentPlan = planInfo || 'free'; 
+      if (currentPlan === 'free' && data.length >= 3) {
+        setIsPlanLimitReached(true);
+      } else {
+        setIsPlanLimitReached(false);
+      }
+
+      }
+    } catch (err) {
+      console.error("Failed to fetch passwords:", err);
+    }
+
+    finally {
+      setIsLoading(false);
+    }
+  };
+
+  initialize();
+  return () => { isMounted = false; };
+}, []);  // ✅ Empty deps - run once
+
+
+  useEffect(() => {
+    if (editingPassword) {
+      setPasswordFormData({
+        website: editingPassword.website || '',
+        username: editingPassword.username || '',
+        password: '',                 // 🔐 never prefill password
+        category: editingPassword.category || '',
+        notes: editingPassword.notes || '',
+      });
+
+      setCurrentPassword('');
+      setShowCurrentPassword(false);
+      setShowNewPassword(false);
+    }
+  }, [editingPassword]);
+
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredPasswords(passwords);
+    } else {
+      const query = searchQuery.toLowerCase();
+      const filtered = passwords.filter((p) =>
+        p.website.toLowerCase().includes(query) ||
+        p.username.toLowerCase().includes(query) ||
+        (p.notes && p.notes.toLowerCase().includes(query))
+      );
+      setFilteredPasswords(filtered);
+    }
+  }, [searchQuery, passwords]);
+
+
+
+  useEffect(() => {
+    const modalOpen = showPassword || showEditModal || showAddForm || showReverifyPinModal || showShareModal || showCopyModal || showDeleteConfirmationModal || showExpiryModal || showPayModal || showTrialModal || showReuseWarning;
+    if (modalOpen) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = '';
+    return () => { document.body.style.overflow = ''; };
+  }, [showPassword, showEditModal, showAddForm, showReverifyPinModal, showShareModal, showCopyModal, showDeleteConfirmationModal, showExpiryModal, showPayModal, showTrialModal, showReuseWarning]);
+
+  const toggleDarkMode = () => {
+    const next = !darkMode;
+    setDarkMode(next);
+
+    if (next) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("darkMode", "true");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("darkMode", "false");
+    }
+  };
+
+
+
+ // Dashboard.tsx - Update the useEffect for feature flags
+useEffect(() => {
+  const fetchFeatureFlags = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/feature-flags/read`); // ✅ Correct syntax
+      
+      if (!res.ok) {
+        throw new Error('Failed to fetch feature flags');
+      }
+      
+      const data = await res.json();
+      
+      console.log('✅ Feature flags loaded:', data);
+      
+      // Set the PIN verification state
+      setPinVerificationEnabled(data.pinVerificationPasswordManager === true);
+      
+    } catch (err) {
+      console.error("❌ Failed to load feature flags:", err);
+      // Safe default: disable PIN verification on error
+      setPinVerificationEnabled(false);
+    }
+  };
+  
+  fetchFeatureFlags();
+}, []);
 
 
 useEffect(() => {
-  const modalOpen = showPassword || showEditModal || showAddForm || showReverifyPinModal || showShareModal || showCopyModal || showDeleteConfirmationModal || showExpiryModal || showPayModal || showTrialModal || showReuseWarning;
-  if (modalOpen) document.body.style.overflow = 'hidden';
-  else document.body.style.overflow = '';
-  return () => { document.body.style.overflow = ''; };
-}, [showPassword, showEditModal, showAddForm, showReverifyPinModal, showShareModal, showCopyModal, showDeleteConfirmationModal, showExpiryModal, showPayModal, showTrialModal, showReuseWarning]);
+  let isMounted = true;
 
-const toggleDarkMode = () => {
-  const next = !darkMode;
-  setDarkMode(next);
+  const initialize = async () => {
+    if (!isMounted) return;
 
-  if (next) {
-    document.documentElement.classList.add("dark");
-    localStorage.setItem("darkMode", "true");
-  } else {
-    document.documentElement.classList.remove("dark");
-    localStorage.setItem("darkMode", "false");
-  }
+    const planInfo = await checkPaymentStatus(); // updates hasPaid, trialActive, etc.
+
+    // Only show PIN modal if:
+    // - pin verification is enabled
+    // - user has paid or trial is active
+    // - not already reverified
+    if (shouldRequirePin() && (hasPaid || trialActive)) {
+      setShowReverifyPinModal(true);
+    }
+  };
+
+
+  initialize();
+
+  return () => { isMounted = false; };
+}, [pinverificationEnabled, hasPaid, trialActive, isReverified]);
+
+
+useEffect(() => {
+  // Don't run if feature flags haven't loaded
+  if (pinverificationEnabled === null) return;
+  
+  let isMounted = true;
+
+  const initialize = async () => {
+    if (!isMounted) return;
+
+    const planInfo = await checkPaymentStatus();
+
+    // Only show PIN modal if user has access
+    if (shouldRequirePin() && (hasPaid || trialActive)) {
+      setShowReverifyPinModal(true);
+    }
+  };
+
+  initialize();
+
+  return () => { isMounted = false; };
+}, [pinverificationEnabled, hasPaid, trialActive, isReverified]);
+
+const shouldRequirePin = () => {
+  // Don't require PIN if feature flag isn't loaded yet
+  if (pinverificationEnabled === null) return false;
+  
+  // Only require PIN if:
+  // 1. Feature is enabled
+  // 2. User hasn't been reverified yet
+  // 3. User is either paid OR on active trial
+  return (
+    pinverificationEnabled === true && 
+    !isReverified && 
+    (hasPaid || trialActive)
+  );
 };
 
 
@@ -470,24 +616,24 @@ const toggleDarkMode = () => {
       setIsLoading(true);
       const data = await apiService.getPasswords(cacheBuster);
       setPasswords(data);
-      
+
       // Decide modal based on backend states
       if (hasPaid || (trialActive && trialAcknowledged)) {
         // user has access — no payment modals
-        
+
       } else if (!hasPaid && trialActive && !trialAcknowledged) {
         // trial in progress but not acknowledged — trial modal flow handled elsewhere
-        
+
         // setShowTrialModal(true);
       } else {
         // unpaid and no trial — show pay modal
-        setShowPayModal(true);
+        // setShowPayModal(true);
       }
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load passwords');
       setShowReverifyPinModal(false);
-      setShowPayModal(true);
+      // setShowPayModal(true);
     } finally {
       setIsLoading(false);
     }
@@ -502,133 +648,137 @@ const toggleDarkMode = () => {
 
 
 
-  const checkPaymentStatus = async (): Promise<void> => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) throw new Error('User not authenticated');
+const checkPaymentStatus = async (): Promise<string | null> => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) throw new Error('User not authenticated');
 
-      const response = await fetch(`${API_BASE_URL}/auth/check-payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      });
+    const response = await fetch(`${API_BASE_URL}/auth/check-payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-      if (!response.ok) throw new Error('Failed to check payment status');
-      const data = await response.json();
+    if (!response.ok) throw new Error('Failed to check payment status');
 
-      // Update states from backend
-      setHasPaid(data.hasPaid);
-      setTrialActive(data.isTrialActive);
-      setTrialExpired(data.isTrialExpired);
+    const data = await response.json();
 
-      
+    // Save backend plan and payment info
+    const backendPlan = data.plan || 'free';
+    setSelectedPlan(backendPlan);
+    localStorage.setItem('plan', backendPlan);
+    setHasPaid(data.hasPaid);
+    setTrialActive(data.isTrialActive);
+    setTrialExpired(data.isTrialExpired);
 
-      // Reset all modals first
-      setShowPayModal(false);
-      setShowOnlyPayModal(false);
-      setShowTrialModal(false);
-      setShowReverifyPinModal(false);
+    // ─────────────────────────────
+    // Modal Logic (Improved)
+    // ─────────────────────────────
 
-      // --- Modal Flow ---
-      // 1. New user (not started trial, not paid)
-      if (!data.hasPaid && !data.isTrialActive && !data.isTrialExpired) {
-        setShowPayModal(true); // Pay modal with trial button
-        return;
+    const pinRequired = shouldRequirePin(); // flag-aware
+
+    // 1️⃣ Paid users
+    if (data.hasPaid && backendPlan !== 'free') {
+      if (pinRequired) {
+        // Persist state across redirect
+        localStorage.setItem('needsPin', 'true');
+        setShowReverifyPinModal(true);
       }
-
-      // 2. In trial (trial started but unpaid)
-      if (!data.hasPaid && data.isTrialActive && !data.isTrialExpired) {
-        if (!isReverified) {
-          setShowReverifyPinModal(true); // After acknowledgment, show PIN modal if not reverified
-        }
-        return;
-      }
-
-      // 3. Trial expired, unpaid
-      if (!data.hasPaid && !data.isTrialActive && data.isTrialExpired) {
-        setShowOnlyPayModal(true); // Pay modal, no trial button
-        return;
-      }
-
-      // 4. Trial expired, paid OR 5. Paid but no trial (rare but valid)
-      if (data.hasPaid) {
-        if (!isReverified) {
-          setShowReverifyPinModal(true); // Paid users must reverify PIN if not done
-        }
-        // else: full access, no modal
-        return;
-      }
-
-      // Fallback: show pay modal
-      setShowPayModal(true);
-
-    } catch (err) {
-      console.error('Error checking payment status:', err);
-      setHasPaid(false);
-      setShowPayModal(true);
-      setShowOnlyPayModal(false);
-      setShowTrialModal(false);
-      setShowReverifyPinModal(false);
-    } finally {
-      setPaymentChecked(true);
+      return backendPlan;
     }
-  };
 
-  const handleStartTrial = async (plan: 'free' | 'pro' | 'premium' = 'free') => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) throw new Error('User not authenticated');
-
-      const response = await fetch(`${API_BASE_URL}/auth/start-trial/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ plan }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Failed to start trial');
-
-      // Persist trial state and plan
-      setTrialActive(true);
-      localStorage.setItem('trialActive', 'true');
-      localStorage.setItem('trialPlan', plan);
-      setTrialPlan(plan);
-
-      const planLabel = plan === 'free' ? 'Free' : plan === 'pro' ? 'Pro' : 'Premium';
-      setTrialMessage(`Your ${planLabel} trial has started! You have 7 days to explore.`);
-      if (!trialAcknowledged) {
-        setShowTrialModal(true);
+    // 2️⃣ Trial active
+    if (!data.hasPaid && data.isTrialActive && !data.isTrialExpired) {
+      if (pinRequired) {
+        localStorage.setItem('needsPin', 'true');
+        setShowReverifyPinModal(true);
       }
-      setShowOnlyPayModal(false);
-      setShowReverifyPinModal(false);
-      setTrialAcknowledged(false); // user has not clicked OK yet
-
-    } catch (error) {
-      console.error('Error starting trial:', error);
-
-      setTrialMessage('Failed to start the trial. Please try again.');
-      // setShowTrialModal(true);
+      return backendPlan;
     }
-  }; 
+
+    // 3️⃣ Trial expired
+    if (!data.hasPaid && data.isTrialExpired) {
+      setShowOnlyPayModal(true);
+      // Optionally still show PIN modal after payment
+      if (pinRequired) {
+        localStorage.setItem('needsPin', 'true');
+      }
+      return backendPlan;
+    }
+
+    // 4️⃣ Free / no trial
+    if (!data.hasPaid && !data.isTrialActive && !data.isTrialExpired) {
+      if (pinRequired) {
+        localStorage.setItem('needsPin', 'true');
+        setShowReverifyPinModal(true);
+      }
+      return backendPlan;
+    }
+
+    // Fallback: show PIN modal if required
+    if (pinRequired) {
+      localStorage.setItem('needsPin', 'true');
+      setShowReverifyPinModal(true);
+    }
+
+    return backendPlan;
+  } catch (err) {
+    console.error('Payment status error:', err);
+    return null;
+  } finally {
+    setPaymentChecked(true);
+  }
+};
+
+
+
+
+const handleStartTrial = async (plan: 'free' | 'pro' | 'premium') => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) throw new Error('User not authenticated');
+
+    const response = await fetch(`${API_BASE_URL}/auth/start-trial/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ plan }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Failed to start trial');
+
+    setTrialActive(true);
+    setSelectedPlan(plan);
+    setTrialPlan(plan);
+
+    localStorage.setItem('trialActive', 'true');
+    localStorage.setItem('trialPlan', plan);
+    // localStorage.setItem('plan', plan);
+
+    setTrialMessage(`Your ${plan.toUpperCase()} trial has started! You have 7 days.`);
+    setShowTrialModal(true);
+
+  } catch (err) {
+    console.error('Error starting trial:', err);
+    setTrialMessage('Failed to start the trial. Try again.');
+  }
+};
+
 
   // ----------------------------
   // Trial modal OK handler
   // ----------------------------
-  const handleTrialModalOk = () => {
-    setTrialAcknowledged(true);    // User acknowledged trial
-    setShowTrialModal(false);
-    // setShowPayModal(false);
-    setShowOnlyPayModal(false);
-    setShowReverifyPinModal(true); // Show PIN modal for trial users
-    // Call checkPaymentStatus after state update
-    setTimeout(() => checkPaymentStatus(), 0);
-  };
+ const handleTrialModalOk = () => {
+  setTrialAcknowledged(true);
+  setShowTrialModal(false);
+  setShowReverifyPinModal(true);
+};
 
 
   // Activate a trial for a specific plan (free or pro). The backend will record the plan and trial period.
-  const handleTryFree = (plan: 'free' | 'pro' = 'free') => {
+  const handleTryFree = (plan: 'free') => {
     // delegate to API call
     handleStartTrial(plan);
   };
@@ -640,64 +790,64 @@ const toggleDarkMode = () => {
     const planAmount = amountMap[plan] || paymentFormData.amount;
     setPaymentFormData(prev => ({ ...prev, amount: planAmount }));
     setSelectedPlan(plan);
-
+    console.log("Selected plan for purchase:", plan, "Amount:", planAmount);
     // Close the pricing overlay and start payment for the selected plan
     setShowPayModal(false);
     handlePayNow(planAmount);
-  }; 
+  };
 
- const PasswordExpiryModal = ({
-  password,
-  onClose,
-  onUpdate,
-}: {
-  password: PasswordEntry;
-  onClose: () => void;
-  onUpdate: (password: PasswordEntry) => void;
-}) => {
-  return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-fadeIn">
+  const PasswordExpiryModal = ({
+    password,
+    onClose,
+    onUpdate,
+  }: {
+    password: PasswordEntry;
+    onClose: () => void;
+    onUpdate: (password: PasswordEntry) => void;
+  }) => {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-fadeIn">
 
-        <h2 className="text-2xl font-bold text-red-600 text-center">
-          Password Expired ⚠️
-        </h2>
+          <h2 className="text-2xl font-bold text-red-600 text-center">
+            Password Expired ⚠️
+          </h2>
 
-        <p className="mt-4 text-gray-700 text-center">
-          The password for
-          <span className="font-semibold"> {password.website}</span> has expired.
-          Please update it to stay secure.
-        </p>
+          <p className="mt-4 text-gray-700 text-center">
+            The password for
+            <span className="font-semibold"> {password.website}</span> has expired.
+            Please update it to stay secure.
+          </p>
 
-        <div className="mt-6 flex gap-3">
-          <button
-            onClick={onClose}
-            className="w-1/2 py-2 rounded-xl border border-gray-300 hover:bg-gray-100"
-          >
-            Later
-          </button>
+          <div className="mt-6 flex gap-3">
+            <button
+              onClick={onClose}
+              className="w-1/2 py-2 rounded-xl border border-gray-300 hover:bg-gray-100"
+            >
+              Later
+            </button>
 
-          <button
-            onClick={() => {
-              onClose();
-              onUpdate(password); // 🔥 OPEN EDIT MODAL
-            }}
-            className="w-1/2 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold"
-          >
-            Update Now
-          </button>
+            <button
+              onClick={() => {
+                onClose();
+                onUpdate(password); // 🔥 OPEN EDIT MODAL
+              }}
+              className="w-1/2 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold"
+            >
+              Update Now
+            </button>
+          </div>
+
         </div>
-
       </div>
-    </div>
-  );
-};
+    );
+  };
 
 
-const handleOpenEditPassword = (password: PasswordEntry) => {
-  setEditingPassword(password);   // 🎯 exact password
-  setShowEditModal(true);
-};
+  const handleOpenEditPassword = (password: PasswordEntry) => {
+    setEditingPassword(password);   // 🎯 exact password
+    setShowEditModal(true);
+  };
 
   // ----------------------------
   // Handle Pay Now
@@ -730,7 +880,7 @@ const handleOpenEditPassword = (password: PasswordEntry) => {
 
       const orderData = await orderResponse.json();
       if (!orderData.success) throw new Error('Failed to create order');
-
+      const plan = selectedPlan; // Capture selected plan here
       const { orderId, key } = orderData;
 
       const options = {
@@ -742,37 +892,35 @@ const handleOpenEditPassword = (password: PasswordEntry) => {
         order_id: orderId,
         prefill: { ...paymentFormData, amount: amountToUse },
         theme: { color: '#0f172a' },
-        handler: async (response: any) => {
-          try {
-            const res = await fetch(`${API_BASE_URL}/auth/payment-success`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify(response),
-            });
+     // Inside options.handler
+handler: async (response: any) => {
+  // Use 'selectedPlan' which was set when the user clicked the pricing card
+  const planToSubmit = selectedPlan; 
+try {
+  const res = await fetch(`${API_BASE_URL}/auth/payment-success`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      ...response, // includes razorpay_order_id, etc.
+      plan: planToSubmit // 🎯 CRITICAL: This must be 'pro', 'premium', or 'business'
+    }),
+  });
+  
+  const result = await res.json();
+  if (result.success) {
+     localStorage.setItem('plan', result.plan); // Use what the server confirmed
+     window.location.href = '/dashboard';
+  }
 
-            const result = await res.json();
-            if (result.success) {
-              setHasPaid(true);
-              // Persist plan info locally for immediate UX; server is authoritative
-              if (selectedPlan) {
-                localStorage.setItem('plan', selectedPlan);
-              }
-              localStorage.setItem('hasPaid', 'true');
-              checkPaymentStatus();
-              window.location.href = '/dashboard'; // ✅ full reload
-            } else {
-              setError(result.message || 'Payment verification failed.');
-            }
-          } catch (err) {
-            setError('Server error while verifying payment.');
-            console.error(err);
-          }
-        },
+ else {
+      setError(result.message || 'Payment verification failed.');
+    }
+  } catch (err) {
+    setError('Server error while verifying payment.');
+  }
+},
         modal: {
-          ondismiss: () => {},
+          ondismiss: () => { },
         },
       };
 
@@ -800,14 +948,14 @@ const handleOpenEditPassword = (password: PasswordEntry) => {
   }
 
   if (showExpiryModal && expiredPassword) {
-  return (
-    <PasswordExpiryModal
-      password={expiredPassword}
-      onClose={() => setShowExpiryModal(false)}
-  onUpdate={handleOpenEditPassword}
+    return (
+      <PasswordExpiryModal
+        password={expiredPassword}
+        onClose={() => setShowExpiryModal(false)}
+        onUpdate={handleOpenEditPassword}
       />
-  );
-}
+    );
+  }
 
 
   if (showOnlyPayModal) {
@@ -896,9 +1044,8 @@ const handleOpenEditPassword = (password: PasswordEntry) => {
           <h2 className="text-4xl font-bold text-center mb-12">Pricing Plans</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-
             {/* Free Plan */}
-            <div className="bg-white rounded-xl shadow p-6 flex flex-col">
+            <div className={`rounded-xl shadow p-6 flex flex-col transition-all duration-300 ${passwords.length > 3 ? 'opacity-30 bg-gray-50 pointer-events-none' : 'bg-white'}`}>
               <h3 className="text-xl font-semibold mb-2">Free</h3>
               <p className="text-4xl font-bold mb-2">₹0<span className="text-lg font-normal">/mo</span></p>
 
@@ -908,9 +1055,16 @@ const handleOpenEditPassword = (password: PasswordEntry) => {
                 <li>✔ No SIEM logs</li>
               </ul>
 
-              <button onClick={() => handleTryFree('free')} className="mt-auto w-full border border-purple-600 text-purple-600 py-2 rounded-lg hover:bg-purple-50">
-                Try Free
-              </button> 
+              <button
+                onClick={() => handleTryFree('free')}
+                disabled={passwords.length > 3}
+                className={`mt-auto w-full border py-2 rounded-lg transition ${passwords.length > 3
+                    ? 'border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed'
+                    : 'border-purple-600 text-purple-600 hover:bg-purple-50'
+                  }`}
+              >
+                {passwords.length > 3 ? 'Limit Reached' : 'Try Free'}
+              </button>
             </div>
 
             {/* Pro Plan (Featured) */}
@@ -929,13 +1083,9 @@ const handleOpenEditPassword = (password: PasswordEntry) => {
                 <li>✔ Basic SIEM summary</li>
               </ul>
 
-              <button onClick={() => handleTryFree('pro')} className="w-full bg-white text-purple-700 py-2 rounded-lg mb-2 font-semibold hover:bg-gray-100">
-                Try Free
-              </button> 
-
               <button onClick={() => handleSelectPlanForPurchase('pro')} className="w-full bg-purple-800 py-2 rounded-lg hover:bg-purple-900">
                 Buy Now
-              </button> 
+              </button>
             </div>
 
             {/* Premium Plan */}
@@ -953,7 +1103,7 @@ const handleOpenEditPassword = (password: PasswordEntry) => {
 
               <button onClick={() => handleSelectPlanForPurchase('premium')} className="mt-auto w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700">
                 Get Started
-              </button> 
+              </button>
             </div>
 
             {/* Business Plan */}
@@ -973,12 +1123,97 @@ const handleOpenEditPassword = (password: PasswordEntry) => {
                 Contact Sales
               </button>
             </div>
-
           </div>
         </div>
       </div>
     );
   }
+
+
+
+  if (showPayModalWithoutFreePlan) {
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl p-8 relative animate-fadeIn">
+          {/* Close Button */}
+          <button
+            onClick={() => {
+              setShowPayModal(false);
+              navigate(-1);
+            }}
+            className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 transition"
+          >
+            ✕
+          </button>
+
+          <h2 className="text-4xl font-bold text-center mb-12">Pricing Plans</h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+
+            {/* Pro Plan (Featured) */}
+            <div className="bg-purple-600 text-white rounded-xl shadow-xl p-6 transform scale-105 relative">
+              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-purple-700 text-white px-4 py-1 rounded-full text-sm font-semibold">
+                MOST POPULAR
+              </div>
+
+              <h3 className="text-xl font-semibold mb-2">Pro</h3>
+              <p className="text-4xl font-bold mb-2">₹199–299<span className="text-lg font-normal">/mo</span></p>
+
+              <ul className="space-y-2 mb-6">
+                <li>✔ Unlimited passwords</li>
+                <li>✔ 2FA security</li>
+                <li>✔ Breach alerts</li>
+                <li>✔ Basic SIEM summary</li>
+              </ul>
+
+              <button onClick={() => handleSelectPlanForPurchase('pro')} className="w-full bg-purple-800 py-2 rounded-lg hover:bg-purple-900">
+                Buy Now
+              </button>
+            </div>
+
+            {/* Premium Plan */}
+            <div className="bg-white rounded-xl shadow p-6 flex flex-col">
+              <h3 className="text-xl font-semibold mb-2">Premium</h3>
+              <p className="text-4xl font-bold mb-2">₹499–799<span className="text-lg font-normal">/mo</span></p>
+
+              <ul className="space-y-2 mb-6 text-gray-700">
+                <li>✔ File/URL scanning</li>
+                <li>✔ Full SIEM dashboards</li>
+                <li>✔ Anomaly alerts</li>
+                <li>✔ PIN/OTP security</li>
+                <li>✔ Device logs</li>
+              </ul>
+
+              <button onClick={() => handleSelectPlanForPurchase('premium')} className="mt-auto w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700">
+                Get Started
+              </button>
+            </div>
+
+            {/* Business Plan */}
+            <div className="bg-white rounded-xl shadow p-6 flex flex-col">
+              <h3 className="text-xl font-semibold mb-2">Business</h3>
+              <p className="text-4xl font-bold mb-2">₹1499–2499<span className="text-lg font-normal">/team/mo</span></p>
+
+              <ul className="space-y-2 mb-6 text-gray-700">
+                <li>✔ Admin dashboard</li>
+                <li>✔ Team vaults</li>
+                <li>✔ Policy enforcement</li>
+                <li>✔ Audit logs</li>
+                <li>✔ Incident reports</li>
+              </ul>
+
+              <button onClick={() => navigate('/contact')} className="mt-auto w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700">
+                Contact Sales
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+
 
 
 
@@ -1014,11 +1249,18 @@ const handleOpenEditPassword = (password: PasswordEntry) => {
 
   const handleAddPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-
-  if (checkPasswordReuse(passwordformData.password)) {
-    setShowReuseWarning(true); // 👈 open modal instead of alert
+    const currentPlan = selectedPlan || localStorage.getItem('plan') || 'free';
+  console.log('🧪 Add password check:', { currentPlan, passwordsLength: passwords.length });
+  
+  if (currentPlan === 'free' && passwords.length >= 3) {
+    setShowPlanLimitModal(true);
     return;
   }
+
+    if (checkPasswordReuse(passwordformData.password)) {
+      setShowReuseWarning(true); // 👈 open modal instead of alert
+      return;
+    }
 
     try {
       await apiService.addPassword(passwordformData);
@@ -1036,18 +1278,17 @@ const handleOpenEditPassword = (password: PasswordEntry) => {
 
 
 
-  const handleUpdatePassword = async (e: React.FormEvent) => {
-    // const data = await apiService.getPasswords({ params: { t: Date.now() } });
-
-    e.preventDefault();
+const handleUpdatePassword = async (e: React.FormEvent) => {
+      // const data = await apiService.getPasswords({ params: { t: Date.now() } });
+e.preventDefault();
 
     if (
-    checkPasswordReuse(passwordformData.password) &&
-    passwordformData.password !== currentPassword
-  ) {
-    setShowReuseWarning(true); // 👈 open modal instead of aler
-    return;
-  }
+      checkPasswordReuse(passwordformData.password) &&
+      passwordformData.password !== currentPassword
+    ) {
+      setShowReuseWarning(true); // 👈 open modal instead of aler
+      return;
+    }
 
     if (!editingPassword) return;
 
@@ -1155,59 +1396,58 @@ const handleOpenEditPassword = (password: PasswordEntry) => {
 
 
 
-// 🧩 Password Reuse Detection
-const checkPasswordReuse = (newPassword: string) => {
-  if (!newPassword || !Array.isArray(passwords)) return false;
-  return passwords.some(
-    (entry) => entry.password.trim() === newPassword.trim()
-  );
-};
+  // 🧩 Password Reuse Detection
+  const checkPasswordReuse = (newPassword: string) => {
+    if (!newPassword || !Array.isArray(passwords)) return false;
+    return passwords.some(
+      (entry) => entry.password.trim() === newPassword.trim()
+    );
+  };
 
-const handleSharePassword = async () => {
-  if (!selectedPassword) return;
+  const handleSharePassword = async () => {
+    if (!selectedPassword) return;
 
-  setIsSharing(true);
-  setError('');
-  setSuccessMessage('');
-
-  try {
-    const plaintext = selectedPassword.password;
-    const secret = crypto.randomUUID(); // client-side decryption secret
-
-    // Derive key using the secret
-    const encrypted = await encryptForShare(plaintext, secret);
-
-    // Create share on backend (no per-share PIN; verification will use the creator's account PIN)
-    const res = await apiService.createPasswordShare(selectedPassword._id, {
-      encryptedData: encrypted.encryptedData,
-      iv: encrypted.iv,
-      salt: encrypted.salt, // persist salt server-side
-      expiresAt: new Date(Date.now() + shareExpiry * 60 * 1000).toISOString(),
-      metadata: {
-        website: selectedPassword.website,
-        username: selectedPassword.username,
-      },
-      // no `pin` field -> use stored account PIN for verification
-    });
-
-    const shareLink = `${window.location.origin}/share/${res.shareId}#${secret}`;
-    setShareLink(shareLink);
+    setIsSharing(true);
+    setError('');
+    setSuccessMessage('');
 
     try {
-      await navigator.clipboard.writeText(shareLink);
-      setSuccessMessage(`Share link copied! Use your account PIN to verify.`);
-    } catch (err) {
-      console.warn('Clipboard write failed:', err);
-      setSuccessMessage(`Share link generated — use your account PIN to verify (copy manually)`);
-    }
-  } catch (err) {
-    console.error('Failed to generate share link:', err);
-    setError(err instanceof Error ? err.message : 'Failed to create share link');
-  } finally {
-    setIsSharing(false);
-  }
-};
+      const plaintext = selectedPassword.password;
+      const secret = crypto.randomUUID(); // client-side decryption secret
 
+      // Derive key using the secret
+      const encrypted = await encryptForShare(plaintext, secret);
+
+      // Create share on backend (no per-share PIN; verification will use the creator's account PIN)
+      const res = await apiService.createPasswordShare(selectedPassword._id, {
+        encryptedData: encrypted.encryptedData,
+        iv: encrypted.iv,
+        salt: encrypted.salt, // persist salt server-side
+        expiresAt: new Date(Date.now() + shareExpiry * 60 * 1000).toISOString(),
+        metadata: {
+          website: selectedPassword.website,
+          username: selectedPassword.username,
+        },
+        // no `pin` field -> use stored account PIN for verification
+      });
+
+      const shareLink = `${window.location.origin}/share/${res.shareId}#${secret}`;
+      setShareLink(shareLink);
+
+      try {
+        await navigator.clipboard.writeText(shareLink);
+        setSuccessMessage(`Share link copied! Use your account PIN to verify.`);
+      } catch (err) {
+        console.warn('Clipboard write failed:', err);
+        setSuccessMessage(`Share link generated — use your account PIN to verify (copy manually)`);
+      }
+    } catch (err) {
+      console.error('Failed to generate share link:', err);
+      setError(err instanceof Error ? err.message : 'Failed to create share link');
+    } finally {
+      setIsSharing(false);
+    }
+  };
 
 
 
@@ -1234,9 +1474,11 @@ const handleSharePassword = async () => {
       ? 'lg:grid-cols-2' // Force 2 columns on large screens
       : 'lg:grid-cols-3'; // Default 3 columns
   const token = localStorage.getItem('token');
+  const plan = localStorage.getItem('plan');
+
   return (
 
-<div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300 dark:from-gray-900 dark:via-gray-800 dark:to-gray-700">
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300 dark:from-gray-900 dark:via-gray-800 dark:to-gray-700">
       <title>Password Manager</title>
 
       <Header
@@ -1247,15 +1489,15 @@ const handleSharePassword = async () => {
         setSidebarExpanded={setSidebarExpanded}
       />
 
-  <div className="flex justify-end px-6 py-3 border-b border-gray-200 dark:border-gray-800">
-      <button
-        onClick={toggleDarkMode}
-        aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-        className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-800 text-sm font-medium shadow hover:scale-105 transition"
-      >
-        {darkMode ? "☀ Light Mode" : "🌙 Dark Mode"}
-      </button>
-    </div>
+      <div className="flex justify-end px-6 py-3 border-b border-gray-200 dark:border-gray-800">
+        <button
+          onClick={toggleDarkMode}
+          aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+          className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-800 text-sm font-medium shadow hover:scale-105 transition"
+        >
+          {darkMode ? "☀ Light Mode" : "🌙 Dark Mode"}
+        </button>
+      </div>
 
 
       <title> Password Manager </title>
@@ -1273,6 +1515,8 @@ const handleSharePassword = async () => {
             { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
             { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
             { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
+                        { label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> },
+            
           ].map(({ label, path, icon }) => (
             <div
               key={path}
@@ -1311,12 +1555,12 @@ const handleSharePassword = async () => {
           >
             <ArrowLeft className="w-5 h-5" /> Back
           </button>
-          <br/>
+          <br />
         </div>
 
 
-<main className="flex-1 px-6 py-4 md:py-6 lg:py-8">
-            {/* Back Button */}
+        <main className="flex-1 px-6 py-4 md:py-6 lg:py-8">
+          {/* Back Button */}
 
 
 
@@ -1329,85 +1573,109 @@ const handleSharePassword = async () => {
           </div>
 
 
-<div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-  {/* Total Passwords Stored */}
-  <div className="bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl p-6 flex flex-col items-center justify-center text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-    <div className="text-4xl font-extrabold">{totalPasswords}</div>
-    <div className="mt-2 text-lg font-medium">Total Passwords</div>
-  </div>
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Total Passwords Stored */}
+            <div className="bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl p-6 flex flex-col items-center justify-center text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+              <div className="text-4xl font-extrabold">{totalPasswords}</div>
+              <div className="mt-2 text-lg font-medium">Total Passwords</div>
+            </div>
 
-  {/* Total Strong Passwords */}
-<div className="bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-xl p-6 flex flex-col items-center justify-center text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-  <div className="text-4xl font-extrabold">{strongPasswords}</div>
-  <div className="mt-2 text-lg font-medium">Strong Passwords</div>
-</div>
+            {/* Total Strong Passwords */}
+            <div className="bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-xl p-6 flex flex-col items-center justify-center text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+              <div className="text-4xl font-extrabold">{strongPasswords}</div>
+              <div className="mt-2 text-lg font-medium">Strong Passwords</div>
+            </div>
 
 
 
-  {/* Total Weak Passwords */}
-  <div className="bg-gradient-to-br from-red-400 to-red-600 rounded-xl p-6 flex flex-col items-center justify-center text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-    <div className="text-4xl font-extrabold">{weakPasswords}</div>
-    <div className="mt-2 text-lg font-medium">Weak Passwords</div>
-  </div>
+            {/* Total Weak Passwords */}
+            <div className="bg-gradient-to-br from-red-400 to-red-600 rounded-xl p-6 flex flex-col items-center justify-center text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+              <div className="text-4xl font-extrabold">{weakPasswords}</div>
+              <div className="mt-2 text-lg font-medium">Weak Passwords</div>
+            </div>
 
-  {/* Passwords Changed in Last 90 Days */}
-  <div className="bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl p-6 flex flex-col items-center justify-center text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-    <div className="text-4xl font-extrabold">{passwordsChanged90Days}</div>
-    <div className="mt-2 text-lg font-medium">Changed in 90 Days</div>
-  </div>
-</div>
+            {/* Passwords Changed in Last 90 Days */}
+            <div className="bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl p-6 flex flex-col items-center justify-center text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+              <div className="text-4xl font-extrabold">{passwordsChanged90Days}</div>
+              <div className="mt-2 text-lg font-medium">Changed in 90 Days</div>
+            </div>
+          </div>
+          {/* Plan Status Card */}
 
-<br/>
+
+
+
+          <div className={`bg-gradient-to-br ${plan === 'free'
+              ? 'from-orange-400 to-orange-600'
+              : 'from-emerald-400 to-emerald-600'
+            } rounded-xl p-6 flex flex-col items-center justify-center text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105`}>
+            <div className="text-3xl font-extrabold">{plan === 'free' ? 'FREE' : 'PREMIUM'}</div>
+            <div className="mt-1 text-sm font-medium opacity-90">
+              {plan === 'free'
+                ? 'FREE'
+                : 'PREMIUM'
+              }
+            </div>
+          </div>
+
+
+          <br />
 
 
           {/* Saved Passwords */}
           <div className="bg-white shadow-xl rounded-2xl p-6 border border-gray-200">
-  <div className="flex justify-between items-center mb-6">
-    <h2 className="text-xl font-bold text-gray-800">Your Saved Passwords</h2>
-    <Button
-      onClick={() => setShowAddForm(true)}
-      className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-5 py-2 rounded-xl shadow-md hover:shadow-lg transition"
-    >
-      + Add New
-    </Button>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-800">Your Saved Passwords</h2>
+             <Button
+  onClick={() => setShowAddForm(true)}
+  className={`px-5 py-2 rounded-xl shadow-md transition ${
+    isPlanLimitReached
+      ? 'bg-gray-400 cursor-not-allowed text-gray-600'
+      : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white hover:shadow-lg'
+  }`}
+>
+  {isPlanLimitReached ? '💎 Upgrade to Add More' : '+ Add New'}
+</Button>
   </div>
 
-  {/* 🔍 Search / Filter Bar */}
-  <div className="mb-6">
-    <input
-      type="text"
-      placeholder="Search passwords (by website, username, or notes)..."
-      value={searchQuery}
-      onChange={(e) => setSearchQuery(e.target.value)}
-      className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none shadow-sm"
-    />
-  </div>
 
-  {isLoading ? (
-    <div className="flex flex-col items-center py-10">
-      <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-      <p className="mt-3 text-gray-600">Loading passwords...</p>
-    </div>
-  ) : filteredPasswords.length === 0 ? (
-    <div className="bg-gray-50 p-8 rounded-lg text-center border border-dashed border-gray-300">
-      <p className="text-gray-500">
-        {searchQuery
-          ? `No results found for "${searchQuery}".`
-          : `No passwords yet. Click + Add New to get started!`}
-      </p>
-    </div>
-  ) : (
-<div className={`grid gap-6 grid-cols-1 sm:grid-cols-2 ${gridColsClass}`}>
-  {filteredPasswords.map((password) => (
-    <div
-      key={password._id}
-      className={`
+
+
+            {/* 🔍 Search / Filter Bar */}
+            <div className="mb-6">
+              <input
+                type="text"
+                placeholder="Search passwords (by website, username, or notes)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none shadow-sm"
+              />
+            </div>
+
+            {isLoading ? (
+              <div className="flex flex-col items-center py-10">
+                <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+                <p className="mt-3 text-gray-600">Loading passwords...</p>
+              </div>
+            ) : filteredPasswords.length === 0 ? (
+              <div className="bg-gray-50 p-8 rounded-lg text-center border border-dashed border-gray-300">
+                <p className="text-gray-500">
+                  {searchQuery
+                    ? `No results found for "${searchQuery}".`
+                    : `No passwords yet. Click + Add New to get started!`}
+                </p>
+              </div>
+            ) : (
+              <div className={`grid gap-6 grid-cols-1 sm:grid-cols-2 ${gridColsClass}`}>
+                {filteredPasswords.map((password) => (
+                  <div
+                    key={password._id}
+                    className={`
         w-full 
-        bg-gradient-to-br ${
-          password.password.length <= 5 
-            ? 'from-red-400 to-red-600' 
-            : 'from-blue-400 to-blue-600'
-        }
+        bg-gradient-to-br ${password.password.length <= 5
+                        ? 'from-red-400 to-red-600'
+                        : 'from-blue-400 to-blue-600'
+                      }
         text-white 
         rounded-3xl 
         p-6 
@@ -1420,10 +1688,10 @@ const handleSharePassword = async () => {
         group
         ${cardCount === 1 ? 'col-span-full' : ''} 
       `}
-    >
-      <div className="flex items-center justify-between mb-5">
-        <div
-          className={`
+                  >
+                    <div className="flex items-center justify-between mb-5">
+                      <div
+                        className={`
             w-14 h-14 
             ${getWebsiteColor(password.website)} 
             rounded-xl 
@@ -1431,9 +1699,9 @@ const handleSharePassword = async () => {
             text-white font-semibold text-xl 
             shadow-lg
           `}
-        >
-          {getWebsiteIcon(password.website)}
-            </div>
+                      >
+                        {getWebsiteIcon(password.website)}
+                      </div>
 
                       <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition">
                         <div className="flex gap-3">
@@ -1477,8 +1745,19 @@ const handleSharePassword = async () => {
                                   onClick={() => {
                                     setConfirmId(password._id);
                                     setPinAction("view");
-                                    setShowReverifyPinModal(true);
-                                  }}
+ 
+ 
+     const pinRequired = shouldRequirePin(); // flag-aware
+
+    // 1️⃣ Paid users
+      if (pinRequired) {
+        // Persist state across redirect
+        localStorage.setItem('needsPin', 'true');
+        setShowReverifyPinModal(true);
+      }
+       else {
+    handleViewPassword(password._id);
+  }                                  }}
                                 >
                                   <Eye className="w-4 h-4" />
                                 </Button>
@@ -1488,25 +1767,43 @@ const handleSharePassword = async () => {
                           </TooltipProvider>
 
                           {/* Edit Button */}
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="hover:bg-yellow-100 hover:text-yellow-600 rounded-full transition"
-                                  onClick={() => {
-                                    setConfirmId(password._id);
-                                    setPinAction("edit"); // 👈 set action
-                                    setShowReverifyPinModal(true);
-                                  }}
-                                >
-                                  <Pencil className="w-4 h-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Edit Password</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                         <TooltipProvider>
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <Button
+        variant="outline"
+        size="icon"
+        className="hover:bg-yellow-100 hover:text-yellow-600 rounded-full transition"
+        onClick={() => {
+          setConfirmId(password._id);
+          setPinAction("edit");
+          
+          if (shouldRequirePin()) {
+            setShowReverifyPinModal(true);  // PIN → handleReverifyPinSubmit sets editingPassword
+          } else {
+            // Direct edit path - PREPARE FORM FIRST (like handleReverifyPinSubmit does)
+            const pwdToEdit = passwords.find(p => p._id === password._id);
+            if (pwdToEdit) {
+              setEditingPassword(pwdToEdit);
+              setPasswordFormData({
+                website: pwdToEdit.website,
+                username: pwdToEdit.username,
+                password: '', // Never prefill
+                category: pwdToEdit.category,
+                notes: pwdToEdit.notes,
+              });
+              setCurrentPassword('');
+              setShowEditModal(true);  // Open edit modal
+            }
+          }
+        }}
+      >
+        <Pencil className="w-4 h-4" />
+      </Button>
+    </TooltipTrigger>
+    <TooltipContent>Edit Password</TooltipContent>
+  </Tooltip>
+</TooltipProvider>
 
                           {/* Delete Button */}
                           <TooltipProvider>
@@ -1519,8 +1816,12 @@ const handleSharePassword = async () => {
                                   onClick={() => {
                                     setConfirmId(password._id);
                                     setPinAction("delete");
-                                    setShowReverifyPinModal(true);
-                                  }
+
+  if (shouldRequirePin()) {
+    setShowReverifyPinModal(true);
+  } else {
+    setShowDeleteConfirmationModal(true);
+  }                                  }
                                   }
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -1532,25 +1833,25 @@ const handleSharePassword = async () => {
 
 
                           {/* Share Button */}
-<TooltipProvider>
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Button
-        variant="outline"
-        size="icon"
-        className="hover:bg-blue-100 hover:text-blue-600 rounded-full transition"
-        onClick={() => {
-          setConfirmId(password._id);
-          setSelectedPassword(password);   // store full password object
-          setShowShareModal(true);          // open share modal
-        }}
-      >
-        <Share2 className="w-4 h-4" />
-      </Button>
-    </TooltipTrigger>
-    <TooltipContent>Share Password</TooltipContent>
-  </Tooltip>
-</TooltipProvider>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="hover:bg-blue-100 hover:text-blue-600 rounded-full transition"
+                                  onClick={() => {
+                                    setConfirmId(password._id);
+                                    setSelectedPassword(password);   // store full password object
+                                    setShowShareModal(true);          // open share modal
+                                  }}
+                                >
+                                  <Share2 className="w-4 h-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Share Password</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
 
                         </div>
 
@@ -1599,126 +1900,126 @@ const handleSharePassword = async () => {
             )
             }
 
-{showShareModal && selectedPassword && (
-  <Dialog open={showShareModal} onOpenChange={setShowShareModal}>
-    <DialogContent className="sm:max-w-md rounded-2xl shadow-lg border border-blue-200 bg-blue-50 p-6">
-      <DialogHeader>
-        <div className="flex flex-col items-center gap-3 text-center">
-          {/* 🔗 Icon */}
-          <div className="w-12 h-12 flex items-center justify-center rounded-full bg-blue-100">
-            <span className="text-blue-600 text-2xl">🔗</span>
-          </div>
+            {showShareModal && selectedPassword && (
+              <Dialog open={showShareModal} onOpenChange={setShowShareModal}>
+                <DialogContent className="sm:max-w-md rounded-2xl shadow-lg border border-blue-200 bg-blue-50 p-6">
+                  <DialogHeader>
+                    <div className="flex flex-col items-center gap-3 text-center">
+                      {/* 🔗 Icon */}
+                      <div className="w-12 h-12 flex items-center justify-center rounded-full bg-blue-100">
+                        <span className="text-blue-600 text-2xl">🔗</span>
+                      </div>
 
-          {/* Title */}
-          <DialogTitle className="text-lg font-semibold text-blue-700">
-            Share Password Securely
-          </DialogTitle>
+                      {/* Title */}
+                      <DialogTitle className="text-lg font-semibold text-blue-700">
+                        Share Password Securely
+                      </DialogTitle>
 
-          {/* Subtext */}
-          <p className="text-sm text-gray-700">
-            Generate a time-limited, encrypted link to share this password safely.
-          </p>
-        </div>
-      </DialogHeader>
+                      {/* Subtext */}
+                      <p className="text-sm text-gray-700">
+                        Generate a time-limited, encrypted link to share this password safely.
+                      </p>
+                    </div>
+                  </DialogHeader>
 
-      {/* Content */}
-      <div className="space-y-4 mt-4">
-        {error && (
-          <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-2 rounded-md">
-            {error}
-          </div>
-        )}
-        {successMessage && (
-          <div className="bg-green-100 border border-green-300 text-green-700 px-4 py-2 rounded-md">
-            {successMessage}
-          </div>
-        )}
-        {/* Password Info */}
-        <div className="bg-white rounded-xl p-3 border text-sm">
-          <p className="text-gray-500">Website</p>
-          <p className="font-semibold truncate">{selectedPassword.website}</p>
-        </div>
+                  {/* Content */}
+                  <div className="space-y-4 mt-4">
+                    {error && (
+                      <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-2 rounded-md">
+                        {error}
+                      </div>
+                    )}
+                    {successMessage && (
+                      <div className="bg-green-100 border border-green-300 text-green-700 px-4 py-2 rounded-md">
+                        {successMessage}
+                      </div>
+                    )}
+                    {/* Password Info */}
+                    <div className="bg-white rounded-xl p-3 border text-sm">
+                      <p className="text-gray-500">Website</p>
+                      <p className="font-semibold truncate">{selectedPassword.website}</p>
+                    </div>
 
-        {/* Expiry */}
-        <div>
-          <label className="text-sm font-medium text-gray-700">
-            Link expiry
-          </label>
-          <select
-            value={shareExpiry}
-            onChange={(e) => setShareExpiry(Number(e.target.value))}
-            className="mt-1 w-full border border-gray-300 rounded-xl p-2 focus:ring-2 focus:ring-blue-500"
-          >
-            <option value={5}>5 minutes</option>
-            <option value={15}>15 minutes</option>
-            <option value={60}>1 hour</option>
-            <option value={1440}>24 hours</option>
-          </select>
-        </div>
+                    {/* Expiry */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">
+                        Link expiry
+                      </label>
+                      <select
+                        value={shareExpiry}
+                        onChange={(e) => setShareExpiry(Number(e.target.value))}
+                        className="mt-1 w-full border border-gray-300 rounded-xl p-2 focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value={5}>5 minutes</option>
+                        <option value={15}>15 minutes</option>
+                        <option value={60}>1 hour</option>
+                        <option value={1440}>24 hours</option>
+                      </select>
+                    </div>
 
-        {/* Share Link */}
-        {shareLink && (
-          <div className="bg-white border rounded-xl p-3 text-sm break-all">
-            <p className="text-gray-500 mb-1">Secure share link</p>
-            <p className="font-mono text-xs text-gray-800">{shareLink}</p>
+                    {/* Share Link */}
+                    {shareLink && (
+                      <div className="bg-white border rounded-xl p-3 text-sm break-all">
+                        <p className="text-gray-500 mb-1">Secure share link</p>
+                        <p className="font-mono text-xs text-gray-800">{shareLink}</p>
 
-            <div className="flex justify-end mt-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={async () => {
-                  try {
-                    if (shareLink) {
-                      await navigator.clipboard.writeText(shareLink);
-                      setSuccessMessage('Link copied to clipboard');
-                    }
-                  } catch (err) {
-                    console.error('Copy failed:', err);
-                    setError('Failed to copy link to clipboard');
-                  }
-                }}
-              >
-                Copy link
-              </Button>
-            </div>
-          </div>
-        )}
+                        <div className="flex justify-end mt-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              try {
+                                if (shareLink) {
+                                  await navigator.clipboard.writeText(shareLink);
+                                  setSuccessMessage('Link copied to clipboard');
+                                }
+                              } catch (err) {
+                                console.error('Copy failed:', err);
+                                setError('Failed to copy link to clipboard');
+                              }
+                            }}
+                          >
+                            Copy link
+                          </Button>
+                        </div>
+                      </div>
+                    )}
 
-        {/* Security Note */}
-        <div className="text-xs text-gray-600 bg-blue-100 rounded-xl p-3">
-          🔒 This link can be opened only once and expires automatically.
-          <div className="mt-2 text-xs text-gray-500">
-            Note: This share uses your account PIN for verification — please share your account PIN securely with the recipient.
-          </div>
-        </div>
+                    {/* Security Note */}
+                    <div className="text-xs text-gray-600 bg-blue-100 rounded-xl p-3">
+                      🔒 This link can be opened only once and expires automatically.
+                      <div className="mt-2 text-xs text-gray-500">
+                        Note: This share uses your account PIN for verification — please share your account PIN securely with the recipient.
+                      </div>
+                    </div>
 
-        {/* Actions */}
-        <div className="flex justify-end gap-3 pt-2">
-          <Button
-            variant="outline"
-            onClick={() => {
-              setShowShareModal(false);
-              setShareLink(null); // reset previous link
-              setError('');
-              setSuccessMessage('');
-            }}
-            className="rounded-xl"
-          >
-            Cancel
-          </Button>
+                    {/* Actions */}
+                    <div className="flex justify-end gap-3 pt-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setShowShareModal(false);
+                          setShareLink(null); // reset previous link
+                          setError('');
+                          setSuccessMessage('');
+                        }}
+                        className="rounded-xl"
+                      >
+                        Cancel
+                      </Button>
 
-          <Button
-            onClick={handleSharePassword}
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
-            disabled={isSharing}
-          >
-            {isSharing ? 'Generating...' : 'Generate Link'}
-          </Button>
-        </div>
-      </div>
-    </DialogContent>
-  </Dialog>
-)}
+                      <Button
+                        onClick={handleSharePassword}
+                        className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
+                        disabled={isSharing}
+                      >
+                        {isSharing ? 'Generating...' : 'Generate Link'}
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
 
 
             {/* Hoisted Delete Confirmation Modal (renders once at top-level, above other modals) */}
@@ -1757,7 +2058,7 @@ const handleSharePassword = async () => {
             )}
 
             {
-              showReverifyPinModal && !pinError && (
+              showReverifyPinModal &&  pinverificationEnabled === true  && !pinError && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                   <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-lg flex flex-col items-center">
 
@@ -1805,44 +2106,44 @@ const handleSharePassword = async () => {
 
 
 
-<Dialog open={showReuseWarning} onOpenChange={setShowReuseWarning}>
-  <DialogContent className="sm:max-w-md rounded-2xl shadow-lg border border-blue-300 bg-blue-50 p-6 text-center">
-    <DialogHeader>
-      <div className="flex flex-col items-center gap-3">
-        {/* ⚠️ Warning Icon */}
-        <div className="w-12 h-12 flex items-center justify-center rounded-full bg-blue-100">
-          <span className="text-blue-600 text-2xl">⚠️</span>
-        </div>
+            <Dialog open={showReuseWarning} onOpenChange={setShowReuseWarning}>
+              <DialogContent className="sm:max-w-md rounded-2xl shadow-lg border border-blue-300 bg-blue-50 p-6 text-center">
+                <DialogHeader>
+                  <div className="flex flex-col items-center gap-3">
+                    {/* ⚠️ Warning Icon */}
+                    <div className="w-12 h-12 flex items-center justify-center rounded-full bg-blue-100">
+                      <span className="text-blue-600 text-2xl">⚠️</span>
+                    </div>
 
-        {/* Title */}
-        <DialogTitle className="text-lg font-semibold text-blue-700">
-          Password Reuse Detected
-        </DialogTitle>
+                    {/* Title */}
+                    <DialogTitle className="text-lg font-semibold text-blue-700">
+                      Password Reuse Detected
+                    </DialogTitle>
 
-        {/* Subtext */}
-        <p className="text-sm text-gray-700">
-          This password is already used for another account.  
-          Please choose a unique password to enhance your security.
-        </p>
+                    {/* Subtext */}
+                    <p className="text-sm text-gray-700">
+                      This password is already used for another account.
+                      Please choose a unique password to enhance your security.
+                    </p>
 
-        {/* Close Button */}
-        <div className="mt-5">
-          <Button
-            onClick={() => setShowReuseWarning(false)}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-xl shadow-md transition"
-          >
-            Okay, Got it
-          </Button>
-        </div>
-      </div>
-    </DialogHeader>
-  </DialogContent>
-</Dialog>
+                    {/* Close Button */}
+                    <div className="mt-5">
+                      <Button
+                        onClick={() => setShowReuseWarning(false)}
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-xl shadow-md transition"
+                      >
+                        Okay, Got it
+                      </Button>
+                    </div>
+                  </div>
+                </DialogHeader>
+              </DialogContent>
+            </Dialog>
 
 
 
             {
-              showReverifyPinModal && pinError && (
+              showReverifyPinModal && pinverificationEnabled === true  && pinError && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                   <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-red-200">
 
@@ -1960,14 +2261,75 @@ const handleSharePassword = async () => {
             }
 
 
+            {/* Free Plan Limit Modal */}
+            {showPlanLimitModal && (
+              <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[9999]">
+                <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-orange-200">
+                  {/* Header */}
+                  <div className="p-6 border-b border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-orange-100">
+                        <span className="text-2xl">💎</span>
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900">Free Plan Limit Reached</h3>
+                        <p className="text-sm text-orange-700 mt-1">Maximum passwords exceeded</p>
+                      </div>
+                    </div>
+                  </div>
 
- {showExpiryModal && expiredPassword && (
-      <PasswordExpiryModal
-        password={expiredPassword}
-        onClose={() => setShowExpiryModal(false)}
-  onUpdate={handleOpenEditPassword}
-        />
-    )}
+                  {/* Body */}
+                  <div className="p-6">
+                    <p className="text-gray-700 leading-relaxed">
+                      Your free plan allows only <strong className="text-orange-600 font-semibold">3 passwords</strong>.
+                      You've already saved {totalPasswords} passwords.
+                    </p>
+
+                    <div className="mt-4 p-4 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl border border-orange-100">
+                      <h4 className="font-semibold text-orange-800 mb-2 flex items-center gap-2">
+                        🚀 Upgrade Benefits
+                      </h4>
+                      <ul className="text-sm text-orange-700 space-y-1">
+                        <li>• Unlimited password storage</li>
+                        <li>• Advanced security features</li>
+                        <li>• Priority support</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="p-6 pt-0 flex flex-col sm:flex-row gap-3 border-t border-gray-100">
+                    <button
+                      onClick={() => setShowPlanLimitModal(false)}
+                      className="flex-1 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-medium transition-all duration-200"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowPlanLimitModal(false);
+                        setShowPayModalWithoutFreePlan(true);
+
+                      }}
+
+                      // 👈 Update with your upgrade page
+                      className="flex-1 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 text-center"
+                    >
+                      Upgrade Now
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+
+            {showExpiryModal && expiredPassword && (
+              <PasswordExpiryModal
+                password={expiredPassword}
+                onClose={() => setShowExpiryModal(false)}
+                onUpdate={handleOpenEditPassword}
+              />
+            )}
 
 
 
@@ -2145,56 +2507,56 @@ const handleSharePassword = async () => {
                   <div className="bg-white p-6 rounded-lg w-full max-w-md">
                     <h3 className="text-xl font-bold text-black mb-4">Add New Password</h3>
                     <form onSubmit={handleAddPassword} className="space-y-4">
-                     <div>
-  <label className="block text-sm font-medium text-black mb-1">
-    Website/Service
-  </label>
+                      <div>
+                        <label className="block text-sm font-medium text-black mb-1">
+                          Website/Service
+                        </label>
 
-  <select
-    value={passwordformData.website}
-    onChange={(e) =>
-      setPasswordFormData({
-        ...passwordformData,
-        website: e.target.value,
-      })
-    }
-    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-    required
-  >
-    <option value="">Select a website</option>
-    <option value="Facebook">Facebook</option>
-    <option value="Instagram">Instagram</option>
-    <option value="Twitter">Twitter</option>
-    <option value="LinkedIn">LinkedIn</option>
-    <option value="Gmail">Gmail</option>
-    <option value="Outlook">Outlook</option>
-    <option value="GitHub">GitHub</option>
-    <option value="GitLab">GitLab</option>
-    <option value="Amazon">Amazon</option>
-    <option value="Flipkart">Flipkart</option>
-    <option value="Paytm">Paytm</option>
-    <option value="PhonePe">PhonePe</option>
-    <option value="Netflix">Netflix</option>
-    <option value="Hotstar">Hotstar</option>
-    <option value="Custom">Other (Enter manually)</option>
-  </select>
+                        <select
+                          value={passwordformData.website}
+                          onChange={(e) =>
+                            setPasswordFormData({
+                              ...passwordformData,
+                              website: e.target.value,
+                            })
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                          required
+                        >
+                          <option value="">Select a website</option>
+                          <option value="Facebook">Facebook</option>
+                          <option value="Instagram">Instagram</option>
+                          <option value="Twitter">Twitter</option>
+                          <option value="LinkedIn">LinkedIn</option>
+                          <option value="Gmail">Gmail</option>
+                          <option value="Outlook">Outlook</option>
+                          <option value="GitHub">GitHub</option>
+                          <option value="GitLab">GitLab</option>
+                          <option value="Amazon">Amazon</option>
+                          <option value="Flipkart">Flipkart</option>
+                          <option value="Paytm">Paytm</option>
+                          <option value="PhonePe">PhonePe</option>
+                          <option value="Netflix">Netflix</option>
+                          <option value="Hotstar">Hotstar</option>
+                          <option value="Custom">Other (Enter manually)</option>
+                        </select>
 
-  {/* Conditional input for "Other / Custom" */}
-  {passwordformData.website === "Custom" && (
-    <input
-      type="text"
-      placeholder="Enter website name"
-      onChange={(e) =>
-        setPasswordFormData({
-          ...passwordformData,
-          website: e.target.value,
-        })
-      }
-      className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-      required
-    />
-  )}
-</div>
+                        {/* Conditional input for "Other / Custom" */}
+                        {passwordformData.website === "Custom" && (
+                          <input
+                            type="text"
+                            placeholder="Enter website name"
+                            onChange={(e) =>
+                              setPasswordFormData({
+                                ...passwordformData,
+                                website: e.target.value,
+                              })
+                            }
+                            className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                          />
+                        )}
+                      </div>
 
 
                       <div>
@@ -2312,14 +2674,14 @@ const handleSharePassword = async () => {
           </div >
         </main >
       </div >
-      
 
 
 
 
 
 
-      
+
+
       <Footer />
     </div >
   );

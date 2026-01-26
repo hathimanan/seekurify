@@ -26,6 +26,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onToggleMode }) => {
   const [otpPayload, setOtpPayload] = useState<{ email: string; otpToken: string } | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showPIN, setShowPIN] = useState(false);
+const [otpEnabled, setOtpEnabled] = useState<boolean | null>(null);
   const [success, setSuccess] = useState(false);
   const { login, verifyPin } = useAuth();
   const navigate = useNavigate();
@@ -83,6 +84,30 @@ const handleSubmit = async (e: React.FormEvent) => {
     if (loginRes.token) {
       localStorage.setItem('token', loginRes.token);
     }
+
+
+
+
+    if (otpEnabled === null) {
+  setError("Loading security configuration. Please wait...");
+  setIsLoading(false);
+  return;
+}
+
+if (otpEnabled === false) {
+  
+  // OTP disabled → go to PIN
+  setShowPIN(true);
+  setOtpPayload({ email, otpToken: '' });
+  setIsLoading(false);
+  return;
+}
+
+// OTP enabled → send OTP
+
+
+
+
     // 🔹 Step 2: Request OTP
     const otpRes = await fetch(`${API_BASE_URL}/auth/send-otp`, {
       method: 'POST',
@@ -116,7 +141,22 @@ const handleSubmit = async (e: React.FormEvent) => {
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [success]);
+
+
+   const fetchOtpFlag = async () => {
+  try {
+    const res = await fetch(`${API_BASE_URL}/feature-flags/read`);
+    const data = await res.json();
+
+    setOtpEnabled(data.otpEnabled); // <-- MongoDB value
+  } catch (err) {
+    setOtpEnabled(true); // secure default
+  }
+};
+
+
+    fetchOtpFlag();
+  },[]);
 
   // Step 3: Handle PIN Verification
   const handleVerifyPIN = async (pin: string) => {
@@ -263,10 +303,14 @@ const handleSubmit = async (e: React.FormEvent) => {
 
                 <Button
                   type="submit"
-                  disabled={isLoading}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-4 rounded-md font-semibold text-lg shadow-md hover:shadow-lg transition transform hover:scale-[1.02] disabled:opacity-50"
+  disabled={isLoading || otpEnabled === null}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-4 rounded-md font-semibold text-lg shadow-md hover:shadow-lg transition transform hover:scale-[1.02] disabled:opacity-50"
                 >
-                  {isLoading ? 'Authenticating...' : 'Login'}
+             {otpEnabled === null
+    ? "Loading security..."
+    : isLoading
+    ? "Authenticating..."
+    : "Login"}
                 </Button>
               </form>
 

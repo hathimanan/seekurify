@@ -2,6 +2,7 @@ import express from 'express';
 import crypto from 'crypto';
 import jwt  from 'jsonwebtoken';
 import Password from '../models/Password.js';
+import User from '../models/User.ts';
 import bcryptjs from 'bcryptjs';
 import { createNotification } from "../utils/createNotification.js";
 const passwordRouter = express.Router();
@@ -68,6 +69,16 @@ passwordRouter.post('/', authenticateToken, async (req, res) => {
 
   try {
     const newPassword = new Password({ website, username, password, userId });
+    const userP = await User.findById(userId).select('plan');
+    if (userP.plan === 'free') {
+      const passwordCount = await Password.countDocuments({ userId });
+      if (passwordCount >= 3) {
+        return res.status(403).json({ 
+          error: 'Free plan allows only 3 passwords. Upgrade to premium for unlimited storage.' 
+        });
+      }
+    }
+  
     await newPassword.save();
     res.status(201).json({ message: "Password saved securely" });
   } catch (error) {

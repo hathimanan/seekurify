@@ -24,7 +24,7 @@ loginRouter.post('/', async (req, res) => {
     }
 
     const token = jwt.sign(
-      { _id: user._id, email: user.email },
+      { _id: user._id, email: user.email, role: user.role },
       process.env.secretKey,
       { expiresIn: '3m' }
     );

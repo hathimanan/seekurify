@@ -5,7 +5,7 @@ import { API_BASE_URL, apiService } from "../../services/api";
 import { motion } from "framer-motion";
 import Header from "../../components/ui/Header";
 import Footer from "../../components/ui/Footer";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ShieldAlert } from "lucide-react";
 import {
   FileSearch,
   KeyRound,
@@ -208,6 +208,7 @@ const [darkMode, setDarkMode] = useState(false);
             { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
             { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
             { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
+            { label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> },
           ].map(({ label, path, icon }) => (
             <div
               key={path}

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Graph from "./Graph";
 import Header from "../components/ui/Header";
 import Footer from "../components/ui/Footer";
-import { ArrowLeft, BarChart3, FileSearch, KeyRound, Phone, ShieldCheck } from "lucide-react";
+import { ArrowLeft, BarChart3, FileSearch, KeyRound, Phone, ShieldAlert, ShieldCheck } from "lucide-react";
 import { API_BASE_URL } from "../services/api";
 import { Button } from "./ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -662,6 +662,8 @@ if (currentModal === "pay") {
             { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
             { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
             { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
+                        { label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> },
+
           ].map(({ label, path, icon }) => (
             <div
               key={path}

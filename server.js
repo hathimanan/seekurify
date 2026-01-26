@@ -16,7 +16,12 @@ import session from 'express-session';
 import cors from 'cors';
 import helmet from 'helmet';
 import http from 'http';
+import rateLimit from 'express-rate-limit';
+import hpp from 'hpp';
+import { body, query, param, validationResult } from 'express-validator';
 import { initSocket } from './src/realtime/socketHub.js';
+// In your Express app
+
 
 // --- Paths for __dirname in ES modules ---
 const __filename = fileURLToPath(import.meta.url);
@@ -83,6 +88,8 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
+
+
 // Extra Helmet hardening
 app.use(helmet.referrerPolicy({ policy: 'no-referrer' }));
 app.use(helmet.crossOriginOpenerPolicy());
@@ -117,27 +124,126 @@ app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
 // --- Body parsing ---
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 
+// 1. Remove NoSQL injection operators
+// --- Security Middleware ---
+
+// 1. Prevent XSS attacks
+
+// 2. Prevent HTTP Parameter Pollution
+// --- Security Middleware ---
+
+// 1. Prevent HTTP Parameter Pollution
+app.use(hpp());
+
+// 2. Comprehensive Security Sanitization (NoSQL Injection + XSS Protection)
 app.use((req, res, next) => {
-  const sanitizeString = (str) => str.replace(/[<>$]/g, ''); // example simple sanitizer
-
-  const sanitizeObject = (obj) => {
-    for (const key in obj) {
-      if (typeof obj[key] === 'string') obj[key] = sanitizeString(obj[key]);
-      else if (typeof obj[key] === 'object' && obj[key] !== null) sanitizeObject(obj[key]);
-    }
+  const sanitizeString = (str) => {
+    if (typeof str !== 'string') return str;
+    
+    // XSS Protection - Remove/escape dangerous HTML and scripts
+    let cleaned = str
+      // Remove script tags and content
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      // Remove on* event handlers
+      .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
+      .replace(/on\w+\s*=\s*[^\s>]*/gi, '')
+      // Remove javascript: protocol
+      .replace(/javascript:/gi, '')
+      // Remove data: protocol (can be used for XSS)
+      .replace(/data:text\/html/gi, '')
+      // NoSQL Injection Protection
+      .replace(/[<>'"${}();]/g, '') // Remove special chars
+      .replace(/(\$where|\$regex|\$ne|\$nin|\$in|\$gt|\$lt|\$lte|\$gte|\$exists|\$type)/gi, '') // Remove NoSQL operators
+      .trim();
+    
+    return cleaned;
   };
 
-  if (req.body) sanitizeObject(req.body);
-  if (req.query) sanitizeObject(req.query);
-  if (req.params) sanitizeObject(req.params);
+  const sanitizeObject = (obj) => {
+    if (!obj || typeof obj !== 'object') return;
+    
+    const keysToDelete = [];
+    
+    for (const key in obj) {
+      // Block dangerous keys (NoSQL injection + prototype pollution)
+      if (
+        key.startsWith('$') || 
+        key.startsWith('_') || 
+        key.includes('.') || 
+        key.includes('constructor') || 
+        key.includes('prototype') ||
+        key.includes('__proto__')
+      ) {
+        keysToDelete.push(key);
+        console.warn(`🚨 Security: Blocked dangerous key "${key}" from ${req.ip || 'unknown'}`);
+        continue;
+      }
+      
+      if (typeof obj[key] === 'string') {
+        obj[key] = sanitizeString(obj[key]);
+      } else if (Array.isArray(obj[key])) {
+        obj[key] = obj[key].map(item => {
+          if (typeof item === 'string') return sanitizeString(item);
+          if (typeof item === 'object' && item !== null) {
+            sanitizeObject(item);
+            return item;
+          }
+          return item;
+        });
+      } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+        sanitizeObject(obj[key]);
+      }
+    }
+    
+    // Delete dangerous keys
+    keysToDelete.forEach(key => delete obj[key]);
+  };
+
+  // Sanitize all input sources
+  try {
+    if (req.body && typeof req.body === 'object') {
+      sanitizeObject(req.body);
+    }
+    if (req.query && typeof req.query === 'object') {
+      sanitizeObject(req.query);
+    }
+    if (req.params && typeof req.params === 'object') {
+      sanitizeObject(req.params);
+    }
+  } catch (error) {
+    console.error('Sanitization error:', error);
+    return res.status(400).json({ error: 'Invalid request data' });
+  }
 
   next();
 });
 
+
+// General API rate limiter
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Strict limiter for auth routes
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Only 5 login attempts per 15 minutes
+  message: 'Too many login attempts, please try again later.',
+  skipSuccessfulRequests: true, // Don't count successful logins
+});
+
+// Apply rate limiting
+app.use('/api/', apiLimiter);
+app.use('/api/auth', authLimiter);
+app.use('/api/login', authLimiter);
 
 // --- Sessions (5 min) ---
 app.use(session({
@@ -167,6 +273,9 @@ import SIEMDashboard from './src/api/siemDashboard.js';
 import profileRoute from './src/api/profile.js';
 import userSchema from './src/models/User.ts';
 import botRouter from './src/routes/bot.ts';
+import phishingRouter from './src/api/phishing.js';
+import featureFlagRoutes from './src/routes/featureFlagRoutes.js';
+
 
 app.use('/api/homepage', homepageBeforeloginRoutes);
 app.use('/api/auth', authRouter);
@@ -180,6 +289,10 @@ app.use('/api', SIEMDashboard);
 app.use('/api/profile', profileRoute);
 app.use('/api/user', userSchema);
 app.use('/api', botRouter);
+app.use('/api', phishingRouter);
+app.use('/api/feature-flags', featureFlagRoutes);
+
+
 // --- Serve static files from Vite build ---
 app.use(express.static(path.join(__dirname, 'seekurify')));
 

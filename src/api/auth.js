@@ -35,6 +35,14 @@ import passwordShare from "../models/passwordShare.js";
 
 import mongoose from 'mongoose';
 
+import { 
+  emailValidation, 
+  passwordValidation, 
+  usernameValidation,
+  handleValidationErrors 
+} from '../middleware/validation.js';
+
+
 import sendResetEmail from '../emailService.js' ;
 const NODE_ENV = process.env.NODE_ENV || "development";
 dotenv.config({
@@ -392,9 +400,11 @@ authRouter.post('/send-otp', async (req, res) => {
     // 🔢 2. Generate random OTP (6 digits)
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
+const role = user.role;
+
     // 🔏 3. Sign OTP inside a JWT (valid for 10 mins)
     const otpToken = jwt.sign(
-      { email, otp },
+      { email, otp, role },
       process.env.secretKeyOTP,
       { expiresIn: '5m' }
     );
@@ -568,11 +578,10 @@ if (
   shouldForcePasswordChange = true;
 }
 
-
     // -----------------------------------------------
 
     const token = jwt.sign(
-      { _id: user._id, email: user.email },
+      { _id: user._id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '15m' }
     );
@@ -918,31 +927,59 @@ authRouter.post("/create-order", authenticateToken, async (req, res) => {
 
 // ----------------- PAYMENT SUCCESS -----------------
 authRouter.post("/payment-success", authenticateToken, async (req, res) => {
-  console.log("req.user:", req.user);
   try {
-    if (!req.user) return res.status(401).json({ success: false, message: "Unauthorized" });
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, plan } = req.body;
 
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return res.status(400).json({ success: false, message: "Incomplete payment details received" });
+      return res.status(400).json({ success: false, message: "Incomplete payment details" });
     }
 
+    const allowedPlans = ["free", "pro", "premium", "business"];
+    if (!allowedPlans.includes(plan)) {
+      return res.status(400).json({ success: false, message: "Invalid plan selected" });
+    }
+
+    // Validate Razorpay signature
     const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
     hmac.update(`${razorpay_order_id}|${razorpay_payment_id}`);
     const generatedSignature = hmac.digest("hex");
 
-    if (generatedSignature === razorpay_signature) {
-      // Payment verified
-      await User.findByIdAndUpdate(req.user._id, { hasPaid: true });
-      return res.status(200).json({ success: true, message: "Payment verified successfully" });
-    } else {
+    if (generatedSignature !== razorpay_signature) {
       return res.status(400).json({ success: false, message: "Invalid payment signature" });
     }
+
+    const user = await User.findById(req.user._id);
+
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    // ❗ Prevent repeating payment update
+   
+const updatedUser = await User.findByIdAndUpdate(
+      req.user._id, 
+      {
+        hasPaid: true,
+        plan: plan, // 🎯 Ensure this is actually saving
+        razorpay_payment_id,
+        razorpay_order_id,
+        razorpay_signature,
+        paymentDate: new Date(),
+      },
+      { new: true } // Returns the updated document
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment verified successfully",
+      plan: updatedUser.plan, // Return the plan from the DB, not the request
+    });
+
   } catch (err) {
     console.error("Server error:", err);
-    return res.status(500).json({ success: false, message: "Server error while verifying payment" });
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
+
 
 // ----------------- CHECK PAYMENT -----------------
 // ==========================
@@ -956,7 +993,7 @@ authRouter.post("/check-payment", authenticateToken, async (req, res) => {
       return res.status(401).json({ hasPaid: false, message: "Unauthorized" });
     }
 
-    const user = await User.findById(userId).select("hasPaid plan");
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ hasPaid: false, message: "User not found" });
     }
@@ -995,8 +1032,9 @@ authRouter.post("/check-payment", authenticateToken, async (req, res) => {
 // ==========================
 authRouter.post("/start-trial", authenticateToken, async (req, res) => {
   try {
+const { plan } = req.body; // 🎯 Get the plan they actually chose!
     const userId = req.user?._id;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+        if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
     const user = await User.findById(userId).select("hasPaid");
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -1010,16 +1048,17 @@ authRouter.post("/start-trial", authenticateToken, async (req, res) => {
     endDate.setDate(startDate.getDate() + 7);
 
     const newTrial = await Trial.create({ userId, startDate, endDate });
-    await User.findByIdAndUpdate(userId, { plan: "trial" });
+    // ✅ Store the actual plan ('free', 'pro', 'premium'), not 'trial'
+    // The Trial collection tracks the trial status; the plan field should hold the selected tier
+await User.findByIdAndUpdate(userId, { plan: plan || 'free' });
 
-    return res.status(200).json({
+   return res.status(200).json({
       message: "Trial started successfully",
       trialActive: true,
-      startDate,
+      plan: plan || 'free',
       endDate,
     });
   } catch (err) {
-    console.error("start-trial error:", err);
     res.status(500).json({ message: "Failed to start trial" });
   }
 });
@@ -1458,6 +1497,21 @@ authRouter.post("/share/:shareId/verify", async (req, res) => {
   } catch (err) {
     console.error("Share PIN verification failed:", err);
     return res.status(500).json({ error: "Server error" });
+  }
+});
+
+authRouter.get("/public", async (req, res) => {
+  try {
+    const otpFlag = await FeatureFlag.findOne({
+      key: "otp_verification",
+    });
+
+    // secure default = true
+    res.json({
+      otpEnabled: otpFlag ? otpFlag.enabled : true,
+    });
+  } catch (err) {
+    res.status(500).json({ otpEnabled: true });
   }
 });
 

@@ -32,6 +32,8 @@ import Insights from "./components/Insights";
 import BotChat from "./components/ui/BotChat";
 import React from 'react';
 import { useAuth } from './context/AuthContext';
+import PhishingDetector from "./components/PhishingDetector";
+import FeatureFlagPage from "./components/admin/FeatureFlagPage";
 
 const AppRoutes = () => {
   const navigate = useNavigate();
@@ -110,6 +112,7 @@ const isPublicRoute = [
 
         <Route path="/malware-analysis" element={<MalwareAnalyzer />} />
 
+<Route path="/feature-flags" element={<FeatureFlagPage />} />
 
         <Route path="/securityAwareness" element={<SecurityAwareness />} />
 
@@ -131,6 +134,8 @@ const isPublicRoute = [
           <Route path="/reset-password" element={<ForgotPasswordForm/>} />
 
         <Route path="/warning" element={<WarningScreen />} />
+
+<Route path="/detect-attacker" element={<PhishingDetector />} />
 
         <Route path="/features" element={<FeaturesPage />} />
         

@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { apiService } from '../services/api';
 import { HomePageAfter } from '../screens/HomePageAfter/HomePageAfter';
 import { Logo } from './ui/logo';
+import { API_BASE_URL } from '../services/api';
 
 interface OTPFormProps {
   email: string;
@@ -20,11 +21,16 @@ export const OTPForm: React.FC<OTPFormProps> = ({ email, otpToken, onBack, onSuc
   const isOtpValid = otp.every((digit) => /^\d$/.test(digit));
   const [goToHome, setGoToHome] = useState(false);
 
+
   useEffect(() => {
     if (inputRefs.current[0]) {
       inputRefs.current[0].focus();
     }
   }, []);
+
+
+
+
 
   const handleInputChange = (index: number, value: string) => {
     if (value.length > 1) return;
@@ -135,7 +141,7 @@ export const OTPForm: React.FC<OTPFormProps> = ({ email, otpToken, onBack, onSuc
     value={digit}
     onChange={(e) => handleInputChange(index, e.target.value)}
     onKeyDown={(e) => handleKeyDown(index, e)}
-    onPaste={index === 0 ? handlePaste : undefined}
+    onPaste={index === 0 ? handlePaste : undefined}   
     maxLength={1}
     className="w-12 h-12 text-center text-xl font-semibold border border-gray-300 rounded-lg shadow-sm focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200 transition outline-none bg-white hover:shadow-md"
   />
