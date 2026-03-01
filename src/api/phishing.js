@@ -99,4 +99,108 @@ phishingRouter.post('/detect-attacker', (req, res) => {
     return res.json(analyzeEmail(emailContent));
 });
 
+// ══════════════════════════════════════════════════════════
+// AI-POWERED PHISHING ANALYSIS (Anthropic API)
+// ══════════════════════════════════════════════════════════
+
+phishingRouter.post('/analyze-ai-phishing', async (req, res) => {
+    const { emailContent } = req.body;
+    
+    if (!emailContent) {
+        return res.status(400).json({ error: "emailContent is required" });
+    }
+
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+        console.error('❌ ANTHROPIC_API_KEY not set');
+        return res.status(500).json({ error: "AI service not configured" });
+    }
+
+    const systemPrompt = `You are an expert cybersecurity analyst specializing in phishing email detection.
+Analyze the provided email content and return ONLY a valid JSON object (no markdown, no explanation outside JSON).
+
+Return this exact structure:
+{
+  "phishingProbability": <number 0-100>,
+  "verdict": "<SAFE|SUSPICIOUS|PHISHING>",
+  "confidenceLevel": "<LOW|MEDIUM|HIGH>",
+  "indicators": [
+    { "category": "<string>", "description": "<string>", "severity": "<low|medium|high>" }
+  ],
+  "urgencyLanguage": { "detected": <boolean>, "examples": ["<string>"] },
+  "senderSpoofing": { "detected": <boolean>, "details": "<string>" },
+  "maliciousUrls": { "found": <boolean>, "urls": ["<string>"] },
+  "emotionalManipulation": { "detected": <boolean>, "type": "<string>" },
+  "recommendation": "<one clear action for the user>",
+  "plainEnglishSummary": "<2-3 sentence summary a non-technical user can understand>"
+}
+
+Detection criteria to evaluate:
+1. Urgency/pressure language ("act now", "account suspended", "verify immediately")
+2. Sender spoofing (display name vs actual email domain mismatch)
+3. Typosquatting domains (paypa1.com, arnazon.com, g00gle.com)
+4. Suspicious URLs (shortened URLs, mismatched domains, IP addresses)
+5. Requests for credentials, personal info, or payments
+6. Emotional manipulation (fear, reward, authority impersonation)
+7. Grammar/spelling anomalies common in phishing
+8. Mismatched reply-to and from fields
+9. Newly registered domains in links
+10. Generic greetings ("Dear Customer") instead of names`;
+
+    try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+                model: 'claude-sonnet-4-20250514',
+                max_tokens: 1024,
+                system: systemPrompt,
+                messages: [
+                    {
+                        role: 'user',
+                        content: `Analyze this email:\n\n${emailContent}`
+                    }
+                ]
+            })
+        });
+
+        if (!response.ok) {
+            console.error(`❌ Anthropic API error: ${response.status}`);
+            const errorData = await response.json();
+            return res.status(response.status).json({ 
+                error: "AI analysis failed",
+                details: errorData
+            });
+        }
+
+        const data = await response.json();
+        const analysisText = data.content?.[0]?.text || '';
+        
+        // Clean JSON response (remove markdown code blocks if present)
+        const cleanJson = analysisText.replace(/```json\s*|\s*```/g, '').trim();
+        
+        try {
+            const analysis = JSON.parse(cleanJson);
+            return res.json(analysis);
+        } catch (parseError) {
+            console.error('❌ Failed to parse AI response:', parseError);
+            return res.status(500).json({ 
+                error: "Failed to parse AI response",
+                raw: analysisText
+            });
+        }
+
+    } catch (error) {
+        console.error('❌ AI Phishing Analysis Error:', error.message);
+        return res.status(500).json({ 
+            error: "AI analysis failed",
+            message: error.message 
+        });
+    }
+});
+
 export default phishingRouter;

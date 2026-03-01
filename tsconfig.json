@@ -4,7 +4,12 @@
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" }
   ],
-  "compilerOptions": {
-    "typeRoots": ["./src/types", "./node_modules/@types"]
-  }
+   "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "outDir": "dist",
+    "strict": true,
+    "esModuleInterop": true,
+        "typeRoots": ["./src/types", "./node_modules/@types"]
+   }
 }

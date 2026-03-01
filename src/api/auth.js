@@ -33,7 +33,12 @@ import Notification from '../models/Notification.model.js';
 
 import passwordShare from "../models/passwordShare.js";
 
+import Log from "../models/Log.js";
+
 import mongoose from 'mongoose';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
 
 import { 
   emailValidation, 
@@ -626,8 +631,10 @@ export const updatePin = async (req, res) => {
   }
 };
 
-authRouter.get('/:userId', async (req, res) => {
+
+authRouter.get('/:userId', async (req, res, next) => {
   const { userId } = req.params;
+  if (!mongoose.isValidObjectId(userId)) return next();
   try {
     const count = await LoginEvent.countDocuments({ userId });
     res.json({ count });
@@ -1519,5 +1526,138 @@ authRouter.get("/public", async (req, res) => {
 
 
 
+authRouter.post("/check-domain", async (req, res) => {
+  const { domain } = req.body;
+
+  const found = await MaliciousDomain.findOne({ domain });
+
+  if (found) {
+    return res.json({
+      knownMalicious: true,
+      riskLevel: found.riskLevel
+    });
+  }
+
+  return res.json({ knownMalicious: false });
+});
+
+
+
+authRouter.get('/security-context', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const now = new Date();
+    const last7days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // 1. Password stats
+    const passwords = await Password.find({ userId }).select('strength reused');
+    const weakPasswords   = passwords.filter(p => p.strength === 'weak').length;
+    const reusedPasswords = passwords.filter(p => p.reused === true).length;
+
+    // 2. Recent brute force
+    const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const failedLogins = await LoginEvent.countDocuments({
+      userId,
+      success: false,
+      timestamp: { $gte: last24h }
+    });
+    const recentBruteForce = failedLogins >= 5;
+
+    // 3. Recent failed login alerts
+    const recentFailedLogins = await LoginEvent.find({
+      userId,
+      success: false,
+      timestamp: { $gte: last7days }
+    })
+      .sort({ timestamp: -1 })
+      .limit(5)
+      .select('ipAddress userAgent timestamp')
+      .lean();
+
+    const recentAlerts = recentFailedLogins.map((login) => ({
+      type: 'warning',
+      message: `Failed login attempt from ${login.ipAddress}`,
+      timestamp: login.timestamp,
+    }));
+
+    // 4. Suspicious login count
+    const suspiciousLogins = await LoginEvent.countDocuments({
+      userId,
+      success: false,
+      timestamp: { $gte: last24h }
+    });
+
+    // 5. Security score
+    let score = 100;
+    score -= weakPasswords * 10;
+    score -= reusedPasswords * 8;
+    if (recentBruteForce) score -= 20;
+    score -= recentAlerts.filter((a) => a.type === 'critical').length * 15;
+    score = Math.max(0, Math.min(100, score));
+
+    // 6. Security status
+    let securityStatus = 'good';
+    if (score >= 80)      securityStatus = 'good';
+    else if (score >= 60) securityStatus = 'fair';
+    else if (score >= 40) securityStatus = 'poor';
+    else                  securityStatus = 'critical';
+
+    // 7. 🤖 Google Gemini AI — security recommendations
+    let aiRecommendations = null;
+    try {
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+      const prompt = `
+You are a cybersecurity assistant. Analyze the following user security data and provide 3 concise, actionable recommendations.
+
+Security Data:
+- Security Score: ${score}/100
+- Security Status: ${securityStatus}
+- Weak Passwords: ${weakPasswords}
+- Reused Passwords: ${reusedPasswords}
+- Failed Login Attempts (last 24h): ${suspiciousLogins}
+- Brute Force Detected: ${recentBruteForce}
+- Recent Alerts: ${recentAlerts.length}
+- Total Passwords Managed: ${passwords.length}
+
+Respond in JSON format only, like this:
+{
+  "summary": "One sentence overall assessment.",
+  "recommendations": [
+    { "priority": "high" | "medium" | "low", "action": "Short actionable tip" },
+    { "priority": "high" | "medium" | "low", "action": "Short actionable tip" },
+    { "priority": "high" | "medium" | "low", "action": "Short actionable tip" }
+  ]
+}`;
+
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+
+      // Strip markdown code fences if present
+      const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
+      aiRecommendations = JSON.parse(cleaned);
+    } catch (aiErr) {
+      console.warn('Gemini AI recommendation failed (non-fatal):', aiErr.message);
+      // Fails gracefully — route still returns full security data
+    }
+
+    res.json({
+      securityScore: score,
+      securityStatus,
+      weakPasswords,
+      reusedPasswords,
+      failedAttemptsLast24h: suspiciousLogins,
+      recentBruteForce,
+      recentAlerts: recentAlerts.slice(0, 5),
+      totalPasswords: passwords.length,
+      lastChecked: now,
+      aiRecommendations, // 🤖 null if AI call failed
+    });
+
+  } catch (err) {
+    console.error('Security context error:', err);
+    res.status(500).json({ error: 'Failed to load security context' });
+  }
+});
 
 export default authRouter;

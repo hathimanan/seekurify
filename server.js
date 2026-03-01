@@ -30,24 +30,44 @@ const __dirname = path.dirname(__filename);
 // --- Determine if production ---
 const PROD = NODE_ENV === "production";
 
+
+
+
+
+
 // --- App setup ---
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // --- CORS setup ---
+// --- CORS setup ---
 const allowedOrigins = PROD
   ? ['https://your-domain.com']
-  : ['http://localhost:5173', 'http://localhost:5000', 'http://127.0.0.1:5173']; // add server origin & 127.0.0.1
+  : ['http://localhost:5173', 'http://localhost:5000', 'http://127.0.0.1:5173'];
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) callback(null, true);
-    else callback(new Error('Not allowed by CORS'));
+    // Allow requests with no origin (like mobile apps, Postman, curl)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Allow all Chrome extensions
+    if (origin.startsWith('chrome-extension://')) {
+      return callback(null, true);
+    }
+    
+    // Allow specific origins from the list
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Reject everything else
+    callback(new Error('Not allowed by CORS'));
   },
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  transports: ['websocket', 'polling']
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // --- Security headers ---
@@ -232,12 +252,14 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Strict limiter for auth routes
+// Strict limiter for auth routes — skip non-login endpoints like /security-context
+const AUTH_LIMITER_SKIP_PATHS = ['/security-context'];
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // Only 5 login attempts per 15 minutes
   message: 'Too many login attempts, please try again later.',
-  skipSuccessfulRequests: true, // Don't count successful logins
+  skipSuccessfulRequests: true,
+  skip: (req) => AUTH_LIMITER_SKIP_PATHS.some(p => req.path.endsWith(p)),
 });
 
 // Apply rate limiting
@@ -273,8 +295,12 @@ import SIEMDashboard from './src/api/siemDashboard.js';
 import profileRoute from './src/api/profile.js';
 import userSchema from './src/models/User.ts';
 import botRouter from './src/routes/bot.ts';
+import aiRouter from './src/AI/aiRoutes.ts';
 import phishingRouter from './src/api/phishing.js';
 import featureFlagRoutes from './src/routes/featureFlagRoutes.js';
+import scanRouter from './src/api/scanServer.js';
+import phishingServerRouter from './src/api/phishingServer.js';
+
 
 
 app.use('/api/homepage', homepageBeforeloginRoutes);
@@ -289,8 +315,11 @@ app.use('/api', SIEMDashboard);
 app.use('/api/profile', profileRoute);
 app.use('/api/user', userSchema);
 app.use('/api', botRouter);
+app.use('/api/ai', aiRouter);
 app.use('/api', phishingRouter);
 app.use('/api/feature-flags', featureFlagRoutes);
+app.use('/api', scanRouter);
+app.use('/api', phishingServerRouter);
 
 
 // --- Serve static files from Vite build ---

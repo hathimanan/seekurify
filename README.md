@@ -45,7 +45,7 @@ npm install
 ## Environment Setup
 
 
-Create a .env file in the root directory with the following variables:
+Create a .env file in the root directory with the following variables (add others as needed):
 
 MONGODB_URI=mongodb://localhost:27017/Seekurify
 secretKey=342b1cccd0172c02ccaa09ddcc0b1d6bbbb205674a4d71d2702e40d12bb53e3c
@@ -57,6 +57,13 @@ GMAIL_CLIENT_ID=588965386958-cf77cc6tamklkkgr89dgvib5gakj9lkl.apps.googleusercon
 GMAIL_CLIENT_SECRET=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
 GMAIL_REFRESH_TOKEN=1//04Uqw3zze3zJoCgYIARAAGAQSNwF-L9IrrIyxAaZtJCExp3_3C_6Un3S8JZfMk_zJDBfd4e-OJSPHUA6fH1mzBh8xjlD9fhhPnwI
 
+# AI Chatbot configuration (optional)
+# Provide *one* of the following keys to enable the contextual chatbot:
+# - Google Gemini: GOOGLE_AI_API_KEY=<your-google-key>
+# - Anthropic/Claude: ANTHROPIC_API_KEY=<your-anthropic-key>
+# - Litellm (local/lightweight model): LITELLM_API_KEY=<your-litellm-key or path>
+# The server will prefer Litellm if its key is present, otherwise it will fall back
+to Google, then Anthropic. If no key is configured the bot runs in demo mode.
 
 ## Running the Application
 Development Mode (Frontend + Backend)

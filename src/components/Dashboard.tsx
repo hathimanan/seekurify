@@ -71,6 +71,7 @@ const getWebsiteIcon = (website: string) => {
   if (name.includes("outlook") || name.includes("microsoft")) return "O";
   if (name.includes("yahoo")) return "Y!";
 
+
   // Developer Platforms
   if (name.includes("github")) return "🐱";
   if (name.includes("gitlab")) return "🦊";
@@ -81,11 +82,15 @@ const getWebsiteIcon = (website: string) => {
 
   // Finance / Payment Apps
   if (name.includes("paytm")) return "₹";
+    if (name.includes("groww")) return "G";
+
   if (name.includes("phonepe")) return "P";
 
   // Streaming
   if (name.includes("netflix")) return "N";
   if (name.includes("hotstar")) return "H";
+
+
 
   // Default fallback
   return website.charAt(0).toUpperCase();
@@ -2295,7 +2300,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
                     </button>
                     <button
                       onClick={() => {
-                        setShowPlanLimitModal(false);
+                        // setShowPlanLimitModal(false);
                         setShowPayModalWithoutFreePlan(true);
 
                       }}
@@ -2522,6 +2527,9 @@ const checkPaymentStatus = async (): Promise<string | null> => {
                           <option value="GitLab">GitLab</option>
                           <option value="Amazon">Amazon</option>
                           <option value="Flipkart">Flipkart</option>
+
+                          <option value="Groww.in">Groww.in</option>
+
                           <option value="Paytm">Paytm</option>
                           <option value="PhonePe">PhonePe</option>
                           <option value="Netflix">Netflix</option>

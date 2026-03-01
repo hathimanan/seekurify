@@ -707,7 +707,7 @@ const toggleDarkMode = () => {
             </div>
 
             {/* Chat Body */}
-            <div className="flex-1 p-3 overflow-auto text-sm sm:text-base">
+            <div className="flex-1 overflow-hidden">
               <BotChat />
             </div>
           </div>
