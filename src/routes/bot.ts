@@ -1,10 +1,11 @@
 import express from "express";
 import type { Request, Response } from "express";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { Anthropic } from "@anthropic-ai/sdk";
 import { completion } from "litellm";
 import { SYSTEM_PROMPT } from "../config/systemPrompt.ts";
 import { getCybersecurityContent } from "../lib/knowledgeBase.ts";
-
+import OpenAI from "openai";
 const botRouter = express.Router();
 
 // ─────────────────────────────────────────────────────
@@ -21,6 +22,7 @@ const botRouter = express.Router();
 const litellmApiKey = process.env.LITELLM_API_KEY;    // new provider (local or lightweight LLM)
 const googleApiKey = process.env.GOOGLE_AI_API_KEY;
 const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+const litellmApiBase = process.env.LITELLM_API_BASE;
 
 // determine which provider we're going to talk to; preference order: litellm -> google -> anthropic
 let aiProvider: "litellm" | "google" | "anthropic" | "none" = "none";
@@ -42,10 +44,7 @@ if (aiProvider === "google") {
 }
 if (aiProvider === "anthropic") {
   try {
-    // lazy import to avoid bundling or if dependency missing
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { Anthropic } = require("@anthropic-ai/sdk");
-    anthropicClient = new Anthropic({ apiKey: anthropicApiKey! });
+    anthropicClient = new Anthropic({ apiKey: anthropicApiKey! }); // optional base URL for enterprise users
   } catch (e) {
     console.warn("⚠️ Failed to initialize Anthropic client", e);
     aiProvider = "none";
@@ -193,12 +192,17 @@ const makeFallback = (raw: string) => ({
 // ── Provider-specific helpers ─────────────────────────────────────────────
 
 const callLitellm = async (prompt: string): Promise<string> => {
-  const response = await completion({
-    model: process.env.LITELLM_MODEL || "claude-opus-4-6",
-    messages: [{ role: "user", content: prompt }],
-    apiKey: litellmApiKey,
+  const client = new OpenAI({
+    apiKey: litellmApiKey || "lm-studio",
+    baseURL: litellmApiBase || "http://127.0.0.1:5174/v1",
   });
-  return ((response as any).choices[0].message.content || "").toString();
+
+  const response = await client.chat.completions.create({
+    model: process.env.LITELLM_MODEL || "google/gemma-3-1b",
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  return response.choices[0].message.content || "";
 };
 
 // Generic dispatcher that calls the appropriate provider based on aiProvider.
@@ -207,13 +211,14 @@ const callAnthropic = async (prompt: string): Promise<string> => {
   if (!anthropicClient) {
     throw new Error("Anthropic client not initialized or key missing.");
   }
-  // sdk's responses.create API
-  const resp = await anthropicClient.responses.create({
-    model: "claude-instant-v1",
-    input: prompt,
+  // sdk's messages.create API
+  const resp = await anthropicClient.messages.create({
+    model: "claude-3-5-sonnet-20241022",
+    max_tokens: 1024,
+    messages: [{ role: "user", content: prompt }],
   });
-  // response structure may vary; try to extract text
-  const text = resp?.output?.[0]?.content?.[0]?.text;
+  // response structure: content is an array of content blocks
+  const text = resp.content?.[0]?.type === "text" ? resp.content[0].text : "";
   return (text || "").toString();
 };
 

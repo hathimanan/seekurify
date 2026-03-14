@@ -266,7 +266,6 @@ export default function PhishingDetector() {
     setUserInput(''); setRecipientAnalysis(null);
   };
 
-
   // ─────────────────────────────────────────────
   //  RENDER
   // ─────────────────────────────────────────────

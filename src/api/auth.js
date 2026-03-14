@@ -19,6 +19,17 @@ import { google } from 'googleapis';
 import validator from 'validator'; // npm install validator
 import LoginEvent from '../models/LoginEvent.model.js';
 import dotenv from 'dotenv';
+
+// load environment variables immediately so subsequent imports can rely on them
+const NODE_ENV = process.env.NODE_ENV || "development";
+dotenv.config({
+  path: NODE_ENV === "production"
+    ? ".env.production"
+    : NODE_ENV === "test"
+    ? ".env.test"
+    : ".env.development"
+});
+
 import bcrypt from 'bcrypt';
 import PasswordChangeEvent from '../models/PasswordChangeEvent.model.js';
 import Password from '../models/Password.js';
@@ -38,7 +49,12 @@ import Log from "../models/Log.js";
 import mongoose from 'mongoose';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
+// only construct the client if a key is provided; avoids spurious calls when
+// the variable is unset (e.g. when you push keys into .env but comment them
+// out later). If there is no key we keep genAI null and skip any Gemini logic.
+const genAI = process.env.GOOGLE_AI_API_KEY
+  ? new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY)
+  : null;
 
 import { 
   emailValidation, 
@@ -49,14 +65,7 @@ import {
 
 
 import sendResetEmail from '../emailService.js' ;
-const NODE_ENV = process.env.NODE_ENV || "development";
-dotenv.config({
-  path: NODE_ENV === "production"
-    ? ".env.production"
-    : NODE_ENV === "test"
-    ? ".env.test"
-    : ".env.development"
-});
+// dotenv config moved to top to ensure env vars are available earlier
 const OAuth2 = google.auth.OAuth2;
 const app = express();
 const authRouter = express.Router();
@@ -1605,9 +1614,8 @@ authRouter.get('/security-context', authenticateToken, async (req, res) => {
     // 7. 🤖 Google Gemini AI — security recommendations
     let aiRecommendations = null;
     try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
-      const prompt = `
+      if (genAI) {
+        const prompt = `
 You are a cybersecurity assistant. Analyze the following user security data and provide 3 concise, actionable recommendations.
 
 Security Data:
@@ -1630,12 +1638,15 @@ Respond in JSON format only, like this:
   ]
 }`;
 
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
-
-      // Strip markdown code fences if present
-      const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
-      aiRecommendations = JSON.parse(cleaned);
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const result = await model.generateContent(prompt);
+        const text = result.response.text();
+        // Strip markdown code fences if present
+        const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
+        aiRecommendations = JSON.parse(cleaned);
+      } else {
+        // no google client, skip the recommendation step entirely
+      }
     } catch (aiErr) {
       console.warn('Gemini AI recommendation failed (non-fatal):', aiErr.message);
       // Fails gracefully — route still returns full security data
