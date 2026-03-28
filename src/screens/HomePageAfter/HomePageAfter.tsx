@@ -5,7 +5,7 @@ import { API_BASE_URL, apiService } from "../../services/api";
 import { motion } from "framer-motion";
 import Header from "../../components/ui/Header";
 import Footer from "../../components/ui/Footer";
-import { ChevronRight, ShieldAlert } from "lucide-react";
+import { ChevronRight, Shield, ShieldAlert, Globe } from "lucide-react";
 import {
   FileSearch,
   KeyRound,
@@ -29,6 +29,7 @@ export const HomePageAfter = (): JSX.Element => {
   const [sidebarExpanded, setSidebarExpanded] = useState(true); // ✅ sidebar toggle state
 const [darkMode, setDarkMode] = useState(false);
   const [phishingDetectorEnabled, setPhishingDetectorEnabled] = useState<boolean>(false);
+  const [siteShieldEnabled, setSiteShieldEnabled] = useState<boolean>(false);
   const [featuresLoaded, setFeaturesLoaded] = useState(false);
 
 
@@ -46,6 +47,7 @@ const [darkMode, setDarkMode] = useState(false);
           
           console.log('✅ Header feature flags loaded:', data);
           setPhishingDetectorEnabled(data.phishingDetectorEnabled === true);
+          setSiteShieldEnabled(data.siteShieldEnabled === true);
           
         } catch (err) {
           console.error("❌ Failed to load header feature flags:", err);
@@ -237,8 +239,13 @@ const [darkMode, setDarkMode] = useState(false);
             { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
             { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
             { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
+            { label: "Prompt Scanner", path: "/prompt-scanner", icon: <Shield className="w-5 h-5" /> },
+
 ...(phishingDetectorEnabled ? [
       { label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> }
+    ] : []),
+    ...(siteShieldEnabled ? [
+      { label: "SiteShield Audit", path: "/site-shield", icon: <Globe className="w-5 h-5" /> }
     ] : [])
             ].map(({ label, path, icon }) => (
             <div

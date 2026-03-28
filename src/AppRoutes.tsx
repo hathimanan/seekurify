@@ -17,6 +17,10 @@ import TermsAndConditions from "./components/TermsAndConditions";
 import SharedPasswordLanding from "./components/SharedPasswordLanding";
 import VerifySharedPassword from "./components/VerifySharedPassword";
 
+import PromptScanner  from "../src/components/chatbot/promptScanner.tsx";
+
+// Inside your <Routes>
+
 // import StrongPasswords from "./components/tips/StrongPasswords";
 // import TwoFactorAuthentication from "./components/tips/TwoFactorAuthentication";
 // import AvoidSuspiciousLinks from "./components/tips/AvoidSuspiciousLinks";
@@ -34,6 +38,8 @@ import React from 'react';
 import { useAuth } from './context/AuthContext';
 import PhishingDetector from "./components/PhishingDetector";
 import FeatureFlagPage from "./components/admin/FeatureFlagPage";
+import SiteShieldAudit from "./components/SiteShieldAudit";
+import CSPBuilder      from "./components/CSPBuilder";
 
 const AppRoutes = () => {
   const navigate = useNavigate();
@@ -146,6 +152,12 @@ const isPublicRoute = [
         <Route path="/insights" element={<Insights />} />
 
         <Route path="/ask" element={<BotChat />} />
+
+        <Route path="/prompt-scanner" element={<PromptScanner />} />
+
+        <Route path="/site-shield" element={<SiteShieldAudit />} />
+        <Route path="/csp-builder" element={<CSPBuilder />} />
+
 
 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
