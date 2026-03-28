@@ -203,7 +203,7 @@ const PromptScanner: React.FC = () => {
     { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
     { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
     { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
-    { label: "Prompt Scanner", path: "/prompt-scanner", icon: <Shield className="w-5 h-5" /> },
+    { label: "Prompt Privacy Scanner", path: "/prompt-scanner", icon: <Shield className="w-5 h-5" /> },
     ...(phishingDetectorEnabled
       ? [{ label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> }]
       : []),

@@ -300,9 +300,10 @@ import phishingRouter from './src/api/phishing.js';
 import featureFlagRoutes from './src/routes/featureFlagRoutes.js';
 import scanRouter from './src/api/scanServer.js';
 import phishingServerRouter from './src/api/phishingServer.js';
-import siteAuditRouter  from './src/routes/siteAudit.js';
-import cspBuilderRouter from './src/routes/cspBuilderRoute.js';
-import webhookRouter    from './src/routes/webhookRoutes.js';
+import siteAuditRouter       from './src/routes/siteAudit.js';
+import cspBuilderRouter      from './src/routes/cspBuilderRoute.js';
+import webhookRouter         from './src/routes/webhookRoutes.js';
+import injectionScanRouter   from './src/api/promptInjectionScan.js';
 
 
 app.use('/api/homepage', homepageBeforeloginRoutes);
@@ -325,6 +326,7 @@ app.use('/api', phishingServerRouter);
 app.use('/api', siteAuditRouter);
 app.use('/api', cspBuilderRouter);
 app.use('/api', webhookRouter);
+app.use('/api', injectionScanRouter);
 
 
 // --- Serve static files from Vite build ---

@@ -40,6 +40,7 @@ import PhishingDetector from "./components/PhishingDetector";
 import FeatureFlagPage from "./components/admin/FeatureFlagPage";
 import SiteShieldAudit from "./components/SiteShieldAudit";
 import CSPBuilder      from "./components/CSPBuilder";
+import PromptInjectionScanner from "./components/PromptInjectionScanner";
 
 const AppRoutes = () => {
   const navigate = useNavigate();
@@ -157,6 +158,7 @@ const isPublicRoute = [
 
         <Route path="/site-shield" element={<SiteShieldAudit />} />
         <Route path="/csp-builder" element={<CSPBuilder />} />
+        <Route path="/injection-scanner" element={<PromptInjectionScanner />} />
 
 
 <Route path="/privacy-policy" element={<PrivacyPolicy />} />

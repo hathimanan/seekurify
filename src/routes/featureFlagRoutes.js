@@ -29,6 +29,9 @@ featureFlagRoutes.get("/read", async (req, res) => {
     const siteShieldFlag = await featureflags.findOne({
       key: "site_shield",
     });
+    const promptInjectionFlag = await featureflags.findOne({
+      key: "prompt_injection",
+    });
 
     res.json({
       otpEnabled: otpFlag ? otpFlag.enabled : true,
@@ -37,6 +40,7 @@ featureFlagRoutes.get("/read", async (req, res) => {
       phishingDetectorEnabled: phishingDetectorFlag ? phishingDetectorFlag.enabled : false,
       securityChatbotEnabled: securityChatbotFlag ? securityChatbotFlag.enabled : false,
       siteShieldEnabled: siteShieldFlag ? siteShieldFlag.enabled : false,
+      promptInjectionEnabled: promptInjectionFlag ? promptInjectionFlag.enabled : false,
     });
   } catch (err) {
     console.error("Error reading feature flags:", err);
@@ -47,6 +51,7 @@ featureFlagRoutes.get("/read", async (req, res) => {
       phishingDetectorEnabled: false,
       securityChatbotEnabled: false,
       siteShieldEnabled: false,
+      promptInjectionEnabled: false,
     });
   }
 });

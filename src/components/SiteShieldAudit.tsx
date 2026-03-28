@@ -1183,12 +1183,13 @@ const SiteShieldAudit: React.FC = () => {
             { label: "System Events Dashboard",   path: "/siem-dashboard",   icon: <BarChart3 className="w-5 h-5" /> },
             { label: "Security Awareness",         path: "/securityAwareness",icon: <ShieldCheck className="w-5 h-5" /> },
             { label: "Contact Us",                path: "/contact",          icon: <Phone     className="w-5 h-5" /> },
-            { label: "Prompt Scanner",            path: "/prompt-scanner",   icon: <Shield    className="w-5 h-5" /> },
+            { label: "Prompt Privacy Scanner",            path: "/prompt-scanner",   icon: <Shield    className="w-5 h-5" /> },
             ...(phishingDetectorEnabled
               ? [{ label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> }]
               : []),
-            { label: "SiteShield Audit", path: "/site-shield", icon: <Globe className="w-5 h-5" /> },
-            { label: "CSP Builder",      path: "/csp-builder",  icon: <Wrench className="w-5 h-5" /> },
+            { label: "SiteShield Audit",    path: "/site-shield",        icon: <Globe className="w-5 h-5" /> },
+            { label: "CSP Builder",         path: "/csp-builder",        icon: <Wrench className="w-5 h-5" /> },
+            { label: "AI Injection Scanner", path: "/injection-scanner", icon: <ShieldAlert className="w-5 h-5" /> },
           ].map(({ label, path, icon }) => (
             <div
               key={path}
