@@ -41,6 +41,8 @@ import FeatureFlagPage from "./components/admin/FeatureFlagPage";
 import SiteShieldAudit from "./components/SiteShieldAudit";
 import CSPBuilder      from "./components/CSPBuilder";
 import PromptInjectionScanner from "./components/PromptInjectionScanner";
+import WatchAgent from "./components/WatchAgent";
+import DeepFakeDetector from "./components/DeepFakeDetector";
 
 const AppRoutes = () => {
   const navigate = useNavigate();
@@ -159,6 +161,8 @@ const isPublicRoute = [
         <Route path="/site-shield" element={<SiteShieldAudit />} />
         <Route path="/csp-builder" element={<CSPBuilder />} />
         <Route path="/injection-scanner" element={<PromptInjectionScanner />} />
+        <Route path="/watch-agent" element={<WatchAgent />} />
+        <Route path="/deepfake-detector" element={<DeepFakeDetector />} />
 
 
 <Route path="/privacy-policy" element={<PrivacyPolicy />} />

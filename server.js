@@ -65,7 +65,7 @@ app.use(cors({
     // Reject everything else
     callback(new Error('Not allowed by CORS'));
   },
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -304,6 +304,12 @@ import siteAuditRouter       from './src/routes/siteAudit.js';
 import cspBuilderRouter      from './src/routes/cspBuilderRoute.js';
 import webhookRouter         from './src/routes/webhookRoutes.js';
 import injectionScanRouter   from './src/api/promptInjectionScan.js';
+import watchlistRouter       from './src/routes/watchlistRoutes.js';
+import deepfakeRouter        from './src/api/deepfakeDetector.js';
+import cron                  from 'node-cron';
+import { runWatchAgent }     from './src/agent/watchAgent.js';
+import WatchlistItemCron     from './src/models/WatchlistItem.js';
+import UserCron              from './src/models/User.ts';
 
 
 app.use('/api/homepage', homepageBeforeloginRoutes);
@@ -327,6 +333,8 @@ app.use('/api', siteAuditRouter);
 app.use('/api', cspBuilderRouter);
 app.use('/api', webhookRouter);
 app.use('/api', injectionScanRouter);
+app.use('/api', watchlistRouter);
+app.use('/api', deepfakeRouter);
 
 
 // --- Serve static files from Vite build ---
@@ -357,6 +365,25 @@ initSocket(server, socketIoOptions);
 // --- Start server ---
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT} in ${NODE_ENV} mode`);
+});
+
+// --- Nightly Watch Agent (2 AM every day) ---
+cron.schedule('0 2 * * *', async () => {
+  console.log('[Cron] Starting nightly Watch Agent scan...');
+  try {
+    const userIds = await WatchlistItemCron.distinct('userId', { active: true });
+    for (const userId of userIds) {
+      try {
+        const user = await UserCron.findById(userId).select('email').lean();
+        const result = await runWatchAgent(userId, user?.email ?? null);
+        console.log(`[Cron] user=${userId} scanned=${result.scanned} alerts=${result.alertsCreated}`);
+      } catch (err) {
+        console.error(`[Cron] Error for user ${userId}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('[Cron] Nightly scan failed:', err.message);
+  }
 });
 
 // --- Graceful shutdown ---

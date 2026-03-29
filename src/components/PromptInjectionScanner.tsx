@@ -4,7 +4,7 @@ import {
   ShieldAlert, ShieldCheck, Shield, FileSearch, KeyRound, BarChart3,
   Phone, Globe, Server, AlertTriangle, CheckCircle,
   XCircle, Info, Loader2, MessageCircle, ChevronDown, ChevronUp,
-  Upload, Link, Type, Cpu, Zap, Eye, EyeOff, RotateCcw, Copy, CheckCheck,
+  Upload, Link, Type, Cpu, Zap, Eye, EyeOff, RotateCcw, Copy, CheckCheck, ScanEye,
 } from "lucide-react";
 import { API_BASE_URL } from "../services/api";
 import Header from "./ui/Header";
@@ -184,6 +184,7 @@ const NAV_ITEMS = [
   { label: "Contact Us",              path: "/contact",           icon: <Phone        className="w-5 h-5" /> },
   { label: "Prompt Privacy Scanner",          path: "/prompt-scanner",    icon: <Shield       className="w-5 h-5" /> },
   { label: "AI Injection Scanner",    path: "/injection-scanner", icon: <Zap          className="w-5 h-5" /> },
+  { label: "DeepFake Detector",       path: "/deepfake-detector", icon: <ScanEye      className="w-5 h-5" /> },
 ];
 
 // ─── base64 helper (handles UTF-8) ────────────────────────────────────────────

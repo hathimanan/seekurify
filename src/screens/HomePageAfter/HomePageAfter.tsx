@@ -5,7 +5,7 @@ import { API_BASE_URL, apiService } from "../../services/api";
 import { motion } from "framer-motion";
 import Header from "../../components/ui/Header";
 import Footer from "../../components/ui/Footer";
-import { ChevronRight, Shield, ShieldAlert, Globe } from "lucide-react";
+import { ChevronRight, Shield, ShieldAlert, Globe, Eye, ScanEye } from "lucide-react";
 import {
   FileSearch,
   KeyRound,
@@ -242,6 +242,7 @@ const [darkMode, setDarkMode] = useState(false);
             { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
             { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
             { label: "Prompt Privacy Scanner", path: "/prompt-scanner", icon: <Shield className="w-5 h-5" /> },
+            { label: "Watch Agent", path: "/watch-agent", icon: <Eye className="w-5 h-5" /> },
 
 ...(phishingDetectorEnabled ? [
       { label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> }
@@ -251,7 +252,8 @@ const [darkMode, setDarkMode] = useState(false);
     ] : []),
     ...(promptInjectionEnabled ? [
       { label: "AI Injection Scanner", path: "/injection-scanner", icon: <ShieldAlert className="w-5 h-5" /> }
-    ] : [])
+    ] : []),
+    { label: "DeepFake Detector", path: "/deepfake-detector", icon: <ScanEye className="w-5 h-5" /> }
             ].map(({ label, path, icon }) => (
             <div
               key={path}
