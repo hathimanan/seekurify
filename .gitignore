@@ -32,3 +32,4 @@ dist-ssr
 .env.development
 .env.development
 .env.development
+.model-cache/Xenova/nli-deberta-v3-small/onnx/model_quantized.onnx
