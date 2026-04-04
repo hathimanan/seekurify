@@ -21,9 +21,6 @@ import {
   ChevronDown,
   ChevronUp,
   FileSearch,
-  KeyRound,
-  BarChart3,
-  Phone,
   Copy,
   CheckCheck,
   Wrench,
@@ -33,6 +30,7 @@ import {
 import { API_BASE_URL } from "../services/api";
 import Header from "./ui/Header";
 import Footer from "./ui/Footer";
+import AppSidebar from "./ui/AppSidebar";
 import { useNavigate } from "react-router-dom";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1053,24 +1051,11 @@ const SiteShieldAudit: React.FC = () => {
   const [stepsDone, setStepsDone] = useState<number>(0);
   const [profileImage] = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("darkMode") === "true");
-  const [phishingDetectorEnabled, setPhishingDetectorEnabled] = useState(false);
   const [history, setHistory] = useState<AuditResult[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
   const [pdfGenerating, setPdfGenerating] = useState(false);
 
-  useEffect(() => {
-    if (darkMode) document.documentElement.classList.add("dark");
-    else document.documentElement.classList.remove("dark");
-  }, [darkMode]);
-
-  useEffect(() => {
-    fetch(`${API_BASE_URL}/feature-flags/read`)
-      .then((r) => r.json())
-      .then((data) => setPhishingDetectorEnabled(data.phishingDetectorEnabled === true))
-      .catch(() => {});
-  }, []);
 
   const fetchHistory = async () => {
     setHistoryLoading(true);
@@ -1155,61 +1140,8 @@ const SiteShieldAudit: React.FC = () => {
         setSidebarExpanded={setSidebarExpanded}
       />
 
-      {/* Dark mode toggle */}
-      <div className="flex justify-end px-6 py-3 border-b border-gray-200 dark:border-gray-800">
-        <button
-          onClick={() => {
-            const next = !darkMode;
-            setDarkMode(next);
-            localStorage.setItem("darkMode", String(next));
-          }}
-          className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-800 text-sm font-medium shadow hover:scale-105 transition"
-        >
-          {darkMode ? "☀ Light Mode" : "🌙 Dark Mode"}
-        </button>
-      </div>
-
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <motion.aside
-          initial={false}
-          animate={{ width: sidebarExpanded ? "18rem" : "4rem" }}
-          transition={{ type: "spring", stiffness: 260, damping: 30 }}
-          className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col flex-shrink-0"
-        >
-          {[
-            { label: "Analyze Malware",          path: "/malware-analysis", icon: <FileSearch className="w-5 h-5" /> },
-            { label: "Password Manager",          path: "/dashboard",        icon: <KeyRound  className="w-5 h-5" /> },
-            { label: "System Events Dashboard",   path: "/siem-dashboard",   icon: <BarChart3 className="w-5 h-5" /> },
-            { label: "Security Awareness",         path: "/securityAwareness",icon: <ShieldCheck className="w-5 h-5" /> },
-            { label: "Contact Us",                path: "/contact",          icon: <Phone     className="w-5 h-5" /> },
-            { label: "Prompt Privacy Scanner",            path: "/prompt-scanner",   icon: <Shield    className="w-5 h-5" /> },
-            ...(phishingDetectorEnabled
-              ? [{ label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> }]
-              : []),
-            { label: "SiteShield Audit",    path: "/site-shield",        icon: <Globe className="w-5 h-5" /> },
-            { label: "CSP Builder",         path: "/csp-builder",        icon: <Wrench className="w-5 h-5" /> },
-            { label: "AI Injection Scanner", path: "/injection-scanner", icon: <ShieldAlert className="w-5 h-5" /> },
-          ].map(({ label, path, icon }) => (
-            <div
-              key={path}
-              onClick={() => navigate(path)}
-              className={`relative group flex items-center gap-3 px-2 py-2 rounded-lg transition cursor-pointer ${
-                path === "/site-shield" || path === "/csp-builder"
-                  ? "bg-indigo-600 text-white"
-                  : "hover:bg-indigo-600"
-              }`}
-            >
-              {icon}
-              {sidebarExpanded && <span className="truncate">{label}</span>}
-              {!sidebarExpanded && (
-                <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                  {label}
-                </span>
-              )}
-            </div>
-          ))}
-        </motion.aside>
+        <AppSidebar sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
 
         {/* Scrollable main content */}
         <main className="flex-1 overflow-y-auto">

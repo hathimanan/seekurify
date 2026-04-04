@@ -31,6 +31,7 @@ import {
 import { API_BASE_URL } from "../services/api";
 import Header from "./ui/Header";
 import Footer from "./ui/Footer";
+import AppSidebar from "./ui/AppSidebar";
 import { useNavigate } from "react-router-dom";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -90,18 +91,6 @@ const severityConfig = {
   improvement: { bg: "bg-green-100 dark:bg-green-900/30", text: "text-green-700 dark:text-green-300", icon: TrendingUp,     label: "Improvement"  },
 };
 
-const NAV_ITEMS = [
-  { label: "Analyze Malware",          path: "/malware-analysis",  icon: <FileSearch  className="w-5 h-5" /> },
-  { label: "Password Manager",          path: "/dashboard",         icon: <KeyRound    className="w-5 h-5" /> },
-  { label: "System Events Dashboard",   path: "/siem-dashboard",    icon: <BarChart3   className="w-5 h-5" /> },
-  { label: "Security Awareness",         path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
-  { label: "Contact Us",                path: "/contact",           icon: <Phone       className="w-5 h-5" /> },
-  { label: "Prompt Privacy Scanner",    path: "/prompt-scanner",    icon: <Shield      className="w-5 h-5" /> },
-  { label: "AI Injection Scanner",      path: "/injection-scanner", icon: <Zap         className="w-5 h-5" /> },
-  { label: "Watch Agent",               path: "/watch-agent",       icon: <Eye         className="w-5 h-5" /> },
-  { label: "DeepFake Detector",         path: "/deepfake-detector", icon: <ScanEye     className="w-5 h-5" /> },
-];
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const WatchAgent: React.FC = () => {
@@ -110,7 +99,6 @@ const WatchAgent: React.FC = () => {
 
   // Sidebar & dark mode
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
   const [profileImage, setProfileImage] = useState("");
 
   // Watchlist state
@@ -135,20 +123,6 @@ const WatchAgent: React.FC = () => {
   const [tab, setTab] = useState<"watchlist" | "alerts">("watchlist");
 
   // ── Dark mode init ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    const saved = localStorage.getItem("darkMode");
-    if (saved === "true") { document.documentElement.classList.add("dark"); setDarkMode(true); }
-  }, []);
-
-  const toggleDarkMode = () => {
-    const next = !darkMode;
-    setDarkMode(next);
-    next
-      ? document.documentElement.classList.add("dark")
-      : document.documentElement.classList.remove("dark");
-    localStorage.setItem("darkMode", String(next));
-  };
-
   const handleLogout = () => { localStorage.removeItem("token"); navigate("/"); };
 
   // ── Auth headers ─────────────────────────────────────────────────────────────
@@ -324,42 +298,8 @@ const WatchAgent: React.FC = () => {
         setSidebarExpanded={setSidebarExpanded}
       />
 
-      {/* Dark mode toggle */}
-      <div className="flex justify-end px-6 py-3 border-b border-gray-200 dark:border-gray-700">
-        <button
-          onClick={toggleDarkMode}
-          className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-800 text-sm font-medium shadow hover:scale-105 transition"
-        >
-          {darkMode ? "☀ Light Mode" : "🌙 Dark Mode"}
-        </button>
-      </div>
-
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <motion.aside
-          initial={false}
-          animate={{ width: sidebarExpanded ? "18rem" : "4rem" }}
-          transition={{ type: "spring", stiffness: 260, damping: 30 }}
-          className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col flex-shrink-0"
-        >
-          {NAV_ITEMS.map(({ label, path, icon }) => (
-            <div
-              key={path}
-              onClick={() => navigate(path)}
-              className={`relative group flex items-center gap-3 px-2 py-2 rounded-lg transition cursor-pointer ${
-                path === "/watch-agent" ? "bg-indigo-600 text-white" : "hover:bg-indigo-600"
-              }`}
-            >
-              {icon}
-              {sidebarExpanded && <span className="truncate">{label}</span>}
-              {!sidebarExpanded && (
-                <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                  {label}
-                </span>
-              )}
-            </div>
-          ))}
-        </motion.aside>
+        <AppSidebar sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
 
         {/* Main */}
         <div className="flex-1 overflow-y-auto p-6 md:p-8">

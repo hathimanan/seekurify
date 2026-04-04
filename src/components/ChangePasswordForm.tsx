@@ -10,6 +10,7 @@ import { ArrowLeft, BarChart3, FileSearch, KeyRound, Phone, ShieldAlert, ShieldC
 import { set } from 'mongoose';
 import { API_BASE_URL } from '../services/api';
 import { motion } from 'framer-motion';
+import AppSidebar from './ui/AppSidebar';
 
 interface HeaderProps {
   token: string;
@@ -239,50 +240,8 @@ const ChangePasswordForm: React.FC = () => {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <motion.aside
-          initial={false}
-          animate={{ width: sidebarExpanded ? "18rem" : "4rem" }}
-          transition={{ type: "spring", stiffness: 260, damping: 30 }}
-          className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col"
-        >
-          {[
-            { label: "Analyze Malware", path: "/malware-analysis", icon: <FileSearch className="w-5 h-5" /> },
-            { label: "Password Manager", path: "/dashboard", icon: <KeyRound className="w-5 h-5" /> },
-            { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
-            { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
-            { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
-            { label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> },
-          ].map(({ label, path, icon }) => (
-            <div
-              key={path}
-              onClick={() => navigate(path)}
-              className="relative group flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-indigo-600 transition cursor-pointer"
-            >
-              {icon}
-              {sidebarExpanded && <span className="truncate">{label}</span>}
-
-              {!sidebarExpanded && (
-                <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                  {label}
-                </span>
-              )}
-            </div>
-          ))}
-
-          {/* Expand/Collapse */}
-          {/* <div
-            onClick={() => setSidebarExpanded((s) => !s)}
-            className="flex items-center justify-center mt-auto cursor-pointer bg-white/10 hover:bg-white/20 px-2 py-2 rounded-md transition relative group"
-          >
-            {sidebarExpanded ? "Collapse" : "Expand"}
-            {!sidebarExpanded && (
-              <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                {sidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
-              </span>
-            )}
-          </div> */}
-        </motion.aside>
-
+           <AppSidebar sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
+       
 
 
         <main className="flex-grow p-6 bg-gradient-to-br from-indigo-50 to-blue-100 rounded-lg">

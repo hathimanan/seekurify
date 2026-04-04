@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { jsPDF } from "jspdf";
 import {
   ShieldAlert, ShieldCheck, Shield, FileSearch, KeyRound, BarChart3,
   Phone, Globe, Server, AlertTriangle, CheckCircle,
   XCircle, Info, Loader2, MessageCircle, ChevronDown, ChevronUp,
-  Upload, Link, Type, Cpu, Zap, Eye, EyeOff, RotateCcw, Copy, CheckCheck, ScanEye,
+  Upload, Link, Type, Cpu, Zap, Eye, EyeOff, RotateCcw, Copy, CheckCheck, ScanEye, FileDown,
 } from "lucide-react";
 import { API_BASE_URL } from "../services/api";
 import Header from "./ui/Header";
 import Footer from "./ui/Footer";
 import { useNavigate } from "react-router-dom";
+import AppSidebar from "./ui/AppSidebar";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,6 +36,15 @@ interface ScanResult {
   inputSummary: string; displayText: string; truncated: boolean;
   score: number; riskLevel: RiskLevel;
   findings: Finding[]; annotations: Annotation[];
+  mlResult?: {
+    topLabel: string;
+    topScore: number;
+    scores: Record<string, number>;
+    isInjection: boolean;
+    attackCategory: string | null;
+    mlScore: number;
+    novelDetection: boolean;
+  } | null;
   semantic?: { isInjection: boolean; confidence: number; attackType: string | null; reason: string; error?: string; skipped?: boolean };
   agenticSim?: { complied: boolean; toolsInvoked: { name: string; input: any }[]; agentResponse: string; error?: string; skipped?: boolean };
   timestamp: string;
@@ -77,6 +88,142 @@ const severityIcon = (s: Severity) => {
   if (s === "medium")   return <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0" />;
   return <Info className="w-4 h-4 text-blue-500 flex-shrink-0" />;
 };
+
+function downloadInjectionReport(result: ScanResult): void {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 14;
+  const maxWidth = pageWidth - margin * 2;
+  let y = 16;
+
+  const addPageIfNeeded = (requiredHeight = 10) => {
+    if (y + requiredHeight > pageHeight - 14) {
+      doc.addPage();
+      y = 16;
+    }
+  };
+
+  const writeLines = (text: string, size = 10, color: [number, number, number] = [55, 65, 81], gap = 5) => {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(size);
+    doc.setTextColor(color[0], color[1], color[2]);
+    const lines = doc.splitTextToSize(text, maxWidth);
+    addPageIfNeeded(lines.length * gap + 2);
+    doc.text(lines, margin, y);
+    y += lines.length * gap + 2;
+  };
+
+  const sectionTitle = (title: string) => {
+    addPageIfNeeded(12);
+    doc.setDrawColor(203, 213, 225);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 6;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(15, 23, 42);
+    doc.text(title, margin, y);
+    y += 7;
+  };
+
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, pageWidth, 28, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor(255, 255, 255);
+  doc.text("Seekurify Prompt Injection Report", margin, 16);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text(`Generated ${new Date(result.timestamp).toLocaleString()}`, margin, 22);
+  y = 38;
+
+  sectionTitle("Executive Summary");
+  writeLines(`Risk level: ${result.riskLevel.toUpperCase()}`);
+  writeLines(`Overall score: ${result.score}/100`);
+  writeLines(
+    result.inputType === "file"
+      ? `Source: file (${result.fileName || "unknown"})`
+      : result.inputType === "url"
+        ? `Source: URL (${result.url || "unknown"})`
+        : `Source: text input (${result.displayText.length.toLocaleString()} characters scanned)`
+  );
+  writeLines(`Pattern findings: ${result.findings.length}`);
+
+  if (result.mlResult) {
+    sectionTitle("Layer 1.5 ML Detection");
+    writeLines(`Decision: ${result.mlResult.isInjection ? "FLAGGED" : "CLEAN"}`);
+    writeLines(`Top label: ${result.mlResult.topLabel}`);
+    writeLines(`Top confidence: ${Math.round(result.mlResult.topScore * 100)}%`);
+    writeLines(`Score contribution: +${result.mlResult.mlScore}/25`);
+    if (result.mlResult.attackCategory) {
+      writeLines(`Attack category: ${result.mlResult.attackCategory}`);
+    }
+    if (result.mlResult.novelDetection) {
+      writeLines("Novel detection: ML flagged suspicious behavior beyond the regex layer.");
+    }
+  }
+
+  if (result.semantic && !result.semantic.skipped) {
+    sectionTitle("Semantic Analysis");
+    if (result.semantic.error) {
+      writeLines(`Semantic layer error: ${result.semantic.error}`);
+    } else {
+      writeLines(`Decision: ${result.semantic.isInjection ? "INJECTION" : "CLEAN"}`);
+      writeLines(`Confidence: ${Math.round((result.semantic.confidence ?? 0) * 100)}%`);
+      if (result.semantic.attackType) {
+        writeLines(`Attack type: ${result.semantic.attackType}`);
+      }
+      writeLines(`Reason: ${result.semantic.reason}`);
+    }
+  }
+
+  if (result.agenticSim && !result.agenticSim.skipped) {
+    sectionTitle("Agentic Simulation");
+    if (result.agenticSim.error) {
+      writeLines(`Agentic layer error: ${result.agenticSim.error}`);
+    } else {
+      writeLines(`Outcome: ${result.agenticSim.complied ? "AGENT COMPROMISED" : "AGENT RESISTANT"}`);
+      writeLines(`Tools invoked: ${result.agenticSim.toolsInvoked.length}`);
+      if (result.agenticSim.agentResponse) {
+        writeLines(`Agent response: ${result.agenticSim.agentResponse}`);
+      }
+    }
+  }
+
+  sectionTitle("Findings");
+  if (result.findings.length === 0) {
+    writeLines("No regex pattern findings were detected.");
+  } else {
+    result.findings.forEach((finding, index) => {
+      addPageIfNeeded(24);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`${index + 1}. ${finding.category} (${finding.severity.toUpperCase()})`, margin, y);
+      y += 6;
+      writeLines(finding.description, 10);
+      writeLines(`Matched text: "${finding.matchedText}"`, 9, [71, 85, 105]);
+      if (finding.remediation) {
+        writeLines(`Remediation: ${finding.remediation}`, 9, [29, 78, 216]);
+      }
+      if (finding.codefix) {
+        writeLines(`Code fix: ${finding.codefix}`, 8, [22, 101, 52], 4);
+      }
+      y += 2;
+    });
+  }
+
+  sectionTitle("Scanned Content Preview");
+  writeLines(result.displayText.slice(0, 2500) || result.inputSummary, 8, [71, 85, 105], 4);
+
+  const fileLabel = result.inputType === "file"
+    ? (result.fileName || "scan")
+    : result.inputType === "url"
+      ? "url-scan"
+      : "text-scan";
+
+  doc.save(`seekurify-prompt-injection-report-${fileLabel}.pdf`);
+}
 
 // ─── Annotated Text Renderer ──────────────────────────────────────────────────
 
@@ -224,13 +371,8 @@ const PromptInjectionScanner: React.FC = () => {
   const [expandedId, setExpandedId]     = useState<string | null>(null);
   const [copiedIdx, setCopiedIdx]           = useState<number | null>(null);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("darkMode") === "true");
   const [phishingEnabled, setPhishingEnabled] = useState(false);
   const [siteShieldEnabled, setSiteShieldEnabled] = useState(false);
-
-  useEffect(() => {
-    darkMode ? document.documentElement.classList.add("dark") : document.documentElement.classList.remove("dark");
-  }, [darkMode]);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/feature-flags/read`)
@@ -314,33 +456,11 @@ const PromptInjectionScanner: React.FC = () => {
         sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
 
       {/* Dark mode toggle */}
-      <div className="flex justify-end px-6 py-3 border-b border-gray-200 dark:border-gray-800">
-        <button onClick={() => { const n = !darkMode; setDarkMode(n); localStorage.setItem("darkMode", String(n)); }}
-          className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-800 text-sm font-medium shadow hover:scale-105 transition">
-          {darkMode ? "☀ Light Mode" : "🌙 Dark Mode"}
-        </button>
-      </div>
 
       <div className="flex flex-1 overflow-hidden">
         {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-        <motion.aside initial={false} animate={{ width: sidebarExpanded ? "18rem" : "4rem" }}
-          transition={{ type: "spring", stiffness: 260, damping: 30 }}
-          className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col flex-shrink-0">
-          {navItems.map(({ label, path, icon }) => (
-            <div key={path} onClick={() => navigate(path)}
-              className={`relative group flex items-center gap-3 px-2 py-2 rounded-lg transition cursor-pointer ${
-                path === "/injection-scanner" ? "bg-indigo-600" : "hover:bg-indigo-600"
-              }`}>
-              {icon}
-              {sidebarExpanded && <span className="truncate">{label}</span>}
-              {!sidebarExpanded && (
-                <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                  {label}
-                </span>
-              )}
-            </div>
-          ))}
-        </motion.aside>
+        <AppSidebar sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
+
 
         {/* ── Main content ─────────────────────────────────────────────────── */}
         <main className="flex-1 overflow-y-auto">
@@ -533,6 +653,16 @@ const PromptInjectionScanner: React.FC = () => {
                             <CheckCircle className="w-4 h-4" /> No patterns detected
                           </span>
                         )}
+                        {result.mlResult && (
+                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold ${
+                            result.mlResult.isInjection
+                              ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
+                              : "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
+                          }`}>
+                            <Cpu className="w-4 h-4" />
+                            {result.mlResult.isInjection ? "ML flagged" : "ML clean"}
+                          </span>
+                        )}
                         {result.agenticSim && !result.agenticSim.skipped && !result.agenticSim.error && (
                           <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold ${
                             result.agenticSim.complied
@@ -545,10 +675,19 @@ const PromptInjectionScanner: React.FC = () => {
                       </div>
                     </div>
 
-                    <button onClick={() => navigate("/ask")}
-                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl shadow transition hover:scale-105 flex-shrink-0">
-                      <MessageCircle className="w-4 h-4" /> Ask Nick
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-3 flex-shrink-0">
+                      <button
+                        onClick={() => downloadInjectionReport(result)}
+                        className="flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold px-5 py-2.5 rounded-xl shadow transition hover:scale-105"
+                      >
+                        <FileDown className="w-4 h-4" />
+                        Export PDF
+                      </button>
+                      <button onClick={() => navigate("/ask")}
+                        className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl shadow transition hover:scale-105">
+                        <MessageCircle className="w-4 h-4" /> Ask Nick
+                      </button>
+                    </div>
                   </div>
 
                   {/* Annotated text view */}
@@ -637,6 +776,60 @@ const PromptInjectionScanner: React.FC = () => {
                             )}
                           </div>
                         ))}
+                      </div>
+                    </SectionCard>
+                  )}
+
+                  {/* ML Analysis */}
+                  {result.mlResult && (
+                    <SectionCard title="ML Detection Layer" icon={<Cpu className="w-5 h-5" />}>
+                      <div className="pt-4">
+                        <div className="flex flex-col md:flex-row gap-4">
+                          <div className="flex-shrink-0 text-center">
+                            <div className={`text-4xl font-black ${
+                              result.mlResult.isInjection ? "text-purple-600 dark:text-purple-400" : "text-green-500"
+                            }`}>
+                              {result.mlResult.isInjection ? "FLAGGED" : "CLEAN"}
+                            </div>
+                            <div className="text-sm text-gray-500 mt-1">
+                              {Math.round((result.mlResult.topScore ?? 0) * 100)}% top-label confidence
+                            </div>
+                            <div className="text-xs text-gray-400 mt-1">
+                              Score contribution: +{result.mlResult.mlScore}/25
+                            </div>
+                          </div>
+
+                          <div className="flex-1 space-y-3">
+                            <div>
+                              <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                                Top label: <span className="text-purple-600 dark:text-purple-400">{result.mlResult.topLabel}</span>
+                              </p>
+                              {result.mlResult.attackCategory && (
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                  Attack category: <span className="font-semibold">{result.mlResult.attackCategory}</span>
+                                </p>
+                              )}
+                              {result.mlResult.novelDetection && (
+                                <p className="text-xs text-indigo-600 dark:text-indigo-300 mt-2">
+                                  ML flagged a likely novel injection pattern that regex did not confidently match.
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {Object.entries(result.mlResult.scores).map(([label, score]) => (
+                                <div key={label} className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 bg-gray-50 dark:bg-gray-900">
+                                  <div className="flex items-center justify-between gap-3 text-xs">
+                                    <span className="text-gray-600 dark:text-gray-300">{label}</span>
+                                    <span className="font-bold text-gray-800 dark:text-gray-100">
+                                      {Math.round(score * 100)}%
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </SectionCard>
                   )}

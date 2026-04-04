@@ -585,4 +585,41 @@ Return ONLY a JSON object with this schema (no markdown fences):
   }
 });
 
+// ─── Standard-format probe adapter ──────────────────────────────────────────
+// Accepts OpenAI-compatible messages array (or plain prompt / userQuestion).
+// Returns an OpenAI-compatible response so external tools (AI Agent Scanner,
+// curl tests, etc.) can probe Nick without knowing his custom JSON schema.
+// No auth required — Nick is a public-facing chatbot.
+botRouter.post("/ask/probe", async (req: Request, res: Response) => {
+  try {
+    const { messages, prompt, userQuestion } = req.body;
+
+    // Accept multiple input shapes
+    let inputText: string = userQuestion || prompt || "";
+    if (!inputText && Array.isArray(messages)) {
+      const lastUser = [...messages].reverse().find((m: any) => m.role === "user");
+      inputText = lastUser?.content || "";
+    }
+
+    if (!inputText.trim()) {
+      return res.status(400).json({ error: "No input provided" });
+    }
+
+    // Build a minimal prompt that keeps Nick's persona but returns plain text
+    // (no JSON widget format needed for probe testing)
+    const probePrompt = `${SYSTEM_PROMPT}\n\nUser message: ${inputText}\n\nRespond with plain text only.`;
+    const raw = await callAI(probePrompt);
+
+    res.json({
+      object:  "chat.completion",
+      model:   "nick-bot",
+      choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: raw } }],
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("❌ Probe adapter error:", msg);
+    res.status(500).json({ error: "Nick bot probe failed", detail: msg });
+  }
+});
+
 export default botRouter;

@@ -1,47 +1,72 @@
-// PromptScanner.tsx
-// Main component — paste prompt, get privacy risk analysis
-// Stack: React + TypeScript + TailwindCSS (matches Seekurify existing stack)
+// promptScanner.tsx
+// Combined Privacy & PII Scanner
+//   Tab 1 — Pre-Send Scanner: client-side regex scan of prompts before sending to any LLM
+//   Tab 2 — Response PII Audit: server-side scan of AI responses for leaked PII
 
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePromptScanner } from "./usePromptScanner";
 import { DETECTORS, Severity } from "./detectors";
-import { Shield, AlertTriangle, CheckCircle, Copy, RotateCcw, Zap, FileSearch, KeyRound, BarChart3, ShieldCheck, Phone, ShieldAlert } from "lucide-react";
+import {
+  Shield, AlertTriangle, CheckCircle, Copy, RotateCcw, Zap,
+  ScanSearch, Eye, EyeOff, ChevronDown, ChevronUp,
+  BarChart2, Clock, Loader2, Trash2, XCircle,
+} from "lucide-react";
 import Header from "../ui/Header";
 import Footer from "../ui/Footer";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { API_BASE_URL } from "../../services/api";
+import AppSidebar from "../ui/AppSidebar";
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-const RiskBadge: React.FC<{ level: "safe" | "moderate" | "high"; score: number }> = ({
-  level,
-  score,
-}) => {
+type PIIRisk = "safe" | "low" | "medium" | "high" | "critical";
+type PIISeverity = "critical" | "high" | "medium" | "low";
+
+interface PIIFinding {
+  id: string; label: string; category: string;
+  severity: PIISeverity; description: string;
+  count: number; examples: string[];
+}
+interface PIIScanResult {
+  score: number; riskLevel: PIIRisk;
+  findings: PIIFinding[]; categoryBreakdown: Record<string, number>; scannedLength: number;
+}
+interface PIIHistoryEntry {
+  _id: string; label: string; score: number; riskLevel: PIIRisk;
+  findingCount: number; summary: string; createdAt: string;
+}
+
+// ─── Style helpers ─────────────────────────────────────────────────────────────
+
+const piiRiskColor: Record<PIIRisk, string> = {
+  safe: "text-green-600", low: "text-blue-600", medium: "text-yellow-600",
+  high: "text-orange-600", critical: "text-red-600",
+};
+const piiRiskBg: Record<PIIRisk, string> = {
+  safe: "bg-green-50 border-green-300", low: "bg-blue-50 border-blue-300",
+  medium: "bg-yellow-50 border-yellow-300", high: "bg-orange-50 border-orange-300",
+  critical: "bg-red-50 border-red-300",
+};
+const piiSevBadge: Record<PIISeverity, string> = {
+  critical: "bg-red-100 text-red-700", high: "bg-orange-100 text-orange-700",
+  medium: "bg-yellow-100 text-yellow-700", low: "bg-blue-100 text-blue-700",
+};
+const catColor: Record<string, string> = {
+  Personal: "bg-purple-100 text-purple-700", Financial: "bg-rose-100 text-rose-700",
+  Credential: "bg-red-100 text-red-700", Network: "bg-cyan-100 text-cyan-700",
+};
+
+const authToken = () => localStorage.getItem("token") || "";
+
+// ─── Pre-Send Scanner sub-components ─────────────────────────────────────────
+
+const RiskBadge: React.FC<{ level: "safe" | "moderate" | "high"; score: number }> = ({ level, score }) => {
   const config = {
-    safe: {
-      bg: "bg-emerald-50 border-emerald-200",
-      text: "text-emerald-800",
-      score: "text-emerald-700",
-      label: "Low Risk",
-      icon: <CheckCircle size={18} className="text-emerald-600" />,
-    },
-    moderate: {
-      bg: "bg-amber-50 border-amber-200",
-      text: "text-amber-800",
-      score: "text-amber-700",
-      label: "Moderate Risk",
-      icon: <AlertTriangle size={18} className="text-amber-600" />,
-    },
-    high: {
-      bg: "bg-red-50 border-red-200",
-      text: "text-red-800",
-      score: "text-red-700",
-      label: "High Risk",
-      icon: <AlertTriangle size={18} className="text-red-600" />,
-    },
+    safe:     { bg: "bg-emerald-50 border-emerald-200", text: "text-emerald-800", score: "text-emerald-700", label: "Low Risk",      icon: <CheckCircle size={18} className="text-emerald-600" /> },
+    moderate: { bg: "bg-amber-50 border-amber-200",     text: "text-amber-800",   score: "text-amber-700",   label: "Moderate Risk", icon: <AlertTriangle size={18} className="text-amber-600" /> },
+    high:     { bg: "bg-red-50 border-red-200",         text: "text-red-800",     score: "text-red-700",     label: "High Risk",     icon: <AlertTriangle size={18} className="text-red-600" /> },
   } as const;
-
   const c = config[level];
   return (
     <div className={`flex items-center gap-4 rounded-xl border px-5 py-4 ${c.bg}`}>
@@ -55,11 +80,7 @@ const RiskBadge: React.FC<{ level: "safe" | "moderate" | "high"; score: number }
         <div>
           <div className={`font-medium text-sm ${c.text}`}>{c.label}</div>
           <div className="text-xs text-gray-500 mt-0.5">
-            {level === "safe"
-              ? "No critical data detected"
-              : level === "moderate"
-              ? "Some sensitive patterns found"
-              : "Sensitive data detected — review before sending"}
+            {level === "safe" ? "No critical data detected" : level === "moderate" ? "Some sensitive patterns found" : "Sensitive data detected — review before sending"}
           </div>
         </div>
       </div>
@@ -67,57 +88,31 @@ const RiskBadge: React.FC<{ level: "safe" | "moderate" | "high"; score: number }
   );
 };
 
-const SeverityDot: React.FC<{ severity: Severity; triggered: boolean }> = ({
-  severity,
-  triggered,
-}) => {
+const SeverityDot: React.FC<{ severity: Severity; triggered: boolean }> = ({ severity, triggered }) => {
   if (!triggered) return <span className="inline-block w-2 h-2 rounded-full bg-gray-200" />;
-  const colors = {
-    critical: "bg-red-500",
-    warning: "bg-amber-400",
-    info: "bg-blue-400",
-  };
+  const colors = { critical: "bg-red-500", warning: "bg-amber-400", info: "bg-blue-400" };
   return <span className={`inline-block w-2 h-2 rounded-full ${colors[severity]}`} />;
 };
 
-const FlagGrid: React.FC<{ hits: ReturnType<typeof import("./detectors").runLocalScan>["hits"] }> = ({
-  hits,
-}) => {
-  const hitMap = new Map(hits.map((h) => [h.detector.id, h]));
-
+const FlagGrid: React.FC<{ hits: ReturnType<typeof import("./detectors").runLocalScan>["hits"] }> = ({ hits }) => {
+  const hitMap = new Map(hits.map(h => [h.detector.id, h]));
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-      {DETECTORS.map((d) => {
+      {DETECTORS.map(d => {
         const hit = hitMap.get(d.id);
         const triggered = !!hit;
         const cardStyle = triggered
-          ? d.severity === "critical"
-            ? "border-red-200 bg-red-50"
-            : d.severity === "warning"
-            ? "border-amber-200 bg-amber-50"
-            : "border-blue-200 bg-blue-50"
+          ? d.severity === "critical" ? "border-red-200 bg-red-50"
+          : d.severity === "warning"  ? "border-amber-200 bg-amber-50"
+          : "border-blue-200 bg-blue-50"
           : "border-gray-100 bg-gray-50";
-
         return (
-          <div
-            key={d.id}
-            className={`rounded-lg border px-3 py-2.5 ${cardStyle}`}
-          >
+          <div key={d.id} className={`rounded-lg border px-3 py-2.5 ${cardStyle}`}>
             <div className="flex items-center gap-1.5 mb-1">
               <SeverityDot severity={d.severity} triggered={triggered} />
-              <span className="text-xs font-medium text-gray-700 truncate">
-                {d.label}
-              </span>
+              <span className="text-xs font-medium text-gray-700 truncate">{d.label}</span>
             </div>
-            <div
-              className={`text-xs ${
-                triggered
-                  ? d.severity === "critical"
-                    ? "text-red-600"
-                    : "text-amber-600"
-                  : "text-gray-400"
-              }`}
-            >
+            <div className={`text-xs ${triggered ? d.severity === "critical" ? "text-red-600" : "text-amber-600" : "text-gray-400"}`}>
               {triggered ? `Detected (${hit!.count})` : "Clear"}
             </div>
           </div>
@@ -127,282 +122,455 @@ const FlagGrid: React.FC<{ hits: ReturnType<typeof import("./detectors").runLoca
   );
 };
 
-// ─── Main Component ────────────────────────────────────────────────────────────
+// ─── PII Audit sub-components ─────────────────────────────────────────────────
+
+const PIIGauge: React.FC<{ score: number; riskLevel: PIIRisk }> = ({ score, riskLevel }) => (
+  <div className="flex flex-col items-center gap-2">
+    <div className="relative w-28 h-28">
+      <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+        <circle cx="50" cy="50" r="42" fill="none" stroke="#e5e7eb" strokeWidth="12" />
+        <circle cx="50" cy="50" r="42" fill="none" strokeWidth="12" strokeLinecap="round"
+          strokeDasharray={`${(score / 100) * 263.9} 263.9`}
+          className={`transition-all duration-700 ${
+            riskLevel === "safe" ? "stroke-green-500" : riskLevel === "low" ? "stroke-blue-500" :
+            riskLevel === "medium" ? "stroke-yellow-500" : riskLevel === "high" ? "stroke-orange-500" : "stroke-red-600"
+          }`}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className={`text-2xl font-extrabold ${piiRiskColor[riskLevel]}`}>{score}</span>
+        <span className="text-[10px] text-gray-500">/100</span>
+      </div>
+    </div>
+    <span className={`text-sm font-bold uppercase tracking-wide ${piiRiskColor[riskLevel]}`}>{riskLevel}</span>
+  </div>
+);
+
+const PIIFindingCard: React.FC<{ finding: PIIFinding }> = ({ finding }) => {
+  const [open, setOpen] = useState(false);
+  const [showEx, setShowEx] = useState(false);
+  return (
+    <div className={`border rounded-xl overflow-hidden ${piiRiskBg[finding.severity as PIIRisk] || "bg-gray-50 border-gray-200"}`}>
+      <button className="w-full flex items-center gap-3 px-4 py-3 text-left" onClick={() => setOpen(o => !o)}>
+        <div className="flex-1 flex items-center gap-2 flex-wrap">
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${piiSevBadge[finding.severity]}`}>{finding.severity.toUpperCase()}</span>
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${catColor[finding.category] || "bg-gray-100 text-gray-600"}`}>{finding.category}</span>
+          <span className="font-semibold text-gray-800 text-sm">{finding.label}</span>
+          <span className="ml-auto text-xs text-gray-500">{finding.count} match{finding.count !== 1 ? "es" : ""}</span>
+        </div>
+        {open ? <ChevronUp className="w-4 h-4 text-gray-500 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" />}
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
+            <div className="px-4 pb-4 space-y-3 border-t border-gray-200">
+              <p className="text-sm text-gray-600 mt-3">{finding.description}</p>
+              {finding.examples.length > 0 && (
+                <div>
+                  <button onClick={() => setShowEx(e => !e)} className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-medium">
+                    {showEx ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    {showEx ? "Hide" : "Show"} masked examples
+                  </button>
+                  <AnimatePresence>
+                    {showEx && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {finding.examples.map((ex, i) => (
+                            <code key={i} className="bg-gray-800 text-gray-100 text-xs px-2 py-1 rounded font-mono">{ex}</code>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+type MainTab = "presend" | "audit";
 
 const PromptScanner: React.FC = () => {
-  const [prompt, setPrompt] = useState("");
-  const [copied, setCopied] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { state, scan, reset } = usePromptScanner();
-  const navigate = useNavigate();
-
-  const [profileImage, setProfileImage] = useState("");
+  const navigate    = useNavigate();
+  const token       = localStorage.getItem("token");
+  const [profileImage, setProfileImage]     = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
-  const [phishingDetectorEnabled, setPhishingDetectorEnabled] = useState(false);
+  const [activeTab, setActiveTab]           = useState<MainTab>("presend");
 
-  const token = localStorage.getItem("token");
+  // ── Pre-Send state ──
+  const [prompt, setPrompt]   = useState("");
+  const [copied, setCopied]   = useState(false);
+  const textareaRef           = useRef<HTMLTextAreaElement>(null);
+  const { state, scan, reset } = usePromptScanner();
 
-  useEffect(() => {
-    const saved = localStorage.getItem("darkMode");
-    if (saved === "true") {
-      document.documentElement.classList.add("dark");
-      setDarkMode(true);
-    }
-  }, []);
+  // ── PII Audit state ──
+  const [auditText, setAuditText]       = useState("");
+  const [auditLabel, setAuditLabel]     = useState("");
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditResult, setAuditResult]   = useState<PIIScanResult | null>(null);
+  const [auditError, setAuditError]     = useState<string | null>(null);
+  const [auditCatFilter, setAuditCatFilter] = useState("All");
+  const [auditHistory, setAuditHistory] = useState<PIIHistoryEntry[]>([]);
+  const [histLoading, setHistLoading]   = useState(false);
+  const [auditSubTab, setAuditSubTab]   = useState<"scan" | "history">("scan");
 
-  useEffect(() => {
-    const fetchFeatureFlags = async () => {
-      try {
-        const res = await fetch(`${API_BASE_URL}/feature-flags/read`);
-        if (!res.ok) throw new Error("Failed to fetch feature flags");
-        const data = await res.json();
-        setPhishingDetectorEnabled(data.phishingDetectorEnabled === true);
-      } catch {
-        setPhishingDetectorEnabled(false);
-      }
-    };
-    fetchFeatureFlags();
-  }, []);
-
+  // Profile image
   useEffect(() => {
     if (!token) return;
-    const fetchProfile = async () => {
-      try {
-        const res = await fetch(`${API_BASE_URL}/profile`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.profileImage) setProfileImage(data.profileImage);
-      } catch {}
-    };
-    fetchProfile();
+    fetch(`${API_BASE_URL}/profile`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.profileImage) setProfileImage(d.profileImage); })
+      .catch(() => {});
   }, [token]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/");
-  };
+  const handleLogout = () => { localStorage.removeItem("token"); navigate("/"); };
 
-  const toggleDarkMode = () => {
-    const next = !darkMode;
-    setDarkMode(next);
-    if (next) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("darkMode", "true");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("darkMode", "false");
-    }
-  };
-
-  const navItems = [
-    { label: "Analyze Malware", path: "/malware-analysis", icon: <FileSearch className="w-5 h-5" /> },
-    { label: "Password Manager", path: "/dashboard", icon: <KeyRound className="w-5 h-5" /> },
-    { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
-    { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
-    { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
-    { label: "Prompt Privacy Scanner", path: "/prompt-scanner", icon: <Shield className="w-5 h-5" /> },
-    ...(phishingDetectorEnabled
-      ? [{ label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> }]
-      : []),
-  ];
-
-  const handleScan = () => scan(prompt);
-
-  const handleClear = () => {
-    setPrompt("");
-    reset();
-    textareaRef.current?.focus();
-  };
-
-  const isDone = state.status === "done";
-
-  const handleCopy = async () => {
+  // ── Pre-Send handlers ──
+  const handleScan  = () => scan(prompt);
+  const handleClear = () => { setPrompt(""); reset(); textareaRef.current?.focus(); };
+  const handleCopy  = async () => {
     if (!state.analysis?.sanitizedPrompt) return;
     await navigator.clipboard.writeText(state.analysis.sanitizedPrompt);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+  const isDone = state.status === "done";
+
+  // ── PII Audit handlers ──
+  const handleAuditScan = async () => {
+    if (!auditText.trim()) return;
+    setAuditLoading(true); setAuditError(null); setAuditResult(null); setAuditCatFilter("All");
+    try {
+      const res = await fetch(`${API_BASE_URL}/pii-scan/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken()}` },
+        body: JSON.stringify({ text: auditText, label: auditLabel || "Unnamed scan" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Scan failed");
+      setAuditResult(data as PIIScanResult);
+    } catch (err: any) {
+      setAuditError(err.message || "Scan failed");
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  const loadHistory = async () => {
+    setHistLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/pii-scan/history`, { headers: { Authorization: `Bearer ${authToken()}` } });
+      const data = await res.json();
+      setAuditHistory(Array.isArray(data) ? data : []);
+    } catch { setAuditHistory([]); } finally { setHistLoading(false); }
+  };
+
+  useEffect(() => { if (auditSubTab === "history") loadHistory(); }, [auditSubTab]);
+
+  const auditCategories = auditResult ? ["All", ...Array.from(new Set(auditResult.findings.map(f => f.category)))] : ["All"];
+  const visibleFindings = auditResult?.findings.filter(f => auditCatFilter === "All" || f.category === auditCatFilter) ?? [];
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
-      <Header
-        token={token || ""}
-        handleLogout={handleLogout}
-        profileImage={profileImage}
-        sidebarExpanded={sidebarExpanded}
-        setSidebarExpanded={setSidebarExpanded}
-      />
-
-      <div className="flex justify-end px-6 py-3 border-b border-gray-200 dark:border-gray-800">
-        <button
-          onClick={toggleDarkMode}
-          className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-800 text-sm font-medium shadow hover:scale-105 transition"
-        >
-          {darkMode ? "☀ Light Mode" : "🌙 Dark Mode"}
-        </button>
-      </div>
+      <title>Privacy &amp; PII Scanner – Seekurify</title>
+      <Header token={token || ""} handleLogout={handleLogout} profileImage={profileImage}
+        sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <motion.aside
-          initial={false}
-          animate={{ width: sidebarExpanded ? "18rem" : "4rem" }}
-          transition={{ type: "spring", stiffness: 260, damping: 30 }}
-          className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col"
-        >
-          {navItems.map(({ label, path, icon }) => (
-            <div
-              key={path}
-              onClick={() => navigate(path)}
-              className={`relative group flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-indigo-600 transition cursor-pointer ${path === "/prompt-scanner" ? "bg-indigo-700" : ""}`}
-            >
-              {icon}
-              {sidebarExpanded && <span className="truncate">{label}</span>}
-              {!sidebarExpanded && (
-                <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                  {label}
-                </span>
-              )}
+        <AppSidebar sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          {/* Page header */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-emerald-700 rounded-xl flex items-center justify-center">
+              <Shield className="w-5 h-5 text-white" />
             </div>
-          ))}
-        </motion.aside>
-
-        {/* Main Content */}
-        <div className="flex-1 overflow-y-auto p-8">
-          <div className="max-w-3xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-9 h-9 rounded-lg bg-emerald-700 flex items-center justify-center flex-shrink-0">
-          <Shield size={18} className="text-white" />
-        </div>
-        <div>
-          <h1 className="text-lg font-semibold text-gray-900">
-            Prompt Privacy Scanner
-          </h1>
-          <p className="text-sm text-gray-500">
-            Detect PII and sensitive data before sending to any AI model
-          </p>
-        </div>
-      </div>
-
-      {/* Input */}
-      <div className="relative mb-3">
-        <textarea
-          ref={textareaRef}
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder={`Paste your AI prompt here before sending to ChatGPT, Gemini, or any LLM...\n\nExample: "My name is Rahul Mehta, email rahul@company.com. Review this contract clause for Acme Corp Ltd and tell me if it's enforceable in India."`}
-          rows={7}
-          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm font-mono text-gray-800 placeholder-gray-400 resize-y focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-shadow"
-        />
-        <span className="absolute bottom-3 right-3 text-xs text-gray-400 font-sans">
-          {prompt.length} chars
-        </span>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-2 mb-7">
-        <button
-          onClick={handleScan}
-          disabled={!prompt.trim()}
-          className="flex items-center gap-2 bg-emerald-700 hover:bg-emerald-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
-        >
-          <Zap size={14} />
-          Scan Prompt
-        </button>
-
-        {(isDone || prompt) && (
-          <button
-            onClick={handleClear}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 px-3 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-          >
-            <RotateCcw size={13} />
-            Clear
-          </button>
-        )}
-      </div>
-
-      {/* Results */}
-      {state.localResult && state.analysis && (
-        <div className="space-y-5">
-          <RiskBadge
-            level={state.localResult.riskLevel}
-            score={state.localResult.score}
-          />
-
-          {/* Detection flags */}
-          <div>
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2.5">
-              Detection flags
-            </h2>
-            <FlagGrid hits={state.localResult.hits} />
-          </div>
-
-          {/* Summary */}
-          <div>
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2.5">
-              Analysis
-            </h2>
-            <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm text-gray-700 leading-relaxed">
-              {state.analysis.summary}
-            </div>
-          </div>
-
-          {/* Sanitized prompt */}
-          {state.analysis.hasSensitive && state.analysis.sanitizedPrompt && (
             <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2.5">
-                Sanitized version
-              </h2>
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3.5">
-                <p className="text-xs font-medium text-emerald-700 uppercase tracking-wider mb-2">
-                  Safe to send
-                </p>
-                <pre className="text-sm text-emerald-800 font-mono whitespace-pre-wrap break-words leading-relaxed">
-                  {state.analysis.sanitizedPrompt}
-                </pre>
-                <button
-                  onClick={handleCopy}
-                  className="mt-3 flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-white border border-emerald-300 hover:bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors"
-                >
-                  <Copy size={12} />
-                  {copied ? "Copied!" : "Copy sanitized prompt"}
-                </button>
+              <h1 className="text-xl font-bold text-gray-900">Privacy &amp; PII Scanner</h1>
+              <p className="text-sm text-gray-500">Scan prompts before sending, and audit AI responses for leaked data.</p>
+            </div>
+          </div>
+
+          {/* Main tabs */}
+          <div className="flex gap-1 border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab("presend")}
+              className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition -mb-px ${
+                activeTab === "presend" ? "bg-white border border-b-white border-gray-200 text-emerald-700" : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <span className="flex items-center gap-1.5"><Zap className="w-3.5 h-3.5" /> Pre-Send Scanner</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("audit")}
+              className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition -mb-px ${
+                activeTab === "audit" ? "bg-white border border-b-white border-gray-200 text-indigo-700" : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <span className="flex items-center gap-1.5"><ScanSearch className="w-3.5 h-3.5" /> Response PII Audit</span>
+            </button>
+          </div>
+
+          {/* ── TAB 1: Pre-Send Scanner ── */}
+          {activeTab === "presend" && (
+            <div className="max-w-3xl space-y-5">
+              <div className="relative">
+                <textarea
+                  ref={textareaRef}
+                  value={prompt}
+                  onChange={e => setPrompt(e.target.value)}
+                  placeholder={`Paste your AI prompt here before sending to ChatGPT, Gemini, or any LLM...\n\nExample: "My name is Rahul Mehta, email rahul@company.com. Review this contract clause for Acme Corp Ltd."`}
+                  rows={7}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm font-mono text-gray-800 placeholder-gray-400 resize-y focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-shadow"
+                />
+                <span className="absolute bottom-3 right-3 text-xs text-gray-400">{prompt.length} chars</span>
               </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleScan}
+                  disabled={!prompt.trim()}
+                  className="flex items-center gap-2 bg-emerald-700 hover:bg-emerald-600 disabled:bg-gray-200 disabled:text-gray-400 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
+                >
+                  <Zap size={14} /> Scan Prompt
+                </button>
+                {(isDone || prompt) && (
+                  <button onClick={handleClear} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 px-3 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                    <RotateCcw size={13} /> Clear
+                  </button>
+                )}
+              </div>
+
+              {state.localResult && state.analysis && (
+                <div className="space-y-5">
+                  <RiskBadge level={state.localResult.riskLevel} score={state.localResult.score} />
+
+                  <div>
+                    <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2.5">Detection flags</h2>
+                    <FlagGrid hits={state.localResult.hits} />
+                  </div>
+
+                  <div>
+                    <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2.5">Analysis</h2>
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm text-gray-700 leading-relaxed">{state.analysis.summary}</div>
+                  </div>
+
+                  {state.analysis.hasSensitive && state.analysis.sanitizedPrompt && (
+                    <div>
+                      <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2.5">Sanitized version</h2>
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3.5">
+                        <p className="text-xs font-medium text-emerald-700 uppercase tracking-wider mb-2">Safe to send</p>
+                        <pre className="text-sm text-emerald-800 font-mono whitespace-pre-wrap break-words leading-relaxed">{state.analysis.sanitizedPrompt}</pre>
+                        <button onClick={handleCopy} className="mt-3 flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-white border border-emerald-300 hover:bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors">
+                          <Copy size={12} /> {copied ? "Copied!" : "Copy sanitized prompt"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {state.analysis.recommendations.length > 0 && (
+                    <div>
+                      <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2.5">Recommendations</h2>
+                      <div className="space-y-2">
+                        {state.analysis.recommendations.map((rec, i) => (
+                          <div key={i} className="flex items-start gap-2.5 rounded-lg border border-gray-100 bg-white px-3.5 py-2.5 text-sm text-gray-700">
+                            <span className="text-emerald-600 mt-0.5 flex-shrink-0">→</span>{rec}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Pattern detection runs entirely in your browser. No data is sent to any server or third-party AI. No prompts are stored or logged.
+              </p>
             </div>
           )}
 
-          {/* Recommendations */}
-          {state.analysis.recommendations.length > 0 && (
-            <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2.5">
-                Recommendations
-              </h2>
-              <div className="space-y-2">
-                {state.analysis.recommendations.map((rec, i) => (
-                  <div
-                    key={i}
-                    className="flex items-start gap-2.5 rounded-lg border border-gray-100 bg-white px-3.5 py-2.5 text-sm text-gray-700"
-                  >
-                    <span className="text-emerald-600 mt-0.5 flex-shrink-0">→</span>
-                    {rec}
-                  </div>
+          {/* ── TAB 2: Response PII Audit ── */}
+          {activeTab === "audit" && (
+            <div className="space-y-5">
+              {/* Sub-tabs */}
+              <div className="flex gap-1 border-b border-gray-200">
+                {(["scan", "history"] as const).map(st => (
+                  <button key={st} onClick={() => setAuditSubTab(st)}
+                    className={`px-4 py-1.5 text-sm font-semibold rounded-t-lg capitalize transition -mb-px ${
+                      auditSubTab === st ? "bg-white border border-b-white border-gray-200 text-indigo-700" : "text-gray-500 hover:text-gray-700"
+                    }`}>
+                    {st === "scan" ? "Scan" : "History"}
+                  </button>
                 ))}
               </div>
+
+              {auditSubTab === "scan" && (
+                <div className="space-y-5">
+                  {/* Input */}
+                  <div className="bg-white rounded-2xl shadow border border-gray-200 p-5 space-y-4">
+                    <input
+                      type="text" value={auditLabel} onChange={e => setAuditLabel(e.target.value)}
+                      placeholder="Scan label (optional) — e.g. Customer support bot response"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    />
+                    <div className="relative">
+                      <textarea
+                        value={auditText} onChange={e => setAuditText(e.target.value)} rows={9}
+                        placeholder={`Paste an AI response or log snippet here...\n\nThis scanner detects:\n• Personal: emails, phone numbers, SSNs, passport numbers\n• Financial: credit cards, IBANs, bank accounts\n• Credentials: API keys, AWS keys, GitHub tokens, JWTs, passwords\n• Network: private IPs, internal URLs, connection strings`}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+                      />
+                      <span className="absolute bottom-3 right-3 text-xs text-gray-400">{auditText.length.toLocaleString()} / 50,000</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <button onClick={() => { setAuditText(""); setAuditResult(null); setAuditError(null); setAuditLabel(""); }}
+                        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+                        <Trash2 className="w-4 h-4" /> Clear
+                      </button>
+                      <button onClick={handleAuditScan} disabled={auditLoading || !auditText.trim()}
+                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow transition">
+                        {auditLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Scanning…</> : <><ScanSearch className="w-4 h-4" /> Run PII Scan</>}
+                      </button>
+                    </div>
+                  </div>
+
+                  {auditError && (
+                    <div className="bg-red-50 border border-red-300 rounded-xl p-4 flex items-center gap-3 text-red-700">
+                      <XCircle className="w-5 h-5 flex-shrink-0" />
+                      <span className="text-sm font-medium">{auditError}</span>
+                    </div>
+                  )}
+
+                  <AnimatePresence>
+                    {auditResult && (
+                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
+                        {/* Score + category breakdown */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                          <div className={`bg-white rounded-2xl shadow border p-5 flex flex-col items-center gap-3 ${piiRiskBg[auditResult.riskLevel]}`}>
+                            <PIIGauge score={auditResult.score} riskLevel={auditResult.riskLevel} />
+                            <div className="text-center text-sm text-gray-500">
+                              <p><span className="font-semibold text-gray-700">{auditResult.findings.length}</span> PII type{auditResult.findings.length !== 1 ? "s" : ""} detected</p>
+                              <p>in {auditResult.scannedLength.toLocaleString()} characters</p>
+                            </div>
+                          </div>
+
+                          <div className="bg-white rounded-2xl shadow border border-gray-200 p-5">
+                            <div className="flex items-center gap-2 mb-4">
+                              <BarChart2 className="w-5 h-5 text-indigo-500" />
+                              <h3 className="font-semibold text-gray-800 text-sm">Category Breakdown</h3>
+                            </div>
+                            {Object.keys(auditResult.categoryBreakdown).length > 0 ? (
+                              <div className="space-y-2">
+                                {Object.entries(auditResult.categoryBreakdown).sort((a, b) => b[1] - a[1]).map(([cat, count]) => {
+                                  const max = Math.max(...Object.values(auditResult.categoryBreakdown), 1);
+                                  return (
+                                    <div key={cat} className="flex items-center gap-3">
+                                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full w-20 text-center ${catColor[cat] || "bg-gray-100 text-gray-600"}`}>{cat}</span>
+                                      <div className="flex-1 bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                                        <motion.div initial={{ width: 0 }} animate={{ width: `${(count / max) * 100}%` }} transition={{ duration: 0.5 }}
+                                          className={`h-full rounded-full ${cat === "Personal" ? "bg-purple-500" : cat === "Financial" ? "bg-rose-500" : cat === "Credential" ? "bg-red-500" : "bg-cyan-500"}`} />
+                                      </div>
+                                      <span className="text-xs font-bold text-gray-700 w-5 text-right">{count}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center justify-center h-20 text-gray-400">
+                                <CheckCircle className="w-7 h-7 mb-1 text-green-400" />
+                                <span className="text-sm">No PII detected</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Findings */}
+                        {auditResult.findings.length > 0 && (
+                          <div className="bg-white rounded-2xl shadow border border-gray-200 p-5 space-y-4">
+                            <div className="flex items-center justify-between flex-wrap gap-3">
+                              <h3 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
+                                <AlertTriangle className="w-4 h-4 text-red-500" /> Detected PII Types
+                              </h3>
+                              <div className="flex flex-wrap gap-2">
+                                {auditCategories.map(cat => (
+                                  <button key={cat} onClick={() => setAuditCatFilter(cat)}
+                                    className={`text-xs font-semibold px-3 py-1 rounded-full transition border ${
+                                      auditCatFilter === cat ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-gray-600 border-gray-300 hover:border-indigo-400"
+                                    }`}>
+                                    {cat}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="space-y-3">
+                              {visibleFindings.map(f => <PIIFindingCard key={f.id} finding={f} />)}
+                            </div>
+                          </div>
+                        )}
+
+                        {auditResult.findings.length === 0 && (
+                          <div className="bg-green-50 border border-green-300 rounded-2xl p-8 flex flex-col items-center gap-3 text-green-700">
+                            <CheckCircle className="w-9 h-9" />
+                            <p className="font-semibold">No PII Detected</p>
+                            <p className="text-sm text-green-600 text-center">No known PII patterns found across Personal, Financial, Credential, and Network categories.</p>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+
+              {/* History sub-tab */}
+              {auditSubTab === "history" && (
+                <div className="bg-white rounded-2xl shadow border border-gray-200 p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Clock className="w-5 h-5 text-indigo-500" />
+                    <h3 className="font-semibold text-gray-800 text-sm">Scan History</h3>
+                    <button onClick={loadHistory} className="ml-auto text-xs text-indigo-600 hover:underline">Refresh</button>
+                  </div>
+                  {histLoading ? (
+                    <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 text-indigo-500 animate-spin" /></div>
+                  ) : auditHistory.length === 0 ? (
+                    <div className="text-center py-10 text-gray-400">
+                      <ScanSearch className="w-9 h-9 mx-auto mb-2 opacity-40" />
+                      <p className="text-sm">No scans yet.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {auditHistory.map(entry => (
+                        <div key={entry._id} className={`flex items-center gap-4 border rounded-xl px-4 py-3 ${piiRiskBg[entry.riskLevel]}`}>
+                          <div className={`text-2xl font-extrabold ${piiRiskColor[entry.riskLevel]} w-10 text-center`}>{entry.score}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-gray-800 text-sm truncate">{entry.label}</span>
+                              <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full border ${
+                                entry.riskLevel === "safe" ? "bg-green-100 text-green-700 border-green-300" :
+                                entry.riskLevel === "low"  ? "bg-blue-100 text-blue-700 border-blue-300"   :
+                                entry.riskLevel === "medium" ? "bg-yellow-100 text-yellow-700 border-yellow-300" :
+                                entry.riskLevel === "high"   ? "bg-orange-100 text-orange-700 border-orange-300" :
+                                                               "bg-red-100 text-red-700 border-red-300"
+                              }`}>{entry.riskLevel}</span>
+                            </div>
+                            <p className="text-xs text-gray-500 truncate mt-0.5">{entry.summary}</p>
+                          </div>
+                          <div className="text-right text-xs text-gray-400 flex-shrink-0">
+                            <div>{entry.findingCount} finding{entry.findingCount !== 1 ? "s" : ""}</div>
+                            <div>{new Date(entry.createdAt).toLocaleDateString()}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
-
-            {/* Disclaimer */}
-            <p className="mt-6 text-xs text-gray-400 leading-relaxed">
-              Pattern detection runs entirely in your browser. No data is sent to any server or third-party AI.
-              No prompts are stored or logged.
-            </p>
-          </div>
         </div>
       </div>
       <Footer />

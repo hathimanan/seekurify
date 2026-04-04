@@ -22,6 +22,7 @@ import { Eye, Pencil } from "lucide-react";
 
 import { motion } from 'framer-motion';
 import { set } from 'mongoose';
+import AppSidebar from './ui/AppSidebar';
 
 interface PasswordEntry {
   _id: string;
@@ -166,7 +167,6 @@ export const Dashboard: React.FC = () => {
   const [expiredPassword, setExpiredPassword] = useState<PasswordEntry | null>(null);
   const [editPasswordId, setEditPasswordId] = useState<string | null>(null);
   const [showPayModalWithoutFreePlan, setShowPayModalWithoutFreePlan] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   const [pinverificationEnabled, setPinVerificationEnabled] = useState<boolean | null>(null);
   const totalPasswords = filteredPasswords.length;
   const [phishingDetectorEnabled, setPhishingDetectorEnabled] = useState<boolean>(false);
@@ -370,12 +370,6 @@ useEffect(() => {
 // 2️⃣ Initialize App Data (runs once)
 // ==========================================
 useEffect(() => {
-  const saved = localStorage.getItem("darkMode");
-  if (saved === "true") {
-    document.documentElement.classList.add("dark");
-    setDarkMode(true);
-  }
-
   let isMounted = true;
 
   const initialize = async () => {
@@ -582,19 +576,6 @@ useEffect(() => {
 // ==========================================
 // Helper Functions
 // ==========================================
-const toggleDarkMode = () => {
-  const next = !darkMode;
-  setDarkMode(next);
-
-  if (next) {
-    document.documentElement.classList.add("dark");
-    localStorage.setItem("darkMode", "true");
-  } else {
-    document.documentElement.classList.remove("dark");
-    localStorage.setItem("darkMode", "false");
-  }
-};
-
 const shouldRequirePin = () => {
   // Don't require PIN if feature flag isn't loaded yet
   if (pinverificationEnabled === null) {
@@ -1484,65 +1465,12 @@ const checkPaymentStatus = async (): Promise<string | null> => {
         setSidebarExpanded={setSidebarExpanded}
       />
 
-      <div className="flex justify-end px-6 py-3 border-b border-gray-200 dark:border-gray-800">
-        <button
-          onClick={toggleDarkMode}
-          aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-          className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-800 text-sm font-medium shadow hover:scale-105 transition"
-        >
-          {darkMode ? "☀ Light Mode" : "🌙 Dark Mode"}
-        </button>
-      </div>
-
 
       <title> Password Manager </title>
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <motion.aside
-          initial={false}
-          animate={{ width: sidebarExpanded ? "18rem" : "4rem" }}
-          transition={{ type: "spring", stiffness: 260, damping: 30 }}
-          className="bg-gradient-to-b from-gray-800 to-gray-900 text-white p-4 flex flex-col"
-        >
-          {[
-            { label: "Analyze Malware", path: "/malware-analysis", icon: <FileSearch className="w-5 h-5" /> },
-            { label: "Password Manager", path: "/dashboard", icon: <KeyRound className="w-5 h-5" /> },
-            { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3 className="w-5 h-5" /> },
-            { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5" /> },
-            { label: "Contact Us", path: "/contact", icon: <Phone className="w-5 h-5" /> },
-...(phishingDetectorEnabled ? [
-      { label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5" /> }
-    ] : [])
-          ].map(({ label, path, icon }) => (
-            <div
-              key={path}
-              onClick={() => navigate(path)}
-              className="relative group flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-indigo-600 transition cursor-pointer"
-            >
-              {icon}
-              {sidebarExpanded && <span className="truncate">{label}</span>}
+        <AppSidebar sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
 
-              {!sidebarExpanded && (
-                <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                  {label}
-                </span>
-              )}
-            </div>
-          ))}
-
-          {/* Expand/Collapse */}
-          {/* <div
-            onClick={() => setSidebarExpanded((s) => !s)}
-            className="flex items-center justify-center mt-auto cursor-pointer bg-white/10 hover:bg-white/20 px-2 py-2 rounded-md transition relative group"
-          >
-            {sidebarExpanded ? "Collapse" : "Expand"}
-            {!sidebarExpanded && (
-              <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                {sidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
-              </span>
-            )}
-          </div> */}
-        </motion.aside>
 
         <div className="mt-6 ml-6 mb-6">
           <button

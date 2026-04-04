@@ -4,6 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { HomePageAfter } from "../HomePageAfter/HomePageAfter";
 import Footer from "../../components/ui/FooterBeforeLogin";
 import dashboardPreview from "../../../src/assets/dashboard-preview.png"; // Corrected path
+import aiInjectionPreview from "../../../src/assets/ai-scanner.png"; // New image for AI Injection Scanner
+import findings from "../../../src/assets/aiinjection-findings.png"; // New image for AI Injection Scanner
+
 import {
   ShieldCheck,
   Lock,
@@ -11,6 +14,12 @@ import {
   Bell,
   FileCheck,
   Link as LinkIcon,
+  Eye,
+  AlertTriangle,
+  Globe,
+  Zap,
+  Video,
+  Bot,
 } from "lucide-react";
 
 export const HomePageBefore: FC = () => {
@@ -99,10 +108,10 @@ return (
           Seekurify
         </h2>
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-blue-500 leading-tight max-w-4xl mx-auto">
-            Secure. Smart. Simple.
+            AI Security Testing Platform
           </h1>
           <p className="mt-6 text-lg sm:text-4xl text-gray-300 max-w-2xl mx-auto">
-            Security for everything you seek.
+            automated red-teaming for companies shipping AI products
           </p>
 
           <div className="mt-10 flex flex-wrap justify-center gap-4">
@@ -140,7 +149,7 @@ return (
         <h2 className="text-3xl sm:text-4xl font-bold text-white mb-12">
           Why Choose Seekurify?
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
           {[
             {
               icon: <Lock className="h-8 w-8 text-indigo-400" />,
@@ -161,6 +170,41 @@ return (
               icon: <Bell className="h-8 w-8 text-indigo-400" />,
               title: "Real-Time Alerts",
               desc: "Stay updated with instant security notifications.",
+            },
+            {
+              icon: <Eye className="h-8 w-8 text-indigo-400" />,
+              title: "Prompt Privacy Scanner",
+              desc: "Scan prompts for privacy leaks and sensitive data exposure.",
+            },
+            {
+              icon: <Activity className="h-8 w-8 text-indigo-400" />,
+              title: "Watch Agent",
+              desc: "Monitor and alert on suspicious activities in real-time.",
+            },
+            {
+              icon: <AlertTriangle className="h-8 w-8 text-indigo-400" />,
+              title: "Phishing Detector",
+              desc: "Detect and block phishing attempts across emails and websites.",
+            },
+            {
+              icon: <Globe className="h-8 w-8 text-indigo-400" />,
+              title: "SiteShield Audit",
+              desc: "Comprehensive security audit for websites and applications.",
+            },
+            {
+              icon: <Zap className="h-8 w-8 text-indigo-400" />,
+              title: "AI Injection Scanner",
+              desc: "Identify and prevent AI injection attacks.",
+            },
+            {
+              icon: <Video className="h-8 w-8 text-indigo-400" />,
+              title: "DeepFake Detector",
+              desc: "Analyze media for deepfake manipulation.",
+            },
+            {
+              icon: <Bot className="h-8 w-8 text-indigo-400" />,
+              title: "AI Agent Scanner",
+              desc: "Scan AI agents for vulnerabilities and security risks.",
             },
           ].map((feature, idx) => (
             <div
@@ -185,6 +229,29 @@ return (
         </p>
         <div className="max-w-7xl mx-auto rounded-2xl overflow-hidden shadow-xl border border-gray-700">
           <img src={dashboardPreview} alt="Seekurify Dashboard" />
+        </div>
+      </section>
+
+      {/* AI Injection Scanner Section */}
+      <section className="relative z-20 py-20 px-6 text-center bg-black/70 backdrop-blur-sm">
+        <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6">
+          AI Injection Scanner
+        </h2>
+        <p className="text-gray-400 max-w-2xl mx-auto mb-12">
+          Identify and prevent AI injection attacks.
+        </p>
+        <div className="max-w-7xl mx-auto rounded-2xl overflow-hidden shadow-xl border border-gray-700">
+          <img src={aiInjectionPreview} alt="AI Injection Scanner" />
+        </div>
+
+        <div className="mt-12 max-w-5xl mx-auto text-left">
+          <h3 className="text-2xl sm:text-3xl font-semibold text-white mb-4">Findings</h3>
+          <p className="text-gray-400 mb-10">
+            Review injection findings, vulnerability details, and recommended remediation steps to keep your AI systems protected.
+          </p>
+          <div className="rounded-2xl overflow-hidden shadow-xl border border-gray-700">
+            <img src={findings} alt="AI Injection Scanner Findings" />
+          </div>
         </div>
       </section>
 

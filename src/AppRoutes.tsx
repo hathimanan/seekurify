@@ -43,10 +43,11 @@ import CSPBuilder      from "./components/CSPBuilder";
 import PromptInjectionScanner from "./components/PromptInjectionScanner";
 import WatchAgent from "./components/WatchAgent";
 import DeepFakeDetector from "./components/DeepFakeDetector";
+import AIAgentScanner from "./components/AIAgentScanner";
 
 const AppRoutes = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading, logout } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
   // If the user becomes unauthenticated, ensure they are logged out and redirected to /login
   // Skip redirect while auth is initializing (isLoading)
@@ -163,6 +164,8 @@ const isPublicRoute = [
         <Route path="/injection-scanner" element={<PromptInjectionScanner />} />
         <Route path="/watch-agent" element={<WatchAgent />} />
         <Route path="/deepfake-detector" element={<DeepFakeDetector />} />
+        <Route path="/ai-agent-scanner" element={<AIAgentScanner />} />
+        <Route path="/pii-detector" element={<PromptScanner />} />
 
 
 <Route path="/privacy-policy" element={<PrivacyPolicy />} />

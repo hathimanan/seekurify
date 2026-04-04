@@ -52,6 +52,7 @@ const Header: React.FC<HeaderProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
 
@@ -92,6 +93,13 @@ const Header: React.FC<HeaderProps> = ({
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("darkMode");
+    const isDark = saved === "true";
+    setDarkMode(isDark);
+    document.documentElement.classList.toggle("dark", isDark);
   }, []);
 
 
@@ -188,6 +196,13 @@ const Header: React.FC<HeaderProps> = ({
     handleLogout();
   };
 
+  const toggleDarkMode = () => {
+    const next = !darkMode;
+    setDarkMode(next);
+    document.documentElement.classList.toggle("dark", next);
+    localStorage.setItem("darkMode", String(next));
+  };
+
   return (
     <header className="relative bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-6 text-white shadow-md z-50">
       <div className="w-full flex justify-between items-center">
@@ -248,6 +263,14 @@ const Header: React.FC<HeaderProps> = ({
 
         {/* Right Section */}
         <div className="flex items-center space-x-4">
+          <button
+            onClick={toggleDarkMode}
+            aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+            className="px-4 py-2 rounded-lg bg-black/30 text-white text-sm font-medium shadow hover:bg-black/40 hover:scale-105 transition"
+          >
+            {darkMode ? "Light Mode" : "Dark Mode"}
+          </button>
+
           {/* Notification Icon */}
 <div className="relative" ref={notificationRef}>
       <button

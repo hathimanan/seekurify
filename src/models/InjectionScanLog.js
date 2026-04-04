@@ -32,6 +32,15 @@ const injectionScanLogSchema = new mongoose.Schema(
     score:        { type: Number, required: true },
     riskLevel:    { type: String, enum: ['critical', 'high', 'medium', 'low', 'clean'], required: true },
     findings:     { type: [findingSchema], default: [] },
+    mlResult: {
+      topLabel:       String,
+      topScore:       Number,
+      scores:         { type: mongoose.Schema.Types.Mixed },
+      isInjection:    Boolean,
+      attackCategory: String,
+      mlScore:        Number,
+      novelDetection: Boolean,
+    },
     semantic: {
       isInjection: Boolean,
       confidence:  Number,

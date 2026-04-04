@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { useEffect, useRef } from 'react';
 import { ShieldAlert, ShieldCheck, Search, Loader2, AlertCircle, Brain, TrendingUp, Eye, Zap } from 'lucide-react';
 import { ArrowLeft } from 'lucide-react';
-import { FileSearch, KeyRound, BarChart3, Phone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import AppSidebar from "./ui/AppSidebar";
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_BASE_URL } from '../services/api';
 import Header from "../components/ui/Header";
@@ -282,38 +282,7 @@ export default function PhishingDetector() {
 
       <div className="flex flex-1 overflow-hidden">
 
-        {/* Sidebar */}
-        <motion.aside
-          initial={false}
-          animate={{ width: sidebarExpanded ? '18rem' : '4rem' }}
-          transition={{ type: 'spring', stiffness: 260, damping: 30 }}
-          className="bg-slate-900/80 backdrop-blur border-r border-white/5 text-white p-4 flex flex-col"
-        >
-          {[
-            { label: 'Analyze Malware',           path: '/malware-analysis',  icon: <FileSearch className="w-5 h-5" /> },
-            { label: 'Password Manager',           path: '/dashboard',         icon: <KeyRound className="w-5 h-5" /> },
-            { label: 'System Events Dashboard',    path: '/siem-dashboard',    icon: <BarChart3 className="w-5 h-5" /> },
-            { label: 'Security Awareness',         path: '/securityAwareness', icon: <ShieldCheck className="w-5 h-5" /> },
-            { label: 'Contact Us',                 path: '/contact',           icon: <Phone className="w-5 h-5" /> },
-            ...(phishingDetectorEnabled
-              ? [{ label: 'Phishing Detector', path: '/detect-attacker', icon: <ShieldAlert className="w-5 h-5" /> }]
-              : []),
-          ].map(({ label, path, icon }) => (
-            <div
-              key={path}
-              onClick={() => navigate(path)}
-              className="relative group flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-indigo-600/40 transition cursor-pointer"
-            >
-              {icon}
-              {sidebarExpanded && <span className="truncate text-sm">{label}</span>}
-              {!sidebarExpanded && (
-                <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                  {label}
-                </span>
-              )}
-            </div>
-          ))}
-        </motion.aside>
+        <AppSidebar sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
 
         {/* Main Content */}
         <div className="flex-1 p-6 overflow-y-auto">

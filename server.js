@@ -67,7 +67,7 @@ app.use(cors({
   },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key']
 }));
 
 // --- Security headers ---
@@ -304,8 +304,12 @@ import siteAuditRouter       from './src/routes/siteAudit.js';
 import cspBuilderRouter      from './src/routes/cspBuilderRoute.js';
 import webhookRouter         from './src/routes/webhookRoutes.js';
 import injectionScanRouter   from './src/api/promptInjectionScan.js';
+import scannerApiKeysRouter  from './src/routes/scannerApiKeys.js';
 import watchlistRouter       from './src/routes/watchlistRoutes.js';
 import deepfakeRouter        from './src/api/deepfakeDetector.js';
+import aiAgentScannerRouter  from './src/api/aiAgentScanner.js';
+import piiLeakageRouter      from './src/api/piiLeakageDetector.js';
+import llmSiemRouter         from './src/api/llmSiem.js';
 import cron                  from 'node-cron';
 import { runWatchAgent }     from './src/agent/watchAgent.js';
 import WatchlistItemCron     from './src/models/WatchlistItem.js';
@@ -333,8 +337,12 @@ app.use('/api', siteAuditRouter);
 app.use('/api', cspBuilderRouter);
 app.use('/api', webhookRouter);
 app.use('/api', injectionScanRouter);
+app.use('/api', scannerApiKeysRouter);
 app.use('/api', watchlistRouter);
 app.use('/api', deepfakeRouter);
+app.use('/api', aiAgentScannerRouter);
+app.use('/api', piiLeakageRouter);
+app.use('/api', llmSiemRouter);
 
 
 // --- Serve static files from Vite build ---

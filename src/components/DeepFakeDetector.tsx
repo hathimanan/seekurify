@@ -27,6 +27,7 @@ import { API_BASE_URL } from "../services/api";
 import Header from "./ui/Header";
 import Footer from "./ui/Footer";
 import { useNavigate } from "react-router-dom";
+import AppSidebar from "./ui/AppSidebar";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -341,7 +342,6 @@ const DeepFakeDetector: React.FC = () => {
   const navigate   = useNavigate();
   const token      = localStorage.getItem("token");
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
-  const [darkMode,         setDarkMode]        = useState(false);
   const [profileImage,     setProfileImage]    = useState("");
 
   // Detection state
@@ -354,19 +354,6 @@ const DeepFakeDetector: React.FC = () => {
   const [error,        setError]        = useState<string | null>(null);
   const [status,       setStatus]       = useState<string>("");
   const [progress,     setProgress]     = useState(0);   // 0-100 for video
-
-  // Dark mode
-  useEffect(() => {
-    const saved = localStorage.getItem("darkMode");
-    if (saved === "true") { document.documentElement.classList.add("dark"); setDarkMode(true); }
-  }, []);
-
-  const toggleDarkMode = () => {
-    const next = !darkMode;
-    setDarkMode(next);
-    next ? document.documentElement.classList.add("dark") : document.documentElement.classList.remove("dark");
-    localStorage.setItem("darkMode", String(next));
-  };
 
   const handleLogout = () => { localStorage.removeItem("token"); navigate("/"); };
 
@@ -587,42 +574,10 @@ const DeepFakeDetector: React.FC = () => {
         setSidebarExpanded={setSidebarExpanded}
       />
 
-      {/* Dark mode toggle */}
-      <div className="flex justify-end px-6 py-3 border-b border-gray-800">
-        <button
-          onClick={toggleDarkMode}
-          className="px-4 py-2 rounded-lg bg-gray-800 text-sm font-medium shadow hover:scale-105 transition"
-        >
-          {darkMode ? "☀ Light Mode" : "🌙 Dark Mode"}
-        </button>
-      </div>
-
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <motion.aside
-          initial={false}
-          animate={{ width: sidebarExpanded ? "18rem" : "4rem" }}
-          transition={{ type: "spring", stiffness: 260, damping: 30 }}
-          className="bg-gradient-to-b from-gray-900 to-[#0d1117] border-r border-gray-800 p-4 flex flex-col flex-shrink-0"
-        >
-          {NAV_ITEMS.map(({ label, path, icon }) => (
-            <div
-              key={path}
-              onClick={() => navigate(path)}
-              className={`relative group flex items-center gap-3 px-2 py-2 rounded-lg transition cursor-pointer mb-1 ${
-                path === "/deepfake-detector" ? "bg-indigo-600 text-white" : "hover:bg-indigo-600/60 text-gray-400 hover:text-white"
-              }`}
-            >
-              {icon}
-              {sidebarExpanded && <span className="truncate text-sm">{label}</span>}
-              {!sidebarExpanded && (
-                <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-900 border border-gray-700 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                  {label}
-                </span>
-              )}
-            </div>
-          ))}
-        </motion.aside>
+        <AppSidebar sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
+
 
         {/* Main */}
         <div className="flex-1 overflow-y-auto p-6 md:p-8">

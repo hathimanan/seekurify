@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../services/api";
 import Header from "./ui/Header";
 import Footer from "./ui/Footer";
+import AppSidebar from "./ui/AppSidebar";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface CSPSources {
@@ -102,7 +103,6 @@ const CSPBuilder: React.FC = () => {
   const token     = localStorage.getItem("token");
   const [profileImage] = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("darkMode") === "true");
 
   const [url,        setUrl]        = useState("");
   const [loading,    setLoading]    = useState(false);
@@ -164,14 +164,10 @@ const CSPBuilder: React.FC = () => {
       <Header token={token || ""} handleLogout={handleLogout} profileImage={profileImage}
         sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
 
-      <div className="flex justify-end px-6 py-3 border-b border-gray-200 dark:border-gray-800">
-        <button onClick={() => { const n = !darkMode; setDarkMode(n); localStorage.setItem("darkMode", String(n)); document.documentElement.classList.toggle("dark", n); }}
-          className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-800 text-sm font-medium shadow hover:scale-105 transition">
-          {darkMode ? "☀ Light" : "🌙 Dark"}
-        </button>
-      </div>
 
-      <main className="flex-1 max-w-3xl mx-auto w-full px-6 py-10">
+      <div className="flex flex-1 overflow-hidden">
+        <AppSidebar sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
+        <main className="flex-1 overflow-y-auto max-w-3xl mx-auto w-full px-6 py-10">
 
         {/* Hero */}
         <motion.div initial={{ opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-10">
@@ -359,6 +355,7 @@ const CSPBuilder: React.FC = () => {
         )}
         </AnimatePresence>
       </main>
+      </div>
       <Footer />
     </div>
   );

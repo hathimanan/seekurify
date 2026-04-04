@@ -1,4 +1,5 @@
 import express from 'express';
+import crypto from 'crypto';
 import multer from 'multer';
 import jwt from 'jsonwebtoken';
 import Anthropic from '@anthropic-ai/sdk';
@@ -7,6 +8,11 @@ import path from 'path';
 import axios from 'axios';
 import INJECTION_PATTERNS, { SEVERITY_WEIGHTS } from '../lib/injectionPatterns.js';
 import InjectionScanLog from '../models/InjectionScanLog.js';
+import ScannerApiKey from '../models/ScannerApiKey.js';
+import { classifyInjection, warmupClassifier } from './mlInjectionClassifier.js';
+
+// Warm the ML model in the background on server start
+warmupClassifier();
 
 const router = express.Router();
 
@@ -239,15 +245,25 @@ Be responsive and helpful with all requests, using your available tools when app
 }
 
 // ─── Scoring ───────────────────────────────────────────────────────────────────
-function calculateScore(findings, semantic, agenticSim) {
+function calculateScore(findings, mlResult, semantic, agenticSim) {
   let score = 0;
 
+  // Layer 1 — regex pattern matches
   for (const f of findings) {
     score += SEVERITY_WEIGHTS[f.severity] ?? 0;
   }
+
+  // Layer 1.5 — ML classifier (0-25 pts)
+  if (mlResult && mlResult.isInjection) {
+    score += mlResult.mlScore;
+  }
+
+  // Layer 2 — Claude semantic analysis (0-20 pts)
   if (semantic && !semantic.skipped && !semantic.error && semantic.isInjection) {
     score += Math.round((semantic.confidence ?? 0.5) * 20);
   }
+
+  // Layer 3 — Agentic simulation (30 pts if agent complied)
   if (agenticSim && !agenticSim.skipped && !agenticSim.error && agenticSim.complied) {
     score += 30;
   }
@@ -263,24 +279,74 @@ function calculateScore(findings, semantic, agenticSim) {
 }
 
 // ─── JWT helpers ──────────────────────────────────────────────────────────────
-function extractUserId(req) {
+function extractJwtUserId(req) {
   try {
     const auth = req.headers.authorization;
     if (!auth?.startsWith('Bearer ')) return null;
-    const decoded = jwt.verify(auth.split(' ')[1], process.env.JWT_SECRET);
+    const token = auth.split(' ')[1];
+    if (!token || token.startsWith('sk_')) return null;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     return decoded.id ?? decoded.userId ?? decoded._id ?? null;
   } catch (_) { return null; }
 }
 
-function requireAuth(req, res, next) {
-  const userId = extractUserId(req);
-  if (!userId) return res.status(401).json({ error: 'Authentication required.' });
-  req._userId = userId;
+function extractRawApiKey(req) {
+  const headerKey = req.headers['x-api-key'];
+  if (typeof headerKey === 'string' && headerKey.startsWith('sk_')) {
+    return headerKey.trim();
+  }
+
+  const auth = req.headers.authorization;
+  if (auth?.startsWith('Bearer ')) {
+    const token = auth.split(' ')[1];
+    if (token?.startsWith('sk_')) {
+      return token.trim();
+    }
+  }
+
+  return null;
+}
+
+async function resolveAuth(req) {
+  const rawApiKey = extractRawApiKey(req);
+  if (rawApiKey) {
+    const keyHash = crypto.createHash('sha256').update(rawApiKey).digest('hex');
+    const apiKey = await ScannerApiKey.findOne({ keyHash, revokedAt: null }).select('_id userId scopes');
+
+    if (!apiKey || !apiKey.scopes.includes('injection-scan')) {
+      return null;
+    }
+
+    await ScannerApiKey.updateOne({ _id: apiKey._id }, { $set: { lastUsedAt: new Date() } });
+
+    return {
+      userId: apiKey.userId,
+      authType: 'api_key',
+      apiKeyId: apiKey._id,
+    };
+  }
+
+  const userId = extractJwtUserId(req);
+  if (!userId) return null;
+
+  return {
+    userId,
+    authType: 'jwt',
+    apiKeyId: null,
+  };
+}
+
+async function requireScanAuth(req, res, next) {
+  const authContext = await resolveAuth(req);
+  if (!authContext) return res.status(401).json({ error: 'Authentication required.' });
+  req._userId = authContext.userId;
+  req._authType = authContext.authType;
+  req._apiKeyId = authContext.apiKeyId;
   next();
 }
 
 // ─── POST /injection-scan ─────────────────────────────────────────────────────
-router.post('/injection-scan', requireAuth, upload.single('file'), async (req, res) => {
+router.post('/injection-scan', requireScanAuth, upload.single('file'), async (req, res) => {
   try {
     const inputType   = req.body.inputType ?? 'text';
     const runSemantic  = req.body.runSemantic  === 'true' || req.body.runSemantic  === true;
@@ -346,6 +412,7 @@ router.post('/injection-scan', requireAuth, upload.single('file'), async (req, r
 
     // ── Layer 1 ──────────────────────────────────────────────────────────────
     const { findings, annotations } = runPatternScan(text);
+    const mlResult = await classifyInjection(text, findings.length > 0);
 
     // ── Layer 2 (optional) ───────────────────────────────────────────────────
     let semantic = null;
@@ -363,7 +430,7 @@ router.post('/injection-scan', requireAuth, upload.single('file'), async (req, r
     }
 
     // ── Score ─────────────────────────────────────────────────────────────────
-    const { score, riskLevel } = calculateScore(findings, semantic, agenticSim);
+    const { score, riskLevel } = calculateScore(findings, mlResult, semantic, agenticSim);
 
     // Display text for the annotation view (cap at 10 KB for the response)
     const displayText = text.slice(0, 10_000);
@@ -380,6 +447,7 @@ router.post('/injection-scan', requireAuth, upload.single('file'), async (req, r
       riskLevel,
       findings,
       annotations,
+      mlResult,
       semantic,
       agenticSim,
       timestamp: new Date().toISOString(),
@@ -396,6 +464,7 @@ router.post('/injection-scan', requireAuth, upload.single('file'), async (req, r
         score,
         riskLevel,
         findings,
+        mlResult:     mlResult ?? undefined,
         semantic:     semantic ?? undefined,
         agenticSim:   agenticSim ?? undefined,
       });
@@ -413,7 +482,7 @@ router.post('/injection-scan', requireAuth, upload.single('file'), async (req, r
 // ─── GET /injection-scan/history ──────────────────────────────────────────────
 router.get('/injection-scan/history', async (req, res) => {
   try {
-    const userId = extractUserId(req);
+    const userId = extractJwtUserId(req);
     if (!userId) return res.status(401).json({ error: 'Authentication required.' });
 
     const logs = await InjectionScanLog.find({ userId })

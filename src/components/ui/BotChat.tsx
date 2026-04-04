@@ -501,10 +501,6 @@ const BotChat: React.FC<BotProps> = ({ profileImage }) => {
 
       {/* ── Top bar ── */}
       <div className={`flex justify-between items-center p-2 border-b gap-2 ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
-        <button onClick={() => setDarkMode(!darkMode)} className="px-3 py-1 text-xs font-medium rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition">
-          {darkMode ? "☀️ Light" : "🌙 Dark"}
-        </button>
-
         {/* AI Toggle */}
         <button
           onClick={() => setUseAI(!useAI)}
