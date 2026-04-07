@@ -22,6 +22,7 @@ interface MediumArticle {
   date: string;
   description: string;
   link: string;
+  thumbnail?: string;
 }
 
 
@@ -156,6 +157,8 @@ export const SecurityAwareness: React.FC = () => {
 
   const [selectedTip, setSelectedTip] = useState<Tip | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [mediumArticles, setMediumArticles] = useState<MediumArticle[]>(mockMediumArticles);
+  const [articlesLoading, setArticlesLoading] = useState(true);
 const [featureFlags, setFeatureFlags] = useState({
   securityChatbotEnabled: false,
   // ... other flags
@@ -184,6 +187,39 @@ useEffect(() => {
   };
 
   fetchFeatureFlags();
+}, []);
+
+useEffect(() => {
+  const fetchArticles = async () => {
+    setArticlesLoading(true);
+    try {
+      // rss2json converts any RSS feed to JSON with CORS support
+      const feed = encodeURIComponent('https://feeds.feedburner.com/TheHackersNews');
+      const res  = await fetch(
+        `https://api.rss2json.com/v1/api.json?rss_url=${feed}&count=10`
+      );
+      const data = await res.json();
+      if (data.status === 'ok' && data.items?.length) {
+        const articles: MediumArticle[] = data.items.map((item: any) => ({
+          title:       item.title,
+          link:        item.link,
+          date:        new Date(item.pubDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+          description: item.description
+            ?.replace(/<[^>]+>/g, ' ')
+            .replace(/\s{2,}/g, ' ')
+            .trim()
+            .slice(0, 150) + '…',
+          thumbnail: item.thumbnail || item.enclosure?.link || undefined,
+        }));
+        setMediumArticles(articles);
+      }
+    } catch (_) {
+      // silently keep mockMediumArticles as fallback
+    } finally {
+      setArticlesLoading(false);
+    }
+  };
+  fetchArticles();
 }, []);
 
 
@@ -259,9 +295,7 @@ useEffect(() => {
       <Header
         token={localStorage.getItem("token") || ""}
         handleLogout={handleLogout}
-        profileImage={profileImage} // ✅ pass state
-        sidebarExpanded={sidebarExpanded}
-        setSidebarExpanded={setSidebarExpanded}
+        profileImage={profileImage}
       />
 
 
@@ -508,47 +542,56 @@ useEffect(() => {
             </motion.div>
           </section>
 
-          {/* Medium Articles */}
+          {/* Latest Security Articles */}
           <section className="border rounded-2xl p-6 bg-white/70 shadow-md">
-            <h2 className="text-2xl font-semibold mb-6 text-green-700">
-              Latest Medium Articles
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-semibold text-green-700">
+                Latest Cybersecurity Articles
+              </h2>
+              {articlesLoading && (
+                <span className="text-xs text-gray-400 animate-pulse">Fetching latest…</span>
+              )}
+            </div>
             <div className="overflow-hidden">
               <motion.div
                 className="flex gap-6"
                 animate={{ x: ["0%", "-100%"] }}
-                transition={{
-                  ease: "linear",
-                  duration: 22,
-                  repeat: Infinity,
-                }}
+                transition={{ ease: "linear", duration: 30, repeat: Infinity }}
               >
-                {mockMediumArticles.concat(mockMediumArticles).map(
-                  (article, index) => (
-                    <div
-                      key={index}
-                      className="min-w-[320px] bg-white rounded-xl shadow-md hover:shadow-xl p-6 transition-all duration-300"
-                    >
-                      <h3 className="font-bold text-lg text-green-800">
+                {mediumArticles.concat(mediumArticles).map((article, index) => (
+                  <div
+                    key={index}
+                    className="min-w-[320px] bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 flex flex-col overflow-hidden"
+                  >
+                    {article.thumbnail && (
+                      <img
+                        src={article.thumbnail}
+                        alt=""
+                        className="w-full h-36 object-cover"
+                        onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    )}
+                    <div className="p-5 flex flex-col flex-1">
+                      <h3 className="font-bold text-base text-green-800 leading-snug line-clamp-2">
                         {article.title}
                       </h3>
-                      <p className="text-sm text-gray-500">{article.date}</p>
-                      <p className="mt-2 text-gray-700">{article.description}</p>
+                      <p className="text-xs text-gray-400 mt-1">{article.date}</p>
+                      <p className="mt-2 text-sm text-gray-600 line-clamp-3 flex-1">{article.description}</p>
                       <a
                         href={article.link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block mt-3 text-indigo-600 hover:underline font-medium"
+                        className="block mt-3 text-indigo-600 hover:underline font-medium text-sm"
                       >
-                        Read on Medium →
+                        Read full article →
                       </a>
                     </div>
-                  )
-                )}
+                  </div>
+                ))}
               </motion.div>
             </div>
             <p className="text-gray-500 text-sm mt-3 text-center">
-              📰 Articles auto-scroll continuously
+              📰 Live feed · auto-scrolls continuously
             </p>
           </section>
         </main>

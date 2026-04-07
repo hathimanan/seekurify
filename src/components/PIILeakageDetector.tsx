@@ -324,8 +324,6 @@ const PIILeakageDetector: React.FC = () => {
         token={authToken()}
         handleLogout={handleLogout}
         profileImage={profileImage}
-        sidebarExpanded={sidebarExpanded}
-        setSidebarExpanded={setSidebarExpanded}
       />
 
       <div className="flex flex-1 overflow-hidden">

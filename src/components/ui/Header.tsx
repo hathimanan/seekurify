@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import defaultProfileIcon from "../../assets/default-profile.png";
-import { Menu, X, Bell } from "lucide-react";
+import { Bell } from "lucide-react";
 import { API_BASE_URL } from "../../services/api";
 import { jwtDecode } from "jwt-decode";
 
@@ -10,8 +10,6 @@ interface HeaderProps {
   profileImage?: string;
   token: string;
   handleLogout: () => void;
-  sidebarExpanded: boolean;
-  setSidebarExpanded: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 
@@ -44,8 +42,6 @@ const formatTimeAgo = (timestamp: string) => {
 const Header: React.FC<HeaderProps> = ({
   profileImage,
   handleLogout,
-  sidebarExpanded,
-  setSidebarExpanded,
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -204,65 +200,32 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="relative bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-6 text-white shadow-md z-50">
-      <div className="w-full flex justify-between items-center">
-        {/* Sidebar Toggle */}
-        <div className="relative group">
-          <div
-            onClick={() => setSidebarExpanded((s) => !s)}
-            className="flex items-center justify-center cursor-pointer bg-white/20 px-3 py-2 rounded-lg hover:bg-white/30 transition shadow-sm"
-          >
-            {sidebarExpanded ? (
-              <X size={18} className="text-white" />
-            ) : (
-              <Menu size={18} className="text-white" />
-            )}
-          </div>
-          <span className="absolute left-1/2 -translate-x-1/2 -top-8 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50">
-            {sidebarExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
-          </span>
-        </div>
+    <header className="relative bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-6 text-white shadow-md z-50 h-16 flex items-center">
+      {/* Logo — absolutely centred */}
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 pointer-events-none">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-7 w-7 text-blue-300"
+          fill="transparent"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+          <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" strokeWidth="2" />
+          <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" strokeWidth="2" />
+          <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+        </svg>
+        <a
+          href="/"
+          className="text-blue-300 font-bold text-xl tracking-wide hover:text-blue-200 transition-colors pointer-events-auto"
+        >
+          Seekurify
+        </a>
+      </div>
 
-        {/* Logo */}
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col items-center mb-4">
-            {isAdmin === true && (
-                <button
-      onClick={() => navigate("/feature-flags")}
-      className="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow hover:bg-red-700 transition"
-    >
-      🛠 Admin Console
-    </button>
-
-    
-            )
-            
-            }
-
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-10 w-10 text-blue-400 mb-2"
-              fill="transparent"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-              <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" strokeWidth="2" />
-              <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" strokeWidth="2" />
-              <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-            </svg>
-            <a
-              href="/"
-              className="text-blue-400 font-bold text-3xl hover:text-blue-500 transition-colors"
-            >
-              Seekurify
-            </a>
-          </div>
-        </div>
-
-        {/* Right Section */}
-        <div className="flex items-center space-x-4">
+      {/* Right Section — pushed to far right with ml-auto */}
+      <div className="ml-auto flex items-center space-x-4">
           <button
             onClick={toggleDarkMode}
             aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
@@ -341,6 +304,17 @@ const Header: React.FC<HeaderProps> = ({
                 animate={{ opacity: 1, y: 0 }}
                 className="absolute right-0 top-12 w-52 bg-white text-gray-700 shadow-lg rounded-xl overflow-hidden z-50"
               >
+                {isAdmin === true && (
+                  <>
+                    <button
+                      className="w-full px-4 py-2 hover:bg-red-50 text-left text-red-600 font-semibold flex items-center gap-2"
+                      onClick={() => navigate("/feature-flags")}
+                    >
+                      <span>🛠</span> Admin Console
+                    </button>
+                    <div className="border-t border-gray-100" />
+                  </>
+                )}
                 <button
                   className="w-full px-4 py-2 hover:bg-indigo-50 text-left"
                   onClick={() => useProtectedNavigation("/profile")}
@@ -373,7 +347,6 @@ const Header: React.FC<HeaderProps> = ({
             )}
           </div>
         </div>
-      </div>
     </header>
   );
 };

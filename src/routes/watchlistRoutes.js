@@ -147,6 +147,36 @@ router.patch('/watchlist/:id/toggle', requireAuth, async (req, res) => {
   }
 });
 
+// ─── PATCH /watchlist/:id/schedule ───────────────────────────────────────────
+router.patch('/watchlist/:id/schedule', requireAuth, async (req, res) => {
+  try {
+    const { scheduledScanAt } = req.body;
+    const item = await WatchlistItem.findOne({ _id: req.params.id, userId: req._userId });
+    if (!item) return res.status(404).json({ error: 'Item not found.' });
+
+    if (scheduledScanAt == null || scheduledScanAt === '') {
+      item.scheduledScanAt = null;
+      await item.save();
+      return res.json({ item });
+    }
+
+    const parsed = new Date(scheduledScanAt);
+    if (Number.isNaN(parsed.getTime())) {
+      return res.status(400).json({ error: 'Invalid scheduled scan date/time.' });
+    }
+    if (parsed.getTime() <= Date.now()) {
+      return res.status(400).json({ error: 'Scheduled scan time must be in the future.' });
+    }
+
+    item.scheduledScanAt = parsed;
+    await item.save();
+    res.json({ item });
+  } catch (err) {
+    console.error('Schedule update error:', err);
+    res.status(500).json({ error: 'Failed to update schedule.' });
+  }
+});
+
 // ─── PATCH /watchlist/alerts/read-all ────────────────────────────────────────
 router.patch('/watchlist/alerts/read-all', requireAuth, async (req, res) => {
   try {

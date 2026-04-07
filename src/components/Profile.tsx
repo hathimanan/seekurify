@@ -1,10 +1,13 @@
-import { ArrowLeft, BarChart3, FileSearch, KeyRound, Phone, ShieldAlert, ShieldCheck } from "lucide-react";
+import {
+  ArrowLeft, Shield, ShieldCheck, Target, Eye, ScanEye, Bot,
+  FileSearch, BarChart3, Fingerprint, Cpu, Globe, Lock,
+  CheckCircle2, Pencil, Save, X, KeyRound, Camera
+} from "lucide-react";
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "./ui/Header";
 import Footer from "./ui/Footer";
 import { API_BASE_URL } from "../services/api";
-import { FaCamera } from "react-icons/fa";
 import { motion } from "framer-motion";
 import AppSidebar from "./ui/AppSidebar";
 
@@ -15,11 +18,20 @@ interface UserProfile {
   profileImage?: string;
 }
 
-interface HeaderProps {
-  token: string;
-  handleLogout: () => void;
-  profileImage?: string; // ✅ new prop
-}
+// ─── Analyst skill tags ───────────────────────────────────────────────────────
+const SKILLS = [
+  "Threat Detection",
+  "Red Team Testing",
+  "Prompt Injection",
+  "Malware Analysis",
+  "Deepfake Detection",
+  "SIEM Monitoring",
+  "PII Auditing",
+  "CSP Hardening",
+];
+
+// ─── Clearance levels (purely visual) ────────────────────────────────────────
+const CLEARANCE = "PLATFORM ACCESS — LEVEL 3";
 
 const Profile: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -31,425 +43,429 @@ const Profile: React.FC = () => {
   const [pinInput, setPinInput] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [profileImage, setProfileImage] = useState<string | undefined>(undefined); // ✅ state for profile image
+  const [profileImage, setProfileImage] = useState<string | undefined>(undefined);
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
-const [phishingDetectorEnabled, setPhishingDetectorEnabled] = useState<boolean>(false);
-  const [featuresLoaded, setFeaturesLoaded] = useState(false);
 
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-
+  // ── Fetch Profile ──────────────────────────────────────────────────────────
   useEffect(() => {
-      const fetchFeatureFlags = async () => {
-        try {
-          const res = await fetch(`${API_BASE_URL}/feature-flags/read`);
-          
-          if (!res.ok) {
-            throw new Error('Failed to fetch feature flags');
-          }
-          
-          const data = await res.json();
-          
-          console.log('✅ Header feature flags loaded:', data);
-          setPhishingDetectorEnabled(data.phishingDetectorEnabled === true);
-          
-        } catch (err) {
-          console.error("❌ Failed to load header feature flags:", err);
-          setPhishingDetectorEnabled(false); // Safe default
-        } finally {
-          setFeaturesLoaded(true);
-        }
-      };
-  
-      fetchFeatureFlags();
-    }, []);
-
-  /** Fetch Profile on Mount */
-  useEffect(() => {
-    let isMounted = true; // prevent state updates after unmount
-
+    let isMounted = true;
     const fetchProfile = async () => {
       const token = localStorage.getItem("token");
-      if (!token) {
-        navigate("/login");
-        return;
-      }
-
+      if (!token) { navigate("/login"); return; }
       try {
         const res = await fetch(`${API_BASE_URL}/profile`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         });
-
-
-
-        if (!res.ok) throw new Error("Unauthorized or failed to fetch profile");
+        if (!res.ok) throw new Error("Unauthorized");
         const data: UserProfile = await res.json();
-        if (isMounted && data?.profileImage) {
-          setProfileImage(data.profileImage); // ✅ update state safely
-        }
+        if (isMounted && data?.profileImage) setProfileImage(data.profileImage);
         setUser(data);
         setEditableUser(data);
-      } catch (err) {
-        console.error("Fetch profile error:", err);
+      } catch {
         navigate("/login");
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchProfile();
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [navigate]);
 
-  /** Save Profile */
+  // ── Save Profile ───────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!editableUser) return;
-
     const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
+    if (!token) { navigate("/login"); return; }
     try {
       const res = await fetch(`${API_BASE_URL}/profile`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(editableUser),
       });
-
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update profile");
-
       setUser(data);
       setEditableUser(data);
       setIsEditing(false);
       setError("");
-      setSuccessMessage("Profile updated successfully!");
-
+      setSuccessMessage("Profile updated successfully.");
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update profile");
     }
   };
 
-  /** Logout */
+  // ── Logout ─────────────────────────────────────────────────────────────────
   const handleLogout = async () => {
     try {
-      await fetch(`${API_BASE_URL}/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-      });
-    } catch (err) {
-      console.error("Failed to call logout endpoint", err);
-    } finally {
-      localStorage.removeItem("token");
-      navigate("/login");
-    }
+      await fetch(`${API_BASE_URL}/auth/logout`, { method: "POST", credentials: "include" });
+    } catch { /* ignore */ }
+    finally { localStorage.removeItem("token"); navigate("/login"); }
   };
 
-  /** Upload Image */
+  // ── Image Upload ───────────────────────────────────────────────────────────
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-
-      // Preview immediately
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const imgData = reader.result as string;
-        setProfileImage(imgData);
-        setEditableUser((prev) =>
-          prev ? { ...prev, profileImage: imgData } : prev
-        );
-      };
-      reader.readAsDataURL(file);
-
-      // Send to backend
-      const formData = new FormData();
-      formData.append("profileImage", file);
-
-      const token = localStorage.getItem("token");
-      await fetch(`${API_BASE_URL}/profile/upload-image`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-    }
+    if (!e.target.files?.[0]) return;
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const imgData = reader.result as string;
+      setProfileImage(imgData);
+      setEditableUser((prev) => prev ? { ...prev, profileImage: imgData } : prev);
+    };
+    reader.readAsDataURL(file);
+    const formData = new FormData();
+    formData.append("profileImage", file);
+    const token = localStorage.getItem("token");
+    await fetch(`${API_BASE_URL}/profile/upload-image`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
   };
 
-  /** Handle PIN Verification */
+  // ── PIN Verify ─────────────────────────────────────────────────────────────
   const handleVerifyPin = async () => {
     setError("");
-
-    if (!pinInput.trim()) {
-      setError("PIN field cannot be empty.");
-      return;
-    }
-    if (!/^\d+$/.test(pinInput)) {
-      setError("PIN must contain only numeric values.");
-      return;
-    }
-
+    if (!pinInput.trim()) { setError("PIN field cannot be empty."); return; }
+    if (!/^\d+$/.test(pinInput)) { setError("PIN must contain only numeric values."); return; }
     setIsVerifying(true);
     try {
       const token = localStorage.getItem("token");
       const res = await fetch(`${API_BASE_URL}/auth/verify-pin`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          email: user?.email,
-          pin: pinInput,
-        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ email: user?.email, pin: pinInput }),
       });
-
       const data = await res.json();
-      if (data.token) {
-        setShowPinModal(false);
-        navigate("/change-password");
-      } else {
-        setError("Incorrect PIN. Please try again.");
-      }
-    } catch {
-      setError("Error verifying PIN.");
-    } finally {
-      setIsVerifying(false);
-    }
+      if (data.token) { setShowPinModal(false); navigate("/change-password"); }
+      else setError("Incorrect PIN. Please try again.");
+    } catch { setError("Error verifying PIN."); }
+    finally { setIsVerifying(false); }
   };
 
-  /** Loading State */
-  if (isLoading) {
-    return (
-      <p className="text-center mt-20 text-gray-600 text-lg">Loading...</p>
-    );
-  }
+  if (isLoading)
+    return <p className="text-center mt-20 text-gray-500">Loading analyst profile…</p>;
 
-  /** Get Initials */
   const initials = user?.name
-    ? user.name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-    : "U";
+    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+    : "SA";
 
-return (
-  <div className="min-h-screen bg-gray-100 flex flex-col">
-    {/* Header */}
-    <Header
-      token={localStorage.getItem("token") || ""}
-      handleLogout={handleLogout}
-      profileImage={profileImage}
-      sidebarExpanded={sidebarExpanded}
-      setSidebarExpanded={setSidebarExpanded}
-    />
+  const analystId = `SA-${(user?.username || user?.email || "unknown")
+    .replace(/[^a-z0-9]/gi, "")
+    .toUpperCase()
+    .slice(0, 8)
+    .padEnd(8, "0")}`;
 
-    {/* Main Layout */}
-    <div className="flex flex-1 overflow-hidden">
-      {/* Sidebar */}
+  return (
+    <div className="min-h-screen bg-gray-950 flex flex-col">
+      <Header
+        token={localStorage.getItem("token") || ""}
+        handleLogout={handleLogout}
+        profileImage={profileImage}
+      />
+
+      <div className="flex flex-1 overflow-hidden">
         <AppSidebar sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
 
-
-      {/* Content Area */}
-      <div className="flex-1 flex flex-col bg-gradient-to-br from-indigo-50 to-blue-100 overflow-auto p-6">
-        {/* Back Button */}
-        <div className="flex justify-start mb-6">
+        <div className="flex-1 overflow-y-auto bg-gray-950 p-6 md:p-10">
+          {/* Back */}
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-white bg-gradient-to-r from-red-500 to-red-600 px-4 py-2 rounded-lg shadow-md hover:scale-105 transition-transform duration-200"
+            className="flex items-center gap-2 text-gray-400 hover:text-white text-sm mb-8 transition-colors"
           >
-            <ArrowLeft className="w-5 h-5" /> Back
+            <ArrowLeft className="w-4 h-4" /> Back
           </button>
-        </div>
 
-        {/* Profile Card */}
-        <div className="flex-1 flex items-center justify-center">
-          <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md border border-gray-200">
-            <div className="flex flex-col items-center">
-              {/* Avatar */}
-              <div className="relative group w-24 h-24 mb-4">
-                {editableUser?.profileImage ? (
-                  <img
-                    src={editableUser.profileImage}
-                    alt="Profile"
-                    className="w-full h-full rounded-full object-cover shadow-md"
+          <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            {/* ── LEFT: Identity Card ──────────────────────────────────────── */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4 }}
+              className="lg:col-span-1 flex flex-col gap-4"
+            >
+              {/* Card */}
+              <div className="relative bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-2xl overflow-hidden shadow-2xl">
+                {/* Cyber header strip */}
+                <div className="h-24 bg-gradient-to-r from-indigo-700 via-purple-700 to-pink-700 relative">
+                  <div className="absolute inset-0 opacity-20"
+                    style={{ backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 4px,rgba(255,255,255,.07) 4px,rgba(255,255,255,.07) 5px),repeating-linear-gradient(90deg,transparent,transparent 4px,rgba(255,255,255,.07) 4px,rgba(255,255,255,.07) 5px)" }}
                   />
-                ) : (
-                  <div className="w-full h-full bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-3xl font-bold shadow-md">
-                    {initials}
+                  {/* Status badge */}
+                  <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/40 backdrop-blur-sm text-green-400 text-xs font-bold px-2.5 py-1 rounded-full border border-green-500/40">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                    ONLINE
                   </div>
-                )}
-
-                {/* Hover overlay */}
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition duration-300"
-                >
-                  <FaCamera className="text-white text-xl" />
                 </div>
 
-                <input
-                  type="file"
-                  accept="image/*"
-                  ref={fileInputRef}
-                  className="hidden"
-                  onChange={handleImageUpload}
-                />
+                {/* Avatar — overlaps header */}
+                <div className="flex flex-col items-center -mt-12 pb-6 px-6">
+                  <div className="relative group">
+                    {profileImage ? (
+                      <img
+                        src={editableUser?.profileImage || profileImage}
+                        alt="Analyst Avatar"
+                        className="w-24 h-24 rounded-full object-cover ring-4 ring-gray-800 shadow-xl"
+                      />
+                    ) : (
+                      <div className="w-24 h-24 rounded-full ring-4 ring-gray-800 shadow-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white text-2xl font-black">
+                        {initials}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                    >
+                      <Camera className="w-6 h-6 text-white" />
+                    </button>
+                    <input type="file" accept="image/*" ref={fileInputRef} className="hidden" onChange={handleImageUpload} />
+                  </div>
+
+                  {/* Name & Role */}
+                  <h2 className="mt-3 text-white text-xl font-extrabold tracking-tight text-center">
+                    {user?.name || user?.username || "Analyst"}
+                  </h2>
+                  <div className="mt-1 flex items-center gap-1.5 bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 text-xs font-semibold px-3 py-1 rounded-full">
+                    <Shield className="w-3 h-3" /> AI Security Analyst
+                  </div>
+
+                  {/* Analyst ID */}
+                  <p className="mt-3 font-mono text-gray-500 text-xs tracking-widest">{analystId}</p>
+
+                  {/* Clearance */}
+                  <div className="mt-2 text-center">
+                    <span className="inline-block text-[10px] font-bold tracking-[0.2em] text-amber-400/80 bg-amber-400/10 border border-amber-400/20 px-3 py-0.5 rounded-sm uppercase">
+                      {CLEARANCE}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-gray-700/60 mx-6" />
+
+                {/* Skills */}
+                <div className="px-6 py-4">
+                  <p className="text-gray-500 text-xs font-semibold uppercase tracking-widest mb-3">Capabilities</p>
+                  <div className="flex flex-wrap gap-2">
+                    {SKILLS.map((s) => (
+                      <span key={s} className="text-xs bg-gray-700/60 text-gray-300 border border-gray-600/50 px-2.5 py-1 rounded-md">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              {/* Profile Fields */}
-              <div className="space-y-5 mt-6 w-full">
+              {/* Quick-links */}
+              <div className="bg-gray-900 border border-gray-700 rounded-2xl p-4">
+                <p className="text-gray-500 text-xs font-semibold uppercase tracking-widest mb-3">Quick Access</p>
+                <div className="space-y-1">
+                  {[
+                    { label: "AI Red-Team Agent", icon: Target, path: "/red-team" },
+                    { label: "SIEM Dashboard", icon: BarChart3, path: "/siem-dashboard" },
+                    { label: "Watch Agent", icon: Eye, path: "/watch-agent" },
+                    { label: "Malware Analyzer", icon: FileSearch, path: "/malware-analysis" },
+                  ].map(({ label, icon: Icon, path }) => (
+                    <button
+                      key={path}
+                      onClick={() => navigate(path)}
+                      className="w-full flex items-center gap-3 text-gray-400 hover:text-white hover:bg-gray-800 text-sm px-3 py-2 rounded-lg transition-colors"
+                    >
+                      <Icon className="w-4 h-4 flex-shrink-0 text-indigo-400" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+
+            {/* ── RIGHT: Edit Panel ────────────────────────────────────────── */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4, delay: 0.1 }}
+              className="lg:col-span-2 flex flex-col gap-4"
+            >
+              {/* Header row */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-white text-2xl font-extrabold">Analyst Profile</h1>
+                  <p className="text-gray-500 text-sm mt-0.5">Manage your identity and security credentials</p>
+                </div>
+                {!isEditing ? (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+                  >
+                    <Pencil className="w-4 h-4" /> Edit
+                  </button>
+                ) : (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSave}
+                      className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+                    >
+                      <Save className="w-4 h-4" /> Save
+                    </button>
+                    <button
+                      onClick={() => { setEditableUser(user); setIsEditing(false); setError(""); }}
+                      className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+                    >
+                      <X className="w-4 h-4" /> Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Info Card */}
+              <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 space-y-5">
+                <p className="text-gray-500 text-xs font-semibold uppercase tracking-widest pb-1 border-b border-gray-700">
+                  Identity
+                </p>
+
                 {/* Full Name */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-600">Full Name</label>
+                  <label className="block text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1.5">Full Name</label>
                   {isEditing ? (
                     <input
                       type="text"
                       value={editableUser?.name || ""}
-                      onChange={(e) =>
-                        setEditableUser((prev) =>
-                          prev ? { ...prev, name: e.target.value } : prev
-                        )
-                      }
-                      className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onChange={(e) => setEditableUser((p) => p ? { ...p, name: e.target.value } : p)}
+                      className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   ) : (
-                    <p className="text-gray-900 font-medium mt-1">{editableUser?.name}</p>
+                    <p className="text-white font-semibold">{user?.name || "—"}</p>
                   )}
-                </div>
-
-                {/* Email */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-600">Email Address</label>
-                  <p className="text-gray-900 font-medium mt-1">{user?.email}</p>
                 </div>
 
                 {/* Username */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-600">Username</label>
+                  <label className="block text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1.5">Username</label>
                   {isEditing ? (
                     <input
                       type="text"
                       value={editableUser?.username || ""}
-                      onChange={(e) =>
-                        setEditableUser((prev) =>
-                          prev ? { ...prev, username: e.target.value } : prev
-                        )
-                      }
-                      className="w-full mt-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      onChange={(e) => setEditableUser((p) => p ? { ...p, username: e.target.value } : p)}
+                      className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   ) : (
-                    <p className="text-gray-900 font-medium mt-1">{user?.username}</p>
+                    <p className="text-white font-semibold font-mono">@{user?.username || "—"}</p>
                   )}
                 </div>
 
-                {/* Password */}
+                {/* Email — read-only */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-600">Password</label>
-                  <p className="text-gray-900 font-medium mt-1">************</p>
-                  <button
-                    onClick={() => setShowPinModal(true)}
-                    className="mt-2 inline-block text-blue-600 hover:text-blue-800 text-sm font-semibold transition duration-200"
-                  >
-                    Change Password &rarr;
-                  </button>
+                  <label className="block text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1.5">Email Address</label>
+                  <p className="text-gray-300 font-medium">{user?.email}</p>
+                  <p className="text-gray-600 text-xs mt-0.5">Email cannot be changed here.</p>
                 </div>
 
-                {/* Error & Success */}
+                {/* Alerts */}
                 {error && (
-                  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded text-sm">
-                    {error}
+                  <div className="flex items-center gap-2 bg-red-900/40 border border-red-500/40 text-red-300 px-4 py-2.5 rounded-lg text-sm">
+                    <X className="w-4 h-4 flex-shrink-0" /> {error}
                   </div>
                 )}
                 {successMessage && (
-                  <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded text-sm">
-                    {successMessage}
+                  <div className="flex items-center gap-2 bg-green-900/40 border border-green-500/40 text-green-300 px-4 py-2.5 rounded-lg text-sm">
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> {successMessage}
                   </div>
                 )}
+              </div>
 
-                {/* Action Buttons */}
-                <div className="flex justify-end gap-2 pt-4">
-                  {isEditing ? (
-                    <>
-                      <button
-                        onClick={handleSave}
-                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={() => {
-                          setEditableUser(user);
-                          setIsEditing(false);
-                          setError("");
-                        }}
-                        className="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500"
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => setIsEditing(true)}
-                      className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
-                    >
-                      Edit Profile
-                    </button>
-                  )}
+              {/* Security Card */}
+              <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 space-y-4">
+                <p className="text-gray-500 text-xs font-semibold uppercase tracking-widest pb-1 border-b border-gray-700">
+                  Security
+                </p>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
+                      <Lock className="w-5 h-5 text-indigo-400" />
+                    </div>
+                    <div>
+                      <p className="text-white text-sm font-semibold">Password</p>
+                      <p className="text-gray-500 text-xs font-mono tracking-widest mt-0.5">••••••••••••</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowPinModal(true)}
+                    className="text-indigo-400 hover:text-indigo-300 text-sm font-semibold flex items-center gap-1 transition-colors"
+                  >
+                    Change <ArrowLeft className="w-3 h-3 rotate-180" />
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-green-500/10 rounded-lg border border-green-500/20">
+                    <ShieldCheck className="w-5 h-5 text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-white text-sm font-semibold">PIN Protection</p>
+                    <p className="text-gray-500 text-xs mt-0.5">Required before changing password</p>
+                  </div>
+                  <span className="ml-auto text-xs bg-green-500/10 border border-green-500/30 text-green-400 px-2.5 py-1 rounded-full font-semibold">
+                    Active
+                  </span>
                 </div>
               </div>
+
+            </motion.div>
+          </div>
+        </div>
+      </div>
+
+      <Footer />
+
+      {/* PIN Modal */}
+      {showPinModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
+                <KeyRound className="w-5 h-5 text-indigo-400" />
+              </div>
+              <h2 className="text-white font-bold text-lg">Verify PIN</h2>
             </div>
-          </div>
+            <p className="text-gray-400 text-sm mb-4">Enter your PIN to proceed to password change.</p>
+            <input
+              type="password"
+              placeholder="Enter your PIN"
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
+              className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-3"
+            />
+            {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => { setShowPinModal(false); setPinInput(""); setError(""); }}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleVerifyPin}
+                disabled={isVerifying}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+              >
+                {isVerifying ? "Verifying…" : "Verify & Continue"}
+              </button>
+            </div>
+          </motion.div>
         </div>
-      </div>
+      )}
     </div>
-
-    {/* Footer */}
-    <Footer />
-
-    {/* PIN Modal */}
-    {showPinModal && (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm">
-          <h2 className="text-lg font-semibold mb-4">Verify PIN</h2>
-
-          <input
-            type="password"
-            placeholder="Enter your PIN"
-            value={pinInput}
-            onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-
-          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-
-          <div className="mt-4 flex justify-end space-x-2">
-            <button
-              onClick={handleVerifyPin}
-              disabled={isVerifying}
-              className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-            >
-              {isVerifying ? "Verifying..." : "Verify & Proceed"}
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-  </div>
-);
+  );
 };
+
 export default Profile;

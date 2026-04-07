@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   FileSearch, KeyRound, BarChart3, ShieldCheck, Phone,
-  Shield, Eye, ShieldAlert, Globe, ScanEye, Bot, Zap,
+  Shield, Eye, ShieldAlert, Globe, ScanEye, Bot, Zap, Target, CreditCard,
 } from "lucide-react";
 import { API_BASE_URL } from "../../services/api";
 
@@ -16,9 +16,14 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ sidebarExpanded, setSidebarExpa
   const navigate  = useNavigate();
   const location  = useLocation();
 
-  const [phishingEnabled, setPhishingEnabled]   = useState(false);
-  const [siteShieldEnabled, setSiteShieldEnabled] = useState(false);
-  const [injectionEnabled, setInjectionEnabled] = useState(false);
+  const [phishingEnabled, setPhishingEnabled]       = useState(false);
+  const [siteShieldEnabled, setSiteShieldEnabled]   = useState(false);
+  const [injectionEnabled, setInjectionEnabled]     = useState(false);
+  const [threatDetectionEnabled, setThreatDetectionEnabled] = useState(true);
+  const [aiSecuritySuiteEnabled, setAiSecuritySuiteEnabled] = useState(true);
+  const [identityAccessEnabled, setIdentityAccessEnabled]   = useState(true);
+  const [webInfraEnabled, setWebInfraEnabled]               = useState(true);
+  const [learnSecureEnabled, setLearnSecureEnabled]         = useState(true);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/feature-flags/read`)
@@ -27,23 +32,70 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ sidebarExpanded, setSidebarExpa
         setPhishingEnabled(d.phishingDetectorEnabled === true);
         setSiteShieldEnabled(d.siteShieldEnabled === true);
         setInjectionEnabled(d.promptInjectionEnabled === true);
+        setThreatDetectionEnabled(d.threatDetectionEnabled !== false);
+        setAiSecuritySuiteEnabled(d.aiSecuritySuiteEnabled !== false);
+        setIdentityAccessEnabled(d.identityAccessEnabled !== false);
+        setWebInfraEnabled(d.webInfraEnabled !== false);
+        setLearnSecureEnabled(d.learnSecureEnabled !== false);
       })
       .catch(() => {});
   }, []);
 
-  const navItems = [
-    { label: "Analyze Malware",          path: "/malware-analysis",   icon: <FileSearch  className="w-5 h-5 flex-shrink-0" /> },
-    { label: "Password Manager",          path: "/dashboard",          icon: <KeyRound    className="w-5 h-5 flex-shrink-0" /> },
-    { label: "System Events Dashboard",   path: "/siem-dashboard",     icon: <BarChart3   className="w-5 h-5 flex-shrink-0" /> },
-    { label: "Security Awareness",         path: "/securityAwareness",  icon: <ShieldCheck className="w-5 h-5 flex-shrink-0" /> },
-    { label: "Contact Us",                path: "/contact",            icon: <Phone       className="w-5 h-5 flex-shrink-0" /> },
-    { label: "Prompt Privacy Scanner",    path: "/prompt-scanner",     icon: <Shield      className="w-5 h-5 flex-shrink-0" /> },
-    { label: "Watch Agent",               path: "/watch-agent",        icon: <Eye         className="w-5 h-5 flex-shrink-0" /> },
-    ...(phishingEnabled    ? [{ label: "Phishing Detector",   path: "/detect-attacker",  icon: <ShieldAlert className="w-5 h-5 flex-shrink-0" /> }] : []),
-    ...(siteShieldEnabled  ? [{ label: "SiteShield Audit",    path: "/site-shield",      icon: <Globe       className="w-5 h-5 flex-shrink-0" /> }] : []),
-    ...(injectionEnabled   ? [{ label: "AI Injection Scanner",path: "/injection-scanner",icon: <Zap         className="w-5 h-5 flex-shrink-0" /> }] : []),
-    { label: "DeepFake Detector",         path: "/deepfake-detector",  icon: <ScanEye     className="w-5 h-5 flex-shrink-0" /> },
-    { label: "AI Agent Scanner",          path: "/ai-agent-scanner",   icon: <Bot         className="w-5 h-5 flex-shrink-0" /> },
+  interface NavItem { label: string; path: string; icon: React.ReactElement; }
+  interface NavGroup { id: string; label: string; groupIcon: React.ReactElement; accentColor: string; groupFlag?: boolean; items: NavItem[]; }
+
+  const navGroups: NavGroup[] = [
+    {
+      id: "identity", label: "Identity & Access",
+      groupIcon: <KeyRound className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-indigo-400", groupFlag: identityAccessEnabled,
+      items: [
+        { label: "Password Manager",        path: "/dashboard",      icon: <KeyRound   className="w-5 h-5 flex-shrink-0" /> },
+        { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3  className="w-5 h-5 flex-shrink-0" /> },
+      ],
+    },
+    {
+      id: "threat", label: "Threat Detection",
+      groupIcon: <ShieldAlert className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-red-400", groupFlag: threatDetectionEnabled,
+      items: [
+        { label: "Analyze Malware",   path: "/malware-analysis",  icon: <FileSearch  className="w-5 h-5 flex-shrink-0" /> },
+        { label: "DeepFake Detector", path: "/deepfake-detector", icon: <ScanEye     className="w-5 h-5 flex-shrink-0" /> },
+        ...(phishingEnabled ? [{ label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5 flex-shrink-0" /> }] : []),
+      ],
+    },
+    {
+      id: "ai-security", label: "AI Security Suite",
+      groupIcon: <Target className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-rose-400", groupFlag: aiSecuritySuiteEnabled,
+      items: [
+        { label: "AI Red-Team Agent", path: "/red-team",         icon: <Target className="w-5 h-5 flex-shrink-0" /> },
+        { label: "AI Agent Scanner",  path: "/ai-agent-scanner", icon: <Bot    className="w-5 h-5 flex-shrink-0" /> },
+        ...(injectionEnabled ? [{ label: "AI Injection Scanner", path: "/injection-scanner", icon: <Zap className="w-5 h-5 flex-shrink-0" /> }] : []),
+      ],
+    },
+    {
+      id: "web-infra", label: "Web & Infrastructure",
+      groupIcon: <Globe className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-emerald-400", groupFlag: webInfraEnabled,
+      items: [
+        { label: "Watch Agent", path: "/watch-agent", icon: <Eye         className="w-5 h-5 flex-shrink-0" /> },
+        { label: "CSP Builder", path: "/csp-builder", icon: <ShieldCheck className="w-5 h-5 flex-shrink-0" /> },
+        ...(siteShieldEnabled ? [{ label: "SiteShield Audit", path: "/site-shield", icon: <Globe className="w-5 h-5 flex-shrink-0" /> }] : []),
+      ],
+    },
+    {
+      id: "learn", label: "Learn & Stay Secure",
+      groupIcon: <Shield className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-violet-400", groupFlag: learnSecureEnabled,
+      items: [
+        { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5 flex-shrink-0" /> },
+      ],
+    },
+    {
+      id: "misc", label: "More",
+      groupIcon: <Phone className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-gray-400",
+      items: [
+        { label: "Pricing",                path: "/pricing",        icon: <CreditCard className="w-5 h-5 flex-shrink-0" /> },
+        { label: "Prompt Privacy Scanner", path: "/prompt-scanner", icon: <Shield className="w-5 h-5 flex-shrink-0" /> },
+        { label: "Contact Us",             path: "/contact",        icon: <Phone  className="w-5 h-5 flex-shrink-0" /> },
+      ],
+    },
   ];
 
   return (
@@ -70,27 +122,44 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ sidebarExpanded, setSidebarExpa
       </button>
 
       <nav className="flex flex-col gap-1 overflow-y-auto overflow-x-hidden">
-        {navItems.map(({ label, path, icon }) => {
-          const active = location.pathname === path;
+        {navGroups.map((group, groupIdx) => {
+          if (group.groupFlag === false) return null;
+          if (group.items.length === 0) return null;
           return (
-            <div
-              key={path}
-              onClick={() => navigate(path)}
-              className={`relative group flex items-center gap-3 px-2 py-2 rounded-lg transition cursor-pointer ${
-                active
-                  ? "bg-indigo-600 text-white"
-                  : "hover:bg-indigo-600 text-gray-300 hover:text-white"
-              }`}
-            >
-              {icon}
+            <div key={group.id} className={groupIdx > 0 ? "mt-3" : ""}>
               {sidebarExpanded && (
-                <span className="truncate text-sm">{label}</span>
+                <div className={`flex items-center gap-1.5 px-2 mb-1 ${group.accentColor}`}>
+                  {group.groupIcon}
+                  <span className="text-[10px] font-bold uppercase tracking-widest truncate">{group.label}</span>
+                </div>
               )}
-              {!sidebarExpanded && (
-                <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-900 text-white text-xs px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
-                  {label}
-                </span>
+              {!sidebarExpanded && groupIdx > 0 && (
+                <div className="border-t border-gray-700 my-1 mx-2" />
               )}
+              {group.items.map(({ label, path, icon }) => {
+                const active = location.pathname === path;
+                return (
+                  <div
+                    key={path}
+                    onClick={() => navigate(path)}
+                    className={`relative group flex items-center gap-3 px-2 py-2 rounded-lg transition cursor-pointer ${
+                      active
+                        ? "bg-indigo-600 text-white"
+                        : "hover:bg-indigo-600 text-gray-300 hover:text-white"
+                    }`}
+                  >
+                    {icon}
+                    {sidebarExpanded && (
+                      <span className="truncate text-sm">{label}</span>
+                    )}
+                    {!sidebarExpanded && (
+                      <span className="absolute left-full top-1/2 -translate-y-1/2 ml-2 whitespace-nowrap bg-gray-900 text-white text-xs px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+                        {label}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           );
         })}

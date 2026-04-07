@@ -5,110 +5,130 @@ import { API_BASE_URL, apiService } from "../../services/api";
 import { motion } from "framer-motion";
 import Header from "../../components/ui/Header";
 import Footer from "../../components/ui/Footer";
-import { ChevronRight, Shield, ShieldAlert, Globe, Eye, ScanEye, Bot } from "lucide-react";
 import {
-  FileSearch,
-  KeyRound,
-  BarChart3,
-  ShieldCheck,
-  Phone,
+  Shield, ShieldAlert, ShieldCheck, Eye, ScanEye, Bot,
+  FileSearch, KeyRound, BarChart3, Globe, Target, Cpu,
+  Fingerprint, AlertTriangle, BookOpen, Lightbulb, ChevronRight,
+  Activity, Zap, Lock
 } from "lucide-react";
-import AppSidebar from "../../components/ui/AppSidebar";
-// import defaultProfileIcon from "../../../src/assets/default-profile.png"; // fallback image
+
+// ─── Security Tips ────────────────────────────────────────────────────────────
+const SECURITY_TIPS = [
+  { tip: "Use a unique password for every account. A password manager makes this effortless.", icon: KeyRound },
+  { tip: "Enable multi-factor authentication (MFA) on all critical accounts.", icon: Shield },
+  { tip: "Verify links before clicking — hover to preview the URL destination.", icon: Globe },
+  { tip: "Keep software and OS updated; patches fix vulnerabilities attackers exploit.", icon: ShieldCheck },
+  { tip: "Be cautious of unsolicited emails asking for credentials or personal data.", icon: AlertTriangle },
+  { tip: "Scan files from unknown sources before opening them.", icon: FileSearch },
+  { tip: "Use a VPN on public Wi-Fi to encrypt your traffic.", icon: Lock },
+];
+
+// ─── Tool Cards Config ────────────────────────────────────────────────────────
+interface ToolCard {
+  title: string;
+  description: string;
+  path: string;
+  icon: React.ElementType;
+  color: string;        // Tailwind bg color class
+  badge?: string;       // optional badge text
+  featureFlag?: boolean; // if false, hide the card
+}
+
+interface ToolGroup {
+  id: string;
+  label: string;
+  description: string;
+  icon: React.ElementType;
+  accentColor: string;
+  borderColor: string;
+  bgColor: string;
+  groupFlag?: boolean; // if false, hide the entire group
+  tools: ToolCard[];
+}
 
 export const HomePageAfter = (): JSX.Element => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
-  const [profileImage, setProfileImage] = useState<string>(""); // ✅ state for header
+  const [profileImage, setProfileImage] = useState<string>("");
   const [showPinModal, setShowPinModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pinChecked, setPinChecked] = useState(false);
   const [showPasswordExpiryModal, setShowPasswordExpiryModal] = useState(false);
   const [expireAfterDays, setExpireAfterDays] = useState(null);
-  const [sidebarExpanded, setSidebarExpanded] = useState(true); // ✅ sidebar toggle state
+  const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [phishingDetectorEnabled, setPhishingDetectorEnabled] = useState<boolean>(false);
   const [siteShieldEnabled, setSiteShieldEnabled] = useState<boolean>(false);
   const [promptInjectionEnabled, setPromptInjectionEnabled] = useState<boolean>(false);
+  const [threatDetectionEnabled, setThreatDetectionEnabled] = useState<boolean>(true);
+  const [aiSecuritySuiteEnabled, setAiSecuritySuiteEnabled] = useState<boolean>(true);
+  const [identityAccessEnabled, setIdentityAccessEnabled] = useState<boolean>(true);
+  const [webInfraEnabled, setWebInfraEnabled] = useState<boolean>(true);
+  const [learnSecureEnabled, setLearnSecureEnabled] = useState<boolean>(true);
   const [featuresLoaded, setFeaturesLoaded] = useState(false);
 
+  // Greeting based on time of day
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
 
+  const todayTip = SECURITY_TIPS[new Date().getDay() % SECURITY_TIPS.length];
 
   useEffect(() => {
-      const fetchFeatureFlags = async () => {
-        try {
-          const res = await fetch(`${API_BASE_URL}/feature-flags/read`);
-          
-          if (!res.ok) {
-            throw new Error('Failed to fetch feature flags');
-          }
-          
-          const data = await res.json();
-          
-          console.log('✅ Header feature flags loaded:', data);
-          setPhishingDetectorEnabled(data.phishingDetectorEnabled === true);
-          setSiteShieldEnabled(data.siteShieldEnabled === true);
-          setPromptInjectionEnabled(data.promptInjectionEnabled === true);
-          
-        } catch (err) {
-          console.error("❌ Failed to load header feature flags:", err);
-          setPhishingDetectorEnabled(false); // Safe default
-        } finally {
-          setFeaturesLoaded(true);
-        }
-      };
-  
-      fetchFeatureFlags();
-    }, []);
-  
+    const fetchFeatureFlags = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/feature-flags/read`);
+        if (!res.ok) throw new Error("Failed to fetch feature flags");
+        const data = await res.json();
+        setPhishingDetectorEnabled(data.phishingDetectorEnabled === true);
+        setSiteShieldEnabled(data.siteShieldEnabled === true);
+        setPromptInjectionEnabled(data.promptInjectionEnabled === true);
+        setThreatDetectionEnabled(data.threatDetectionEnabled !== false);
+        setAiSecuritySuiteEnabled(data.aiSecuritySuiteEnabled !== false);
+        setIdentityAccessEnabled(data.identityAccessEnabled !== false);
+        setWebInfraEnabled(data.webInfraEnabled !== false);
+        setLearnSecureEnabled(data.learnSecureEnabled !== false);
+      } catch (err) {
+        console.error("❌ Failed to load feature flags:", err);
+      } finally {
+        setFeaturesLoaded(true);
+      }
+    };
+    fetchFeatureFlags();
+  }, []);
 
   useEffect(() => {
     const fetchProfileImage = async () => {
       if (!token) return;
-
       try {
         const res = await fetch(`${API_BASE_URL}/profile`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
-
-        // Guard against 204 / non-JSON responses
-        if (res.status === 204) {
-          console.warn('Profile endpoint returned 204 No Content');
-          return;
-        }
-        const contentType = res.headers.get('content-type') || '';
-        if (!contentType.includes('application/json')) {
-          console.warn('Profile response not JSON:', res.status, contentType);
-          return;
-        }
-
+        if (res.status === 204) return;
+        const contentType = res.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) return;
         if (!res.ok) throw new Error("Failed to fetch profile");
-
         const data = await res.json();
-
-
         if (data.profileImage) setProfileImage(data.profileImage);
         if (data.isPasswordExpired === true) {
           setExpireAfterDays(data.expireAfterDays);
           setShowPasswordExpiryModal(true);
         }
-
         if (data.expireAfterDays !== undefined && data.expireAfterDays <= 0) {
-  setExpireAfterDays(data.expireAfterDays);
-  setShowPasswordExpiryModal(true);
-}
+          setExpireAfterDays(data.expireAfterDays);
+          setShowPasswordExpiryModal(true);
+        }
       } catch (err) {
         console.error("Failed to load profile image:", err);
       }
     };
-
     fetchProfileImage();
   }, [token]);
 
-  
   const handleLogout = () => {
     logout();
     navigate("/");
@@ -119,184 +139,281 @@ export const HomePageAfter = (): JSX.Element => {
     navigate(`/set-new-pin?token=${token}`);
   };
 
-  const useProtectedNavigation = (path: any) => {
-    const navigate = useNavigate();
-
-    const goToPage = () => {
-      const token = localStorage.getItem("token");
-      if (token) {
-        navigate(path); // user is logged in
-      } else {
-        navigate("/homepagebeforelogin"); // user not logged in
-      }
-    };
-    return goToPage;
-  };
-
   const handleCloseModal = () => setShowPinModal(false);
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-xl font-semibold">Loading...</div>;
+  if (loading)
+    return (
+      <div className="min-h-screen flex items-center justify-center text-xl font-semibold">
+        Loading...
+      </div>
+    );
+
+  // ─── Build tool groups (feature-flag aware) ────────────────────────────────
+  const toolGroups: ToolGroup[] = [
+    {
+      id: "identity",
+      label: "Identity & Access Protection",
+      description: "Manage credentials and monitor authentication events.",
+      icon: KeyRound,
+      accentColor: "text-indigo-500",
+      borderColor: "border-indigo-400",
+      bgColor: "bg-indigo-50 dark:bg-indigo-950/40",
+      groupFlag: identityAccessEnabled,
+      tools: [
+        { title: "Password Vault", description: "Store and manage credentials in an encrypted vault.", path: "/dashboard", icon: KeyRound, color: "from-indigo-500 to-indigo-700" },
+        { title: "SIEM Dashboard", description: "Monitor security events, logs, and threat analytics.", path: "/siem-dashboard", icon: BarChart3, color: "from-blue-500 to-blue-700" },
+      ],
+    },
+    {
+      id: "threat",
+      label: "Threat Detection",
+      description: "Identify malware, phishing, and synthetic media threats.",
+      icon: ShieldAlert,
+      accentColor: "text-red-500",
+      borderColor: "border-red-400",
+      bgColor: "bg-red-50 dark:bg-red-950/40",
+      groupFlag: threatDetectionEnabled,
+      tools: [
+        { title: "Malware Analyzer", description: "Upload and scan files for viruses, trojans, and malware.", path: "/malware-analysis", icon: FileSearch, color: "from-red-500 to-red-700" },
+        { title: "Phishing Detector", description: "Identify phishing URLs and suspicious domains in real time.", path: "/detect-attacker", icon: AlertTriangle, color: "from-pink-500 to-rose-600", featureFlag: phishingDetectorEnabled || !featuresLoaded },
+        { title: "Deepfake Detector", description: "Detect AI-generated deepfake images and media.", path: "/deepfake-detector", icon: ScanEye, color: "from-orange-500 to-orange-700" },
+      ],
+    },
+    {
+      id: "ai-security",
+      label: "AI Security Suite",
+      description: "Secure AI systems, pipelines, and data flows.",
+      icon: Cpu,
+      accentColor: "text-rose-500",
+      borderColor: "border-rose-400",
+      bgColor: "bg-rose-50 dark:bg-rose-950/40",
+      groupFlag: aiSecuritySuiteEnabled,
+      tools: [
+        { title: "AI Red-Team Agent", description: "Autonomously probe AI systems for prompt injection vulnerabilities.", path: "/red-team", icon: Target, color: "from-rose-500 to-pink-700", badge: "AI" },
+        { title: "AI Agent Scanner", description: "Evaluate agentic AI pipelines for security weaknesses.", path: "/ai-agent-scanner", icon: Cpu, color: "from-teal-500 to-teal-700", badge: "AI" },
+        { title: "Prompt Injection Scanner", description: "Detect prompt injection vulnerabilities in AI-integrated systems.", path: "/injection-scanner", icon: ShieldAlert, color: "from-yellow-500 to-amber-600", badge: "AI", featureFlag: promptInjectionEnabled || !featuresLoaded },
+        { title: "PII Detector", description: "Scan text and documents for personally identifiable information leakage.", path: "/pii-detector", icon: Fingerprint, color: "from-cyan-500 to-cyan-700", badge: "AI" },
+      ],
+    },
+    {
+      id: "web-infra",
+      label: "Web & Infrastructure Security",
+      description: "Audit and harden sites, headers, and external-facing assets.",
+      icon: Globe,
+      accentColor: "text-emerald-500",
+      borderColor: "border-emerald-400",
+      bgColor: "bg-emerald-50 dark:bg-emerald-950/40",
+      groupFlag: webInfraEnabled,
+      tools: [
+        { title: "Watch Agent", description: "Continuously monitor watchlist items for emerging threats.", path: "/watch-agent", icon: Eye, color: "from-purple-500 to-purple-700" },
+        { title: "Site Shield & Audit", description: "Audit websites for security headers, SSL, and misconfigurations.", path: "/site-shield", icon: Globe, color: "from-emerald-500 to-emerald-700", featureFlag: siteShieldEnabled || !featuresLoaded },
+        { title: "CSP Builder", description: "Build and validate Content Security Policy headers for your site.", path: "/csp-builder", icon: ShieldCheck, color: "from-lime-600 to-lime-800" },
+      ],
+    },
+    {
+      id: "learn",
+      label: "Learn & Stay Secure",
+      description: "Build security knowledge and get AI-powered guidance.",
+      icon: BookOpen,
+      accentColor: "text-violet-500",
+      borderColor: "border-violet-400",
+      bgColor: "bg-violet-50 dark:bg-violet-950/40",
+      groupFlag: learnSecureEnabled,
+      tools: [
+        { title: "Security Awareness", description: "Stay informed with curated cybersecurity news and best practices.", path: "/securityAwareness", icon: BookOpen, color: "from-violet-500 to-violet-700" },
+        { title: "Insights", description: "Analyse security trends and review your account's risk posture.", path: "/insights", icon: Activity, color: "from-sky-500 to-sky-700" },
+        { title: "Ask Seekurify AI", description: "Chat with your security assistant for instant answers and guidance.", path: "/ask", icon: Bot, color: "from-fuchsia-500 to-fuchsia-700", badge: "AI" },
+      ],
+    },
+  ];
 
   return (
-<div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
-      <title> Seekurify Home</title>
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+      <title>Seekurify Home</title>
+
+      {/* Password Expiry Modal */}
       {showPasswordExpiryModal && (
-  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-    <motion.div
-      initial={{ scale: 0.9, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      className="bg-white p-6 rounded-2xl shadow-xl max-w-sm w-full text-center"
-    >
-      <h2 className="text-2xl font-bold text-red-600 mb-3">
-        Password Expired
-      </h2>
-
-      <p className="text-gray-700 mb-5">
-        Your account password has expired.  
-        Please update it immediately to keep your account secure.
-      </p>
-
-      <button
-        onClick={() => navigate("/change-password")}
-        className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 shadow"
-      >
-        Change Password
-      </button>
-
-      <div className="mt-3">
-        <button
-          onClick={() => setShowPasswordExpiryModal(false)}
-          className="text-gray-500 hover:text-gray-700"
-        >
-          Later
-        </button>
-      </div>
-    </motion.div>
-  </div>
-)}
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white p-6 rounded-2xl shadow-xl max-w-sm w-full text-center"
+          >
+            <h2 className="text-2xl font-bold text-red-600 mb-3">Password Expired</h2>
+            <p className="text-gray-700 mb-5">
+              Your account password has expired. Please update it immediately to keep your account secure.
+            </p>
+            <button
+              onClick={() => navigate("/change-password")}
+              className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 shadow"
+            >
+              Change Password
+            </button>
+            <div className="mt-3">
+              <button
+                onClick={() => setShowPasswordExpiryModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                Later
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       <Header
         token={token || ""}
         handleLogout={handleLogout}
-        profileImage={profileImage} // ✅ pass state
-        sidebarExpanded={sidebarExpanded}
-        setSidebarExpanded={setSidebarExpanded}
+        profileImage={profileImage}
       />
-
-
 
       {/* PIN Modal */}
       {showPinModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-6 rounded-2xl shadow-2xl text-center max-w-sm w-full">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white p-6 rounded-2xl shadow-2xl text-center max-w-sm w-full"
+          >
             <h2 className="text-2xl font-bold mb-4 text-gray-900">Set a New PIN</h2>
-            <p className="text-gray-700 mb-6">You are using the default PIN. For your security, please change it.</p>
+            <p className="text-gray-700 mb-6">
+              You are using the default PIN. For your security, please change it.
+            </p>
             <div className="flex justify-center gap-4">
-              <button onClick={() => useProtectedNavigation(handleChangePin)} className="bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 shadow">Change PIN</button>
-              <button onClick={handleCloseModal} className="text-gray-500 hover:text-gray-700">Later</button>
+              <button
+                onClick={handleChangePin}
+                className="bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 shadow"
+              >
+                Change PIN
+              </button>
+              <button onClick={handleCloseModal} className="text-gray-500 hover:text-gray-700">
+                Later
+              </button>
             </div>
           </motion.div>
         </div>
       )}
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-              <AppSidebar sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
+        {/* ── Main Dashboard ────────────────────────────────────────────────── */}
+        <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8">
 
-
-
-
-        {/* Main Content */}
-        <div className="flex-1 p-10">
+          {/* Welcome Banner */}
           <motion.div
-            className="bg-gradient-to-r from-blue-100 to-indigo-100 text-center py-4 rounded-2xl text-2xl font-bold text-indigo-800 mb-8 shadow-lg"
-            whileHover={{ scale: 1.02 }}
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="relative bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 rounded-2xl p-6 md:p-8 text-white shadow-xl overflow-hidden"
           >
-            About Seekurify
+            {/* decorative circles */}
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full" />
+            <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-white/10 rounded-full" />
+
+            <div className="relative">
+              <p className="text-indigo-200 text-sm font-medium uppercase tracking-widest mb-1">
+                {getGreeting()}
+              </p>
+              <h1 className="text-2xl md:text-3xl font-extrabold mb-2">
+                {user?.username || user?.email?.split("@")[0] || ""} 👋
+              </h1>
+              <p className="text-indigo-100 text-sm md:text-base max-w-xl">
+                Your security dashboard is ready. Scan, monitor, and protect your systems from one place.
+              </p>
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => navigate("/red-team")}
+                className="mt-4 inline-flex items-center gap-2 bg-white text-indigo-700 font-semibold text-sm px-4 py-2 rounded-lg shadow hover:bg-indigo-50 transition-colors"
+              >
+                <Zap className="w-4 h-4" /> Run AI Red-Team Scan
+              </motion.button>
+            </div>
           </motion.div>
 
-          <section className="bg-white py-12 px-6 md:px-20 rounded-xl shadow-lg">
-            <div className="max-w-5xl mx-auto text-center">
-              <div className="w-12 h-12 bg-yellow-400 rotate-45 mx-auto mb-6 rounded-md shadow-md"></div>
-              <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-7 leading-snug">
-                Secure passwords. Smarter protection. Full control.
-              </h2>
-
-
-
-              <div className="max-w-3xl mx-auto text-center px-6">
-                {/* Decorative line */}
-                <div className="w-28 h-1.5 bg-gradient-to-r from-indigo-400 to-indigo-600 mx-auto mb-10 rounded-full shadow-md"></div>
-
-                {/* Main Content */}
-                <p className="text-gray-700 text-lg leading-relaxed tracking-wide space-y-6 text-justify">
-                  <span className="font-extrabold text-indigo-600">Seekurify</span> is an
-                  all-in-one cybersecurity platform designed to empower users with advanced
-                  tools and essential knowledge to stay secure in the digital world. Our core
-                  mission is twofold: strengthen security through robust features and promote
-                  cybersecurity awareness with accessible insights.
-                </p>
-
-                <p className="text-gray-700 text-lg leading-relaxed tracking-wide space-y-6 text-justify mt-6">
-                  At the heart of the platform lies a
-                  <span className="font-semibold text-indigo-500"> secure password manager</span>,
-                  enabling users to store, manage, and organize their credentials in an
-                  encrypted vault. With built-in strong password generation and advanced
-                  hashing techniques, Seekurify promotes better password hygiene and maximum
-                  protection.
-                </p>
-
-                {/* Features List */}
-                <div className="mt-8 text-left bg-gray-50 border border-gray-200 rounded-2xl p-6 shadow-sm">
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">Key Security Utilities</h3>
-                  <ul className="list-disc list-inside space-y-3 text-gray-800 text-base">
-                    <li>
-                      <span className="font-semibold text-indigo-600">Link Checker:</span>
-                      Instantly verify if a URL is safe or malicious before clicking.
-                    </li>
-                    <li>
-                      <span className="font-semibold text-indigo-600">File & Malware Scanner:</span>
-                      Upload and scan files to detect viruses or malware using trusted detection logic.
-                    </li>
-                    <li>
-                      <span className="font-semibold text-indigo-600">System Dashboard:</span>
-                      Monitor system events, track logs, and gain insights into potential threats.
-                    </li>
-                  </ul>
-                </div>
-
-                <p className="text-gray-700 text-lg leading-relaxed tracking-wide mt-8 text-justify">
-                  Beyond tools, Seekurify provides real-time alerts and educational content
-                  to keep users updated on the latest threats, scams, and cybersecurity best practices.
-                </p>
-
-                <p className="text-gray-700 text-lg leading-relaxed tracking-wide mt-6 text-justify">
-                  Whether you’re an individual strengthening personal safety or a developer
-                  embedding secure practices, <span className="font-extrabold text-indigo-600">Seekurify</span>
-                  <> </>delivers a modern, user-focused approach to cybersecurity—all in one seamless interface.
-                </p>
-              </div>
-
-              {/* <div className="flex justify-center flex-wrap gap-4 mt-10">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  className="bg-red-600 text-white py-3 px-6 rounded-xl hover:bg-red-700 shadow-lg"
-                  onClick={() => useProtectedNavigation("/malware-analysis")}
-                >
-                  Analyze Malware
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  className="bg-indigo-600 text-white py-3 px-6 rounded-xl hover:bg-indigo-700 shadow-lg"
-                  onClick={() => useProtectedNavigation("/siem-dashboard")}
-                >
-                  Explore SIEM Dashboard
-                </motion.button>
-              </div> */}
+          {/* Security Tip of the Day */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+            className="flex items-start gap-4 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 shadow-sm"
+          >
+            <div className="flex-shrink-0 mt-0.5 bg-amber-100 rounded-full p-2">
+              <Lightbulb className="w-5 h-5 text-amber-600" />
             </div>
-          </section>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-amber-600 mb-0.5">
+                Security Tip of the Day
+              </p>
+              <p className="text-gray-800 text-sm leading-relaxed">{todayTip.tip}</p>
+            </div>
+          </motion.div>
+
+          {/* Grouped Security Pillars */}
+          {toolGroups.map((group) => {
+            if (group.groupFlag === false) return null;
+            const visibleTools = group.tools.filter(
+              (t) => t.featureFlag === undefined || t.featureFlag === true
+            );
+            if (visibleTools.length === 0) return null;
+            const GroupIcon = group.icon;
+            return (
+              <div key={group.id}>
+                {/* Section Header */}
+                <div className={`flex items-center gap-3 mb-4 pl-3 border-l-4 ${group.borderColor} ${group.bgColor} rounded-r-lg py-2 pr-4`}>
+                  <GroupIcon className={`w-5 h-5 flex-shrink-0 ${group.accentColor}`} />
+                  <div>
+                    <h2 className={`text-sm font-bold ${group.accentColor} uppercase tracking-wider leading-none`}>
+                      {group.label}
+                    </h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{group.description}</p>
+                  </div>
+                </div>
+                {/* Tools Sub-Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {visibleTools.map((tool, idx) => {
+                    const Icon = tool.icon;
+                    return (
+                      <motion.button
+                        key={tool.path}
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.05 * idx }}
+                        whileHover={{ scale: 1.03, y: -2 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => navigate(tool.path)}
+                        className="group relative text-left bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 hover:shadow-md transition-all duration-200 overflow-hidden"
+                      >
+                        {/* gradient accent strip */}
+                        <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${tool.color} rounded-t-2xl`} />
+
+                        <div className="flex items-start justify-between mb-3 mt-1">
+                          <div className={`p-2.5 rounded-xl bg-gradient-to-br ${tool.color} shadow-sm`}>
+                            <Icon className="w-5 h-5 text-white" />
+                          </div>
+                          {tool.badge && (
+                            <span className="text-xs font-bold bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 px-2 py-0.5 rounded-full">
+                              {tool.badge}
+                            </span>
+                          )}
+                        </div>
+
+                        <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-1">{tool.title}</h3>
+                        <p className="text-gray-500 dark:text-gray-400 text-xs leading-relaxed line-clamp-2">{tool.description}</p>
+
+                        <div className="mt-3 flex items-center text-indigo-500 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
+                          Open <ChevronRight className="w-3 h-3 ml-0.5" />
+                        </div>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
         </div>
       </div>
+
       <Footer />
     </div>
   );

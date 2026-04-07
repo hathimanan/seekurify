@@ -570,8 +570,6 @@ const DeepFakeDetector: React.FC = () => {
         token={token || ""}
         handleLogout={handleLogout}
         profileImage={profileImage}
-        sidebarExpanded={sidebarExpanded}
-        setSidebarExpanded={setSidebarExpanded}
       />
 
       <div className="flex flex-1 overflow-hidden">

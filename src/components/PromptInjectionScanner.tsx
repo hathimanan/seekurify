@@ -452,8 +452,7 @@ const PromptInjectionScanner: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
       <title>AI Injection Scanner — Seekurify</title>
 
-      <Header token={token ?? ""} handleLogout={handleLogout} profileImage=""
-        sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
+      <Header token={token ?? ""} handleLogout={handleLogout} profileImage="" />
 
       {/* Dark mode toggle */}
 

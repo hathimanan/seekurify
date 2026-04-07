@@ -18,6 +18,9 @@ const watchlistItemSchema = new mongoose.Schema(
     lastFindings:  { type: [String], default: [] },
     lastScannedAt: { type: Date, default: null },
 
+    // One-time scheduled scan
+    scheduledScanAt: { type: Date, default: null },
+
     // Previous scan result (for diffing)
     prevScore:    { type: Number, default: null },
     prevGrade:    { type: String, default: null },

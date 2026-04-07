@@ -44,6 +44,8 @@ import PromptInjectionScanner from "./components/PromptInjectionScanner";
 import WatchAgent from "./components/WatchAgent";
 import DeepFakeDetector from "./components/DeepFakeDetector";
 import AIAgentScanner from "./components/AIAgentScanner";
+import RedTeamAgent from "./components/RedTeamAgent";
+import PricingPage from "./components/PricingPage";
 
 const AppRoutes = () => {
   const navigate = useNavigate();
@@ -165,6 +167,8 @@ const isPublicRoute = [
         <Route path="/watch-agent" element={<WatchAgent />} />
         <Route path="/deepfake-detector" element={<DeepFakeDetector />} />
         <Route path="/ai-agent-scanner" element={<AIAgentScanner />} />
+        <Route path="/red-team" element={<RedTeamAgent />} />
+        <Route path="/pricing" element={<PricingPage />} />
         <Route path="/pii-detector" element={<PromptScanner />} />
 
 

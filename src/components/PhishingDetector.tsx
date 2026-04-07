@@ -276,8 +276,6 @@ export default function PhishingDetector() {
         token={localStorage.getItem('token') || ''}
         handleLogout={handleLogout}
         profileImage={profileImage}
-        sidebarExpanded={sidebarExpanded}
-        setSidebarExpanded={setSidebarExpanded}
       />
 
       <div className="flex flex-1 overflow-hidden">

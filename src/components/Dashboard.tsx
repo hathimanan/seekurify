@@ -1460,9 +1460,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
       <Header
         token={token || ""}
         handleLogout={handleLogout}
-        profileImage={profileImage} // ✅ pass state
-        sidebarExpanded={sidebarExpanded}
-        setSidebarExpanded={setSidebarExpanded}
+        profileImage={profileImage}
       />
 
 

@@ -279,8 +279,7 @@ const PromptScanner: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
       <title>Privacy &amp; PII Scanner – Seekurify</title>
-      <Header token={token || ""} handleLogout={handleLogout} profileImage={profileImage}
-        sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
+      <Header token={token || ""} handleLogout={handleLogout} profileImage={profileImage} />
 
       <div className="flex flex-1 overflow-hidden">
         <AppSidebar sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />

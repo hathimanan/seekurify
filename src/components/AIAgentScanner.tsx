@@ -762,8 +762,6 @@ const AIAgentScanner: React.FC = () => {
         token={token ?? ""}
         handleLogout={handleLogout}
         profileImage=""
-        sidebarExpanded={sidebarExpanded}
-        setSidebarExpanded={setSidebarExpanded}
       />
 
       <div className="flex flex-1 overflow-hidden">

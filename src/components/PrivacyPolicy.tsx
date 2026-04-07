@@ -111,10 +111,8 @@ const handleLogout = async () => {
       <Header
         token={localStorage.getItem("token") || ""}
         handleLogout={handleLogout}
-        profileImage={profileImage} // ✅ pass state
-        sidebarExpanded={sidebarExpanded}
-        setSidebarExpanded={setSidebarExpanded}
-      />
+        profileImage={profileImage}
+              />
 
 
 

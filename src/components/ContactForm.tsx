@@ -184,9 +184,7 @@ const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
       <Header
         token={localStorage.getItem("token") || ""}
         handleLogout={handleLogout}
-        profileImage={profileImage} // ✅ pass state
-        sidebarExpanded={sidebarExpanded}
-        setSidebarExpanded={setSidebarExpanded}
+        profileImage={profileImage}
       />
 
         <div className="flex flex-1 overflow-hidden">

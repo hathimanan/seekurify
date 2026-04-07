@@ -256,4 +256,38 @@ async function scanSingleItem(userId, url, userEmail = null) {
   return { ...updated, alertsCreated };
 }
 
-export { runWatchAgent, scanSingleItem, runMiniAudit };
+async function runDueScheduledScans() {
+  const dueItems = await WatchlistItem.find({
+    active: true,
+    scheduledScanAt: { $ne: null, $lte: new Date() },
+  }).lean();
+
+  let scanned = 0;
+  let alertsCreated = 0;
+
+  for (const item of dueItems) {
+    try {
+      await WatchlistItem.updateOne(
+        { _id: item._id, scheduledScanAt: item.scheduledScanAt },
+        { $set: { scheduledScanAt: null } }
+      );
+
+      const refreshed = await WatchlistItem.findById(item._id).lean();
+      if (!refreshed || refreshed.scheduledScanAt !== null) continue;
+
+      const result = await scanSingleItem(item.userId, item.url);
+      scanned++;
+      alertsCreated += result.alertsCreated ?? 0;
+    } catch (err) {
+      console.error(`[WatchAgent] Scheduled scan failed for ${item.url}:`, err.message);
+      await WatchlistItem.updateOne(
+        { _id: item._id, scheduledScanAt: null },
+        { $set: { scheduledScanAt: item.scheduledScanAt } }
+      );
+    }
+  }
+
+  return { scanned, alertsCreated };
+}
+
+export { runWatchAgent, scanSingleItem, runMiniAudit, runDueScheduledScans };

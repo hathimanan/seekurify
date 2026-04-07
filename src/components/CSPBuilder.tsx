@@ -161,8 +161,7 @@ const CSPBuilder: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800">
       <title>CSP Builder — Seekurify</title>
-      <Header token={token || ""} handleLogout={handleLogout} profileImage={profileImage}
-        sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
+      <Header token={token || ""} handleLogout={handleLogout} profileImage={profileImage} />
 
 
       <div className="flex flex-1 overflow-hidden">

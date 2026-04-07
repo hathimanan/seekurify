@@ -32,6 +32,21 @@ featureFlagRoutes.get("/read", async (req, res) => {
     const promptInjectionFlag = await featureflags.findOne({
       key: "prompt_injection",
     });
+    const threatDetectionFlag = await featureflags.findOne({
+      key: "threat_detection_group",
+    });
+    const aiSecuritySuiteFlag = await featureflags.findOne({
+      key: "ai_security_suite_group",
+    });
+    const identityAccessFlag = await featureflags.findOne({
+      key: "identity_access_group",
+    });
+    const webInfraFlag = await featureflags.findOne({
+      key: "web_infra_group",
+    });
+    const learnSecureFlag = await featureflags.findOne({
+      key: "learn_secure_group",
+    });
 
     res.json({
       otpEnabled: otpFlag ? otpFlag.enabled : true,
@@ -41,6 +56,11 @@ featureFlagRoutes.get("/read", async (req, res) => {
       securityChatbotEnabled: securityChatbotFlag ? securityChatbotFlag.enabled : false,
       siteShieldEnabled: siteShieldFlag ? siteShieldFlag.enabled : false,
       promptInjectionEnabled: promptInjectionFlag ? promptInjectionFlag.enabled : false,
+      threatDetectionEnabled: threatDetectionFlag ? threatDetectionFlag.enabled : true,
+      aiSecuritySuiteEnabled: aiSecuritySuiteFlag ? aiSecuritySuiteFlag.enabled : true,
+      identityAccessEnabled: identityAccessFlag ? identityAccessFlag.enabled : true,
+      webInfraEnabled: webInfraFlag ? webInfraFlag.enabled : true,
+      learnSecureEnabled: learnSecureFlag ? learnSecureFlag.enabled : true,
     });
   } catch (err) {
     console.error("Error reading feature flags:", err);
@@ -52,6 +72,11 @@ featureFlagRoutes.get("/read", async (req, res) => {
       securityChatbotEnabled: false,
       siteShieldEnabled: false,
       promptInjectionEnabled: false,
+      threatDetectionEnabled: true,
+      aiSecuritySuiteEnabled: true,
+      identityAccessEnabled: true,
+      webInfraEnabled: true,
+      learnSecureEnabled: true,
     });
   }
 });

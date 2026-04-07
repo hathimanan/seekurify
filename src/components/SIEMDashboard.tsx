@@ -789,7 +789,7 @@ if (currentModal === "pay") {
   // ---------- Dashboard ----------
   return (
     <div className="bg-gradient-to-br from-gray-900 via-black to-gray-800 min-h-screen flex flex-col text-white">
-      <Header token={localStorage.getItem("token") || ""} handleLogout={handleLogout} profileImage={profileImage} sidebarExpanded={sidebarExpanded} setSidebarExpanded={setSidebarExpanded} />
+      <Header token={localStorage.getItem("token") || ""} handleLogout={handleLogout} profileImage={profileImage} />
       <title> System Events Dashboard</title>
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}

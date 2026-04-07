@@ -310,8 +310,10 @@ import deepfakeRouter        from './src/api/deepfakeDetector.js';
 import aiAgentScannerRouter  from './src/api/aiAgentScanner.js';
 import piiLeakageRouter      from './src/api/piiLeakageDetector.js';
 import llmSiemRouter         from './src/api/llmSiem.js';
+import redTeamRouter         from './src/api/redTeamScan.js';
+import vulnerableMockRouter  from './src/api/vulnerableAiMock.js';
 import cron                  from 'node-cron';
-import { runWatchAgent }     from './src/agent/watchAgent.js';
+import { runWatchAgent, runDueScheduledScans } from './src/agent/watchAgent.js';
 import WatchlistItemCron     from './src/models/WatchlistItem.js';
 import UserCron              from './src/models/User.ts';
 
@@ -343,6 +345,8 @@ app.use('/api', deepfakeRouter);
 app.use('/api', aiAgentScannerRouter);
 app.use('/api', piiLeakageRouter);
 app.use('/api', llmSiemRouter);
+app.use('/api', redTeamRouter);
+app.use('/api', vulnerableMockRouter);
 
 
 // --- Serve static files from Vite build ---
@@ -369,6 +373,8 @@ const socketIoOptions = {
 const server = http.createServer(app);
 initSocket(server, socketIoOptions);
 
+let scheduledWatchScanRunning = false;
+
 
 // --- Start server ---
 server.listen(PORT, () => {
@@ -391,6 +397,22 @@ cron.schedule('0 2 * * *', async () => {
     }
   } catch (err) {
     console.error('[Cron] Nightly scan failed:', err.message);
+  }
+});
+
+// --- Scheduled Watchlist Scans (every minute) ---
+cron.schedule('* * * * *', async () => {
+  if (scheduledWatchScanRunning) return;
+  scheduledWatchScanRunning = true;
+  try {
+    const result = await runDueScheduledScans();
+    if (result.scanned > 0) {
+      console.log(`[Cron] scheduled watch scans processed=${result.scanned} alerts=${result.alertsCreated}`);
+    }
+  } catch (err) {
+    console.error('[Cron] Scheduled watch scans failed:', err.message);
+  } finally {
+    scheduledWatchScanRunning = false;
   }
 });
 

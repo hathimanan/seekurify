@@ -45,6 +45,7 @@ interface WatchlistItem {
   lastGrade?: string;
   lastFindings?: string[];
   lastScannedAt?: string;
+  scheduledScanAt?: string | null;
 }
 
 interface WatchAlert {
@@ -91,6 +92,19 @@ const severityConfig = {
   improvement: { bg: "bg-green-100 dark:bg-green-900/30", text: "text-green-700 dark:text-green-300", icon: TrendingUp,     label: "Improvement"  },
 };
 
+const toLocalDateInput = (value?: string | null) => {
+  if (!value) return { date: "", time: "" };
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return { date: "", time: "" };
+
+  const pad = (num: number) => String(num).padStart(2, "0");
+  return {
+    date: `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
+    time: `${pad(date.getHours())}:${pad(date.getMinutes())}`,
+  };
+};
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const WatchAgent: React.FC = () => {
@@ -115,6 +129,11 @@ const WatchAgent: React.FC = () => {
   // Per-item scanning
   const [scanningId, setScanningId] = useState<string | null>(null);
   const [scanAllLoading, setScanAllLoading] = useState(false);
+  const [scheduleItem, setScheduleItem] = useState<WatchlistItem | null>(null);
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [scheduleTime, setScheduleTime] = useState("");
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleError, setScheduleError] = useState("");
 
   // Expanded alert
   const [expandedAlert, setExpandedAlert] = useState<string | null>(null);
@@ -285,17 +304,165 @@ const WatchAgent: React.FC = () => {
     } catch (_) {}
   };
 
+  const openScheduleModal = (item: WatchlistItem) => {
+    const initial = toLocalDateInput(item.scheduledScanAt);
+    setScheduleItem(item);
+    setScheduleDate(initial.date);
+    setScheduleTime(initial.time);
+    setScheduleError("");
+  };
+
+  const closeScheduleModal = () => {
+    setScheduleItem(null);
+    setScheduleDate("");
+    setScheduleTime("");
+    setScheduleLoading(false);
+    setScheduleError("");
+  };
+
+  const handleScheduleSave = async () => {
+    if (!scheduleItem) return;
+    if (!scheduleDate || !scheduleTime) {
+      setScheduleError("Select both date and time.");
+      return;
+    }
+
+    const scheduledScanAt = new Date(`${scheduleDate}T${scheduleTime}`);
+    if (Number.isNaN(scheduledScanAt.getTime())) {
+      setScheduleError("Enter a valid date and time.");
+      return;
+    }
+    if (scheduledScanAt.getTime() <= Date.now()) {
+      setScheduleError("Scheduled time must be in the future.");
+      return;
+    }
+
+    setScheduleLoading(true);
+    setScheduleError("");
+    try {
+      const res = await fetch(`${API_BASE_URL}/watchlist/${scheduleItem._id}/schedule`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({ scheduledScanAt: scheduledScanAt.toISOString() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setScheduleError(data.error ?? "Failed to save schedule.");
+        return;
+      }
+
+      setWatchlist(prev => prev.map(item =>
+        item._id === scheduleItem._id ? { ...item, scheduledScanAt: data.item.scheduledScanAt } : item
+      ));
+      closeScheduleModal();
+    } catch (_) {
+      setScheduleError("Network error. Please try again.");
+    } finally {
+      setScheduleLoading(false);
+    }
+  };
+
+  const handleScheduleClear = async () => {
+    if (!scheduleItem) return;
+
+    setScheduleLoading(true);
+    setScheduleError("");
+    try {
+      const res = await fetch(`${API_BASE_URL}/watchlist/${scheduleItem._id}/schedule`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({ scheduledScanAt: null }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setScheduleError(data.error ?? "Failed to clear schedule.");
+        return;
+      }
+
+      setWatchlist(prev => prev.map(item =>
+        item._id === scheduleItem._id ? { ...item, scheduledScanAt: data.item.scheduledScanAt } : item
+      ));
+      closeScheduleModal();
+    } catch (_) {
+      setScheduleError("Network error. Please try again.");
+    } finally {
+      setScheduleLoading(false);
+    }
+  };
+
   const unreadCount = alerts.filter(a => !a.read).length;
 
   // ─── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 text-gray-900 dark:text-gray-100">
+      {scheduleItem && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-md rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-xl p-6"
+          >
+            <div className="flex items-start justify-between gap-3 mb-5">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Schedule Scan</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{scheduleItem.hostname}</p>
+              </div>
+              <button
+                onClick={closeScheduleModal}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Date</label>
+                <input
+                  type="date"
+                  value={scheduleDate}
+                  onChange={e => setScheduleDate(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Time</label>
+                <input
+                  type="time"
+                  value={scheduleTime}
+                  onChange={e => setScheduleTime(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              {scheduleError && (
+                <p className="text-sm text-red-600 dark:text-red-400">{scheduleError}</p>
+              )}
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                onClick={handleScheduleSave}
+                disabled={scheduleLoading}
+                className="flex-1 min-w-32 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 disabled:opacity-50"
+              >
+                {scheduleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Clock className="w-4 h-4" />}
+                Save Schedule
+              </button>
+              <button
+                onClick={handleScheduleClear}
+                disabled={scheduleLoading || !scheduleItem.scheduledScanAt}
+                className="flex-1 min-w-32 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold py-3 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+              >
+                Clear Schedule
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
       <Header
         token={token || ""}
         handleLogout={handleLogout}
         profileImage={profileImage}
-        sidebarExpanded={sidebarExpanded}
-        setSidebarExpanded={setSidebarExpanded}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -415,6 +582,13 @@ const WatchAgent: React.FC = () => {
                           </div>
                           <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
                             <button
+                              onClick={() => openScheduleModal(item)}
+                              title="Schedule scan"
+                              className="text-gray-400 hover:text-indigo-500 transition"
+                            >
+                              <Clock className="w-4 h-4" />
+                            </button>
+                            <button
                               onClick={() => handleToggle(item)}
                               title={item.active ? "Pause monitoring" : "Resume monitoring"}
                               className="text-gray-400 hover:text-indigo-500 transition"
@@ -467,11 +641,19 @@ const WatchAgent: React.FC = () => {
                           </p>
                         )}
 
+                        {item.scheduledScanAt && (
+                          <p className="text-xs text-indigo-600 dark:text-indigo-300 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            Scheduled for {new Date(item.scheduledScanAt).toLocaleString()}
+                          </p>
+                        )}
+
                         {/* Scan button */}
-                        <button
+                        <div className="mt-auto grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <button
                           onClick={() => handleScan(item)}
                           disabled={isScanning || !item.active}
-                          className="mt-auto flex items-center justify-center gap-2 text-sm font-semibold bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-800/40 text-indigo-700 dark:text-indigo-300 py-2 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex items-center justify-center gap-2 text-sm font-semibold bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-800/40 text-indigo-700 dark:text-indigo-300 py-2 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {isScanning
                             ? <><Loader2 className="w-4 h-4 animate-spin" /> Scanning…</>
@@ -479,6 +661,14 @@ const WatchAgent: React.FC = () => {
                               ? <><PauseCircle className="w-4 h-4" /> Monitoring Paused</>
                               : <><RefreshCw className="w-4 h-4" /> Scan Now</>}
                         </button>
+                          <button
+                            onClick={() => openScheduleModal(item)}
+                            disabled={!item.active}
+                            className="flex items-center justify-center gap-2 text-sm font-semibold bg-white dark:bg-gray-900 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 py-2 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Clock className="w-4 h-4" /> Schedule
+                          </button>
+                        </div>
                       </motion.div>
                     );
                   })}
