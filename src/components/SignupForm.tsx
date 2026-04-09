@@ -124,12 +124,12 @@ const checkPasswordStrength = (pwd: string) => {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-100 to-purple-200 flex items-center justify-center px-4 py-10">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center px-4 py-10">
       <Card className="w-full max-w-md bg-white shadow-xl rounded-2xl border border-gray-100">
         <CardContent className="p-8">
  <div className="text-center mb-6">
           <Logo />
-                <h1 className="text-4xl font-extrabold text-indigo-700 drop-shadow-sm">
+                <h1 className="text-4xl font-extrabold text-amber-500 drop-shadow-sm">
                   Join Seekurify
                 </h1>
                 <p className="text-gray-500 mt-1">Sign Up to your Seekurify account</p>
@@ -189,7 +189,7 @@ const checkPasswordStrength = (pwd: string) => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your@example.com"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition duration-200"
                 
               />
                 {emailError && <p className="text-red-500 text-sm mt-1">{emailError}</p>}
@@ -209,7 +209,7 @@ const checkPasswordStrength = (pwd: string) => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter your username"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition duration-200"
                 
               />
 
@@ -226,7 +226,7 @@ const checkPasswordStrength = (pwd: string) => {
 
     <div className="relative flex items-center group cursor-pointer">
   {/* Heroicon */}
-  <InformationCircleIcon className="h-5 w-5 text-gray-500 group-hover:text-indigo-600 transition" />
+  <InformationCircleIcon className="h-5 w-5 text-gray-500 group-hover:text-amber-500 transition" />
 
   {/* Tooltip */}
   <div className="absolute right-0 top-full mt-2 z-50 w-72 p-3 bg-white border border-gray-300 
@@ -254,7 +254,7 @@ const checkPasswordStrength = (pwd: string) => {
                 onChange={(e) => { setPassword(e.target.value);
                   setPasswordStrength(checkPasswordStrength(e.target.value));}}
                 placeholder="At least 6 characters"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition duration-200"
                 
               />
 {/* Icon Wrapper */}
@@ -294,7 +294,7 @@ const checkPasswordStrength = (pwd: string) => {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Repeat your password"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 transition duration-200"
                 
               />
                 {confirmPasswordError && <p className="text-red-500 text-sm mt-1">{confirmPasswordError}</p>}
@@ -303,7 +303,7 @@ const checkPasswordStrength = (pwd: string) => {
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-semibold transition-all duration-200"
+              className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 py-2 rounded-lg font-semibold transition-all duration-200"
             >
               {isLoading ? 'Creating Account...' : 'Sign Up'}
             </Button>
@@ -314,7 +314,7 @@ const checkPasswordStrength = (pwd: string) => {
               Already have an account?{' '}
               <button
                 onClick={() => navigate('/login')}
-                className="text-indigo-600 hover:text-indigo-800 font-medium transition-colors duration-200"
+                className="text-amber-400 hover:text-amber-300 font-medium transition-colors duration-200"
               >
                 Login
               </button>

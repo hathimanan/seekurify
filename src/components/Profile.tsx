@@ -192,7 +192,7 @@ const Profile: React.FC = () => {
               {/* Card */}
               <div className="relative bg-gradient-to-b from-gray-900 to-gray-800 border border-gray-700 rounded-2xl overflow-hidden shadow-2xl">
                 {/* Cyber header strip */}
-                <div className="h-24 bg-gradient-to-r from-indigo-700 via-purple-700 to-pink-700 relative">
+                <div className="h-24 bg-gradient-to-r from-slate-700 via-slate-800 to-amber-700 relative">
                   <div className="absolute inset-0 opacity-20"
                     style={{ backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 4px,rgba(255,255,255,.07) 4px,rgba(255,255,255,.07) 5px),repeating-linear-gradient(90deg,transparent,transparent 4px,rgba(255,255,255,.07) 4px,rgba(255,255,255,.07) 5px)" }}
                   />
@@ -213,7 +213,7 @@ const Profile: React.FC = () => {
                         className="w-24 h-24 rounded-full object-cover ring-4 ring-gray-800 shadow-xl"
                       />
                     ) : (
-                      <div className="w-24 h-24 rounded-full ring-4 ring-gray-800 shadow-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white text-2xl font-black">
+                      <div className="w-24 h-24 rounded-full ring-4 ring-gray-800 shadow-xl bg-gradient-to-br from-slate-700 to-amber-600 flex items-center justify-center text-white text-2xl font-black">
                         {initials}
                       </div>
                     )}
@@ -230,7 +230,7 @@ const Profile: React.FC = () => {
                   <h2 className="mt-3 text-white text-xl font-extrabold tracking-tight text-center">
                     {user?.name || user?.username || "Analyst"}
                   </h2>
-                  <div className="mt-1 flex items-center gap-1.5 bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 text-xs font-semibold px-3 py-1 rounded-full">
+                  <div className="mt-1 flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-semibold px-3 py-1 rounded-full">
                     <Shield className="w-3 h-3" /> AI Security Analyst
                   </div>
 
@@ -276,7 +276,7 @@ const Profile: React.FC = () => {
                       onClick={() => navigate(path)}
                       className="w-full flex items-center gap-3 text-gray-400 hover:text-white hover:bg-gray-800 text-sm px-3 py-2 rounded-lg transition-colors"
                     >
-                      <Icon className="w-4 h-4 flex-shrink-0 text-indigo-400" />
+                      <Icon className="w-4 h-4 flex-shrink-0 text-amber-400" />
                       {label}
                     </button>
                   ))}
@@ -300,7 +300,7 @@ const Profile: React.FC = () => {
                 {!isEditing ? (
                   <button
                     onClick={() => setIsEditing(true)}
-                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+                    className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-900 text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
                   >
                     <Pencil className="w-4 h-4" /> Edit
                   </button>
@@ -336,7 +336,7 @@ const Profile: React.FC = () => {
                       type="text"
                       value={editableUser?.name || ""}
                       onChange={(e) => setEditableUser((p) => p ? { ...p, name: e.target.value } : p)}
-                      className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
                     />
                   ) : (
                     <p className="text-white font-semibold">{user?.name || "—"}</p>
@@ -351,7 +351,7 @@ const Profile: React.FC = () => {
                       type="text"
                       value={editableUser?.username || ""}
                       onChange={(e) => setEditableUser((p) => p ? { ...p, username: e.target.value } : p)}
-                      className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
                     />
                   ) : (
                     <p className="text-white font-semibold font-mono">@{user?.username || "—"}</p>
@@ -386,8 +386,8 @@ const Profile: React.FC = () => {
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
-                      <Lock className="w-5 h-5 text-indigo-400" />
+                    <div className="p-2.5 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                      <Lock className="w-5 h-5 text-amber-300" />
                     </div>
                     <div>
                       <p className="text-white text-sm font-semibold">Password</p>
@@ -396,7 +396,7 @@ const Profile: React.FC = () => {
                   </div>
                   <button
                     onClick={() => setShowPinModal(true)}
-                    className="text-indigo-400 hover:text-indigo-300 text-sm font-semibold flex items-center gap-1 transition-colors"
+                    className="text-amber-400 hover:text-amber-300 text-sm font-semibold flex items-center gap-1 transition-colors"
                   >
                     Change <ArrowLeft className="w-3 h-3 rotate-180" />
                   </button>
@@ -432,8 +432,8 @@ const Profile: React.FC = () => {
             className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl"
           >
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
-                <KeyRound className="w-5 h-5 text-indigo-400" />
+              <div className="p-2 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                <KeyRound className="w-5 h-5 text-amber-300" />
               </div>
               <h2 className="text-white font-bold text-lg">Verify PIN</h2>
             </div>
@@ -443,7 +443,7 @@ const Profile: React.FC = () => {
               placeholder="Enter your PIN"
               value={pinInput}
               onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
-              className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-3"
+              className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 mb-3"
             />
             {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
             <div className="flex gap-2 justify-end">
@@ -456,7 +456,7 @@ const Profile: React.FC = () => {
               <button
                 onClick={handleVerifyPin}
                 disabled={isVerifying}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-900 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50"
               >
                 {isVerifying ? "Verifying…" : "Verify & Continue"}
               </button>

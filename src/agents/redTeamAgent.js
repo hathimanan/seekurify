@@ -328,8 +328,9 @@ export async function runRedTeamAgent({ config, emit, userId }) {
         const riskLevel = finalRisk;
 
         // Persist to DB
+        let scanLogId;
         try {
-          await RedTeamScanLog.create({
+          const scanLog = await RedTeamScanLog.create({
             userId,
             targetUrl:        config.targetUrl,
             requestFormat:    config.requestFormat || 'openai',
@@ -344,11 +345,13 @@ export async function runRedTeamAgent({ config, emit, userId }) {
             successfulAttacks: findings.filter(f => f.succeeded).length,
             duration,
           });
+          scanLogId = scanLog._id.toString();
         } catch (dbErr) {
           console.error('[RedTeamAgent] DB save failed:', dbErr.message);
         }
 
         emit('complete', {
+          scanLogId,
           summary,
           score,
           riskLevel,
@@ -394,8 +397,9 @@ export async function runRedTeamAgent({ config, emit, userId }) {
   const autoSummary     = generateSummary(findings, probeCount);
   const autoRecs        = generateRecommendations(findings);
 
+  let scanLogId;
   try {
-    await RedTeamScanLog.create({
+    const scanLog = await RedTeamScanLog.create({
       userId,
       targetUrl:         config.targetUrl,
       requestFormat:     config.requestFormat || 'openai',
@@ -410,9 +414,11 @@ export async function runRedTeamAgent({ config, emit, userId }) {
       successfulAttacks: successCount,
       duration,
     });
+    scanLogId = scanLog._id.toString();
   } catch (_) {}
 
   emit('complete', {
+    scanLogId,
     summary:           autoSummary,
     score:             autoScore,
     riskLevel:         autoRisk,

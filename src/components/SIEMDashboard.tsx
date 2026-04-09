@@ -488,7 +488,7 @@ const shouldRequirePinForSIEM = () => {
 
 
 
-  const handlePayNow = async (amountOverride?: number) => {
+  const handlePayNow = async (amountOverride?: number, planOverride?: 'pro' | 'premium' | 'business') => {
     try {
       if (!(window as any).Razorpay) {
         alert('Razorpay SDK failed to load.');
@@ -496,6 +496,7 @@ const shouldRequirePinForSIEM = () => {
       }
 
       const amountToUse = amountOverride ?? paymentFormData.amount;
+      const planToSubmit = planOverride ?? selectedPlan ?? 'pro';
 
       const token = localStorage.getItem('token');
       if (!token) throw new Error('User not authenticated');
@@ -536,19 +537,20 @@ const shouldRequirePinForSIEM = () => {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token}`,
               },
-              body: JSON.stringify(response),
+              body: JSON.stringify({
+                ...response,
+                plan: planToSubmit,
+              }),
             });
 
             const result = await res.json();
             if (result.success) {
               setHasPaid(true);
               // Persist plan info locally for immediate UX; server is authoritative
-              if (selectedPlan) {
-                localStorage.setItem('plan', selectedPlan);
-              }
+              localStorage.setItem('plan', planToSubmit);
               localStorage.setItem('hasPaid', 'true');
               checkPaymentStatus();
-              window.location.href = '/dashboard'; // ✅ full reload
+              window.location.href = '/siem-dashboard'; // ✅ full reload
             } else {
               setError(result.message || 'Payment verification failed.');
             }
@@ -693,7 +695,7 @@ if (currentModal === "pay") {
           {/* Free Plan */}
           <div className="bg-white rounded-xl shadow p-6 flex flex-col">
             <h3 className="text-xl font-semibold mb-2">Free</h3>
-            <p className="text-4xl font-bold mb-2">₹0<span className="text-lg font-normal">/mo</span></p>
+            <p className="text-4xl font-bold mb-2">$0<span className="text-lg font-normal">/mo</span></p>
 
             <ul className="space-y-2 mb-6 text-gray-700">
               <li>✔ Basic password vault</li>
@@ -713,7 +715,7 @@ if (currentModal === "pay") {
             </div>
 
             <h3 className="text-xl font-semibold mb-2">Pro</h3>
-            <p className="text-4xl font-bold mb-2">₹199–299<span className="text-lg font-normal">/mo</span></p>
+            <p className="text-4xl font-bold mb-2">$199–299<span className="text-lg font-normal">/mo</span></p>
 
             <ul className="space-y-2 mb-6">
               <li>✔ Unlimited passwords</li>
@@ -734,7 +736,7 @@ if (currentModal === "pay") {
           {/* Premium Plan */}
           <div className="bg-white rounded-xl shadow p-6 flex flex-col">
             <h3 className="text-xl font-semibold mb-2">Premium</h3>
-            <p className="text-4xl font-bold mb-2">₹499–799<span className="text-lg font-normal">/mo</span></p>
+            <p className="text-4xl font-bold mb-2">$499–799<span className="text-lg font-normal">/mo</span></p>
 
             <ul className="space-y-2 mb-6 text-gray-700">
               <li>✔ File/URL scanning</li>
@@ -752,7 +754,7 @@ if (currentModal === "pay") {
           {/* Business Plan */}
           <div className="bg-white rounded-xl shadow p-6 flex flex-col">
             <h3 className="text-xl font-semibold mb-2">Business</h3>
-            <p className="text-4xl font-bold mb-2">₹1499–2499<span className="text-lg font-normal">/team/mo</span></p>
+            <p className="text-4xl font-bold mb-2">$1499–2499<span className="text-lg font-normal">/team/mo</span></p>
 
             <ul className="space-y-2 mb-6 text-gray-700">
               <li>✔ Admin dashboard</li>
@@ -780,7 +782,7 @@ if (currentModal === "pay") {
         <div className="bg-white p-6 rounded-xl w-full max-w-md text-center">
           <h2 className="text-2xl font-bold mb-2">Subscription Expired</h2>
           <p className="mb-4">Your trial has expired. Please pay to continue.</p>
-          <Button onClick={() => handlePayNow} className="bg-green-600 hover:bg-green-700 w-full">Pay ₹100</Button>
+          <Button onClick={() => handleSelectPlanForPurchase('pro')} className="bg-green-600 hover:bg-green-700 w-full">Pay $100</Button>
         </div>
       </div>
     );

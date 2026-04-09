@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
+import { fetchWithAuth } from '../services/authService';
 import { Button } from './ui/button';
 import Header from "../components/ui/Header";
 import Footer from "../components/ui/Footer";
@@ -316,54 +317,33 @@ export const Dashboard: React.FC = () => {
 useEffect(() => {
   const fetchFeatureFlags = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/feature-flags/read`);
-      
-      if (!res.ok) {
-        throw new Error('Failed to fetch feature flags');
-      }
-      
+      const res = await fetchWithAuth(`${API_BASE_URL}/feature-flags/read`);
+      if (!res.ok) throw new Error('Failed to fetch feature flags');
       const data = await res.json();
-      
-      console.log('✅ Feature flags loaded:', data);
       setPinVerificationEnabled(data.pinVerificationPasswordManager === true);
-      
     } catch (err) {
-      console.error("❌ Failed to load feature flags:", err);
       setPinVerificationEnabled(false);
     }
   };
-
-
-  
-
   fetchFeatureFlags();
 }, []);
 
 
 useEffect(() => {
-    const fetchFeatureFlags = async () => {
-      try {
-        const res = await fetch(`${API_BASE_URL}/feature-flags/read`);
-        
-        if (!res.ok) {
-          throw new Error('Failed to fetch feature flags');
-        }
-        
-        const data = await res.json();
-        
-        console.log('✅ Header feature flags loaded:', data);
-        setPhishingDetectorEnabled(data.phishingDetectorEnabled === true);
-        
-      } catch (err) {
-        console.error("❌ Failed to load header feature flags:", err);
-        setPhishingDetectorEnabled(false); // Safe default
-      } finally {
-        setFeaturesLoaded(true);
-      }
-    };
-
-    fetchFeatureFlags();
-  }, []);
+  const fetchFeatureFlags = async () => {
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/feature-flags/read`);
+      if (!res.ok) throw new Error('Failed to fetch feature flags');
+      const data = await res.json();
+      setPhishingDetectorEnabled(data.phishingDetectorEnabled === true);
+    } catch (err) {
+      setPhishingDetectorEnabled(false);
+    } finally {
+      setFeaturesLoaded(true);
+    }
+  };
+  fetchFeatureFlags();
+}, []);
 
 
 // ==========================================
@@ -391,9 +371,7 @@ useEffect(() => {
 
       // 3. Fetch profile image
       try {
-        const res = await fetch(`${API_BASE_URL}/profile`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetchWithAuth(`${API_BASE_URL}/profile`);
 
         if (res.ok) {
           const data = await res.json();
@@ -407,9 +385,7 @@ useEffect(() => {
 
       // 4. Fetch passwords
       try {
-        const res = await fetch("/api/passwords", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetchWithAuth(`${API_BASE_URL}/passwords`);
 
         const data = await res.json();
         
@@ -665,15 +641,8 @@ const toggleShowPassword = () => setShowViewingPassword((prev) => !prev);
 
 const checkPaymentStatus = async (): Promise<string | null> => {
   try {
-    const token = localStorage.getItem('token');
-    if (!token) throw new Error('User not authenticated');
-
-    const response = await fetch(`${API_BASE_URL}/auth/check-payment`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/auth/check-payment`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
     });
 
     if (!response.ok) throw new Error('Failed to check payment status');
@@ -960,7 +929,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
               <p className="text-lg font-semibold text-gray-800">Total</p>
               <p className="text-sm text-gray-500">Monthly Subscription</p>
             </div>
-            <p className="text-3xl font-extrabold text-green-600">₹100</p>
+            <p className="text-3xl font-extrabold text-green-600">$100</p>
           </div>
 
           {/* Pay Button Only */}
@@ -1023,7 +992,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
             {/* Free Plan */}
             <div className={`rounded-xl shadow p-6 flex flex-col transition-all duration-300 ${passwords.length > 3 ? 'opacity-30 bg-gray-50 pointer-events-none' : 'bg-white'}`}>
               <h3 className="text-xl font-semibold mb-2">Free</h3>
-              <p className="text-4xl font-bold mb-2">₹0<span className="text-lg font-normal">/mo</span></p>
+              <p className="text-4xl font-bold mb-2">$0<span className="text-lg font-normal">/mo</span></p>
 
               <ul className="space-y-2 mb-6 text-gray-700">
                 <li>✔ Basic password vault</li>
@@ -1050,7 +1019,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
               </div>
 
               <h3 className="text-xl font-semibold mb-2">Pro</h3>
-              <p className="text-4xl font-bold mb-2">₹199–299<span className="text-lg font-normal">/mo</span></p>
+              <p className="text-4xl font-bold mb-2">$199–299<span className="text-lg font-normal">/mo</span></p>
 
               <ul className="space-y-2 mb-6">
                 <li>✔ Unlimited passwords</li>
@@ -1067,7 +1036,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
             {/* Premium Plan */}
             <div className="bg-white rounded-xl shadow p-6 flex flex-col">
               <h3 className="text-xl font-semibold mb-2">Premium</h3>
-              <p className="text-4xl font-bold mb-2">₹499–799<span className="text-lg font-normal">/mo</span></p>
+              <p className="text-4xl font-bold mb-2">$499–799<span className="text-lg font-normal">/mo</span></p>
 
               <ul className="space-y-2 mb-6 text-gray-700">
                 <li>✔ File/URL scanning</li>
@@ -1085,7 +1054,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
             {/* Business Plan */}
             <div className="bg-white rounded-xl shadow p-6 flex flex-col">
               <h3 className="text-xl font-semibold mb-2">Business</h3>
-              <p className="text-4xl font-bold mb-2">₹1499–2499<span className="text-lg font-normal">/team/mo</span></p>
+              <p className="text-4xl font-bold mb-2">$1499–2499<span className="text-lg font-normal">/team/mo</span></p>
 
               <ul className="space-y-2 mb-6 text-gray-700">
                 <li>✔ Admin dashboard</li>
@@ -1134,7 +1103,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
               </div>
 
               <h3 className="text-xl font-semibold mb-2">Pro</h3>
-              <p className="text-4xl font-bold mb-2">₹199–299<span className="text-lg font-normal">/mo</span></p>
+              <p className="text-4xl font-bold mb-2">$199–299<span className="text-lg font-normal">/mo</span></p>
 
               <ul className="space-y-2 mb-6">
                 <li>✔ Unlimited passwords</li>
@@ -1151,7 +1120,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
             {/* Premium Plan */}
             <div className="bg-white rounded-xl shadow p-6 flex flex-col">
               <h3 className="text-xl font-semibold mb-2">Premium</h3>
-              <p className="text-4xl font-bold mb-2">₹499–799<span className="text-lg font-normal">/mo</span></p>
+              <p className="text-4xl font-bold mb-2">$499–799<span className="text-lg font-normal">/mo</span></p>
 
               <ul className="space-y-2 mb-6 text-gray-700">
                 <li>✔ File/URL scanning</li>
@@ -1169,7 +1138,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
             {/* Business Plan */}
             <div className="bg-white rounded-xl shadow p-6 flex flex-col">
               <h3 className="text-xl font-semibold mb-2">Business</h3>
-              <p className="text-4xl font-bold mb-2">₹1499–2499<span className="text-lg font-normal">/team/mo</span></p>
+              <p className="text-4xl font-bold mb-2">$1499–2499<span className="text-lg font-normal">/team/mo</span></p>
 
               <ul className="space-y-2 mb-6 text-gray-700">
                 <li>✔ Admin dashboard</li>
@@ -1488,10 +1457,10 @@ const checkPaymentStatus = async (): Promise<string | null> => {
 
           {/* Header */}
           <div className="mt-6 mb-8">
-            <h1 className="text-3xl font-extrabold text-gray-900 drop-shadow">
+            <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white drop-shadow">
               🔐 Password Manager
             </h1>
-            <p className="text-gray-700 mt-1">Welcome, <span className="font-semibold">{user?.email}</span></p>
+            <p className="text-gray-700 dark:text-gray-300 mt-1">Welcome, <span className="font-semibold">{user?.email}</span></p>
           </div>
 
 
@@ -1527,7 +1496,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
 
 
 
-          <div className={`bg-gradient-to-br ${plan === 'free'
+          {/* <div className={`bg-gradient-to-br ${plan === 'free'
             ? 'from-orange-400 to-orange-600'
             : 'from-emerald-400 to-emerald-600'
             } rounded-xl p-6 flex flex-col items-center justify-center text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105`}>
@@ -1538,16 +1507,16 @@ const checkPaymentStatus = async (): Promise<string | null> => {
                 : 'PREMIUM'
               }
             </div>
-          </div>
+          </div> */}
 
 
           <br />
 
 
           {/* Saved Passwords */}
-          <div className="bg-white shadow-xl rounded-2xl p-6 border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-800">Your Saved Passwords</h2>
+              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Your Saved Passwords</h2>
               <Button
                 onClick={() => setShowAddForm(true)}
                 className={`px-5 py-2 rounded-xl shadow-md transition ${isPlanLimitReached
@@ -1569,18 +1538,18 @@ const checkPaymentStatus = async (): Promise<string | null> => {
                 placeholder="Search passwords (by website, username, or notes)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none shadow-sm"
+                className="w-full p-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none shadow-sm"
               />
             </div>
 
             {isLoading ? (
               <div className="flex flex-col items-center py-10">
                 <div className="animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-                <p className="mt-3 text-gray-600">Loading passwords...</p>
+                <p className="mt-3 text-gray-600 dark:text-gray-400">Loading passwords...</p>
               </div>
             ) : filteredPasswords.length === 0 ? (
-              <div className="bg-gray-50 p-8 rounded-lg text-center border border-dashed border-gray-300">
-                <p className="text-gray-500">
+              <div className="bg-gray-50 dark:bg-gray-700/30 p-8 rounded-lg text-center border border-dashed border-gray-300 dark:border-gray-600">
+                <p className="text-gray-500 dark:text-gray-400">
                   {searchQuery
                     ? `No results found for "${searchQuery}".`
                     : `No passwords yet. Click + Add New to get started!`}
@@ -1983,7 +1952,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
 
                     <Logo />
                     {/* Modal Title */}
-                    <h3 className="text-xl font-bold text-black mb-4 text-center">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4 text-center">
                       Re-enter PIN to Confirm
                     </h3>
                     <form onSubmit={validateReverifyPin} className="space-y-4">
@@ -2116,13 +2085,13 @@ const checkPaymentStatus = async (): Promise<string | null> => {
             {
               showPassword && viewingPassword && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                  <div className="bg-white p-6 rounded-lg w-full max-w-md">
+                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md">
 
                     <Logo />
-                    <h3 className="text-xl font-bold text-black mb-4">View Password Details</h3>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">View Password Details</h3>
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-black">Website</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Website</label>
                         <input
                           type="text"
                           value={viewingPassword.website}
@@ -2131,7 +2100,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-black">Username</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
                         <input
                           type="text"
                           value={viewingPassword.username}
@@ -2140,7 +2109,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
                         />
                       </div>
                       <div className="relative">
-                        <label className="block text-sm font-medium text-black mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Password
                         </label>
 
@@ -2259,9 +2228,9 @@ const checkPaymentStatus = async (): Promise<string | null> => {
               showEditModal && (
 
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                  <div className="bg-blue-400 p-6 rounded-lg w-full max-w-md">
+                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md">
 
-                    <h3 className="text-xl font-bold text-black mb-4">Edit Password</h3>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Edit Password</h3>
 
                     {successMessage && (
                       <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded mb-4">
@@ -2270,7 +2239,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
                     )}
                     <form onSubmit={handleUpdatePassword} className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-black mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Website URL
                         </label>
                         <input
@@ -2284,7 +2253,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-black mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Username
                         </label>
                         <input
@@ -2321,7 +2290,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
 
                       {/* New Password */}
                       <div className="mt-4">
-                        <label className="block text-sm font-medium text-black mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                           New Password
                         </label>
 
@@ -2365,7 +2334,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
                         Generate
                       </Button>
                       <div>
-                        <label className="block text-sm font-medium text-black mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Category
                         </label>
                         <input
@@ -2378,7 +2347,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-black mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Notes
                         </label>
                         <textarea
@@ -2423,11 +2392,11 @@ const checkPaymentStatus = async (): Promise<string | null> => {
             {
               showAddForm && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                  <div className="bg-white p-6 rounded-lg w-full max-w-md">
-                    <h3 className="text-xl font-bold text-black mb-4">Add New Password</h3>
+                  <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-full max-w-md">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Add New Password</h3>
                     <form onSubmit={handleAddPassword} className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-black mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Website/Service
                         </label>
 
@@ -2482,7 +2451,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
 
 
                       <div>
-                        <label className="block text-sm font-medium text-black mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Username/Email
                         </label>
                         <input
@@ -2496,7 +2465,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-black mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Password
                         </label>
                         <div className="flex space-x-2 items-center">
@@ -2532,7 +2501,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-black mb-1">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Category
                           </label>
                           <input
@@ -2544,7 +2513,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-black mb-1">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Notes
                           </label>
                           <textarea

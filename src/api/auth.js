@@ -59,6 +59,8 @@ const genAI = process.env.GOOGLE_AI_API_KEY
 import { 
   emailValidation, 
   passwordValidation, 
+  newPasswordValidation,
+  resetTokenValidation,
   usernameValidation,
   handleValidationErrors 
 } from '../middleware/validation.js';
@@ -338,65 +340,122 @@ function generateResetCode() {
   return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit numeric code
 }
 
-authRouter.post('/forgot-password', async (req, res) => {
-  const { email } = req.body;
+// Rate limiter for forgot password to prevent abuse
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 requests per windowMs
+  message: { error: 'Too many password reset attempts. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
-  if (!email) return res.status(400).json({ error: 'Email is required' });
+// Rate limiter for reset password to prevent brute force
+const resetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // limit each IP to 10 reset attempts per windowMs
+  message: { error: 'Too many password reset attempts. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Function to clean up expired reset tokens
+function cleanupExpiredTokens() {
+  const now = Date.now();
+  for (const [email, tokenData] of resetTokens.entries()) {
+    if (tokenData.expiresAt <= now) {
+      resetTokens.delete(email);
+    }
+  }
+}
+
+// Clean up expired tokens every 5 minutes
+setInterval(cleanupExpiredTokens, 5 * 60 * 1000);
+
+authRouter.post('/forgot-password', forgotPasswordLimiter, emailValidation, handleValidationErrors, async (req, res) => {
+  const { email } = req.body;
 
   try {
     // ✅ Check if user with that email exists
     const user = await User.findOne({ email });
 
     if (!user) {
-      // If user not found, return an error
       return res.status(404).json({ error: 'No account found with this email address' });
     }
 
     // If user exists, proceed with sending reset code
     const resetCode = generateResetCode();
-    resetTokens.set(email, resetCode); // store in memory (or use DB/Redis in production)
+    const expirationTime = Date.now() + (10 * 60 * 1000); // 10 minutes from now
+    resetTokens.set(email, { code: resetCode, expiresAt: expirationTime });
 
-    await sendResetEmail(email, resetCode);
+    try {
+      await sendResetEmail(email, resetCode);
+    } catch (emailErr) {
+      console.error('Failed to send reset email:', emailErr);
+      return res.status(500).json({ error: 'Failed to send reset code. Please try again.' });
+    }
 
-    res.status(200).json({ message: 'Reset code sent to your email' });
+    res.status(200).json({ message: 'Reset code sent successfully.' });
   } catch (err) {
-    console.error('Failed to send reset email:', err);
-    res.status(500).json({ error: 'Failed to send reset email' });
+    console.error('Failed to process forgot password request:', err);
+    res.status(500).json({ error: 'Failed to process forgot password request' });
   }
 });
 
-authRouter.post('/reset-password', async (req, res) => {
-  const { token, newPassword } = req.body;
+authRouter.post('/verify-reset-token', resetPasswordLimiter, emailValidation, resetTokenValidation, handleValidationErrors, async (req, res) => {
+  const { email, token } = req.body;
+  const tokenData = resetTokens.get(email);
 
-  if (!token || !newPassword) {
-    return res.status(400).json({ error: 'Reset token and new password are required' });
+  if (!tokenData) {
+    return res.status(400).json({ error: 'No active reset request found for this email' });
   }
 
-  // Find email by matching code
-  const emailEntry = [...resetTokens.entries()].find(([email, code]) => code === token);
-
-  if (!emailEntry) {
-    return res.status(400).json({ error: 'Invalid or expired reset token' });
+  if (tokenData.expiresAt <= Date.now()) {
+    resetTokens.delete(email);
+    return res.status(400).json({ error: 'Reset code has expired. Please request a new one.' });
   }
 
-  const [email] = emailEntry;
-
-  // Example password validation
-  if (newPassword.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  if (tokenData.code !== token) {
+    return res.status(400).json({ error: 'Incorrect reset code' });
   }
 
-  // Save new password (you should hash this in real apps)
-const hashedPassword = await bcrypt.hash(newPassword, 10);
+  return res.status(200).json({ message: 'Reset code verified successfully' });
+});
 
-await User.updateOne(
-  { email },
-  { $set: { password: hashedPassword, lastPasswordChange: new Date() } }
-);
+authRouter.post('/reset-password', resetPasswordLimiter, emailValidation, resetTokenValidation, newPasswordValidation, handleValidationErrors, async (req, res) => {
+  const { email, token, newPassword } = req.body;
+  const tokenData = resetTokens.get(email);
+
+  if (!tokenData) {
+    return res.status(400).json({ error: 'No active reset request found for this email' });
+  }
+
+  if (tokenData.expiresAt <= Date.now()) {
+    resetTokens.delete(email);
+    return res.status(400).json({ error: 'Reset code has expired. Please request a new one.' });
+  }
+
+  if (tokenData.code !== token) {
+    return res.status(400).json({ error: 'Incorrect reset code' });
+  }
+
+  // Check if password is not too common (basic check)
+  const commonPasswords = ['password', '12345678', 'qwerty', 'password123', 'admin', 'letmein'];
+  if (commonPasswords.includes(newPassword.toLowerCase())) {
+    return res.status(400).json({ error: 'Password is too common. Please choose a stronger password.' });
+  }
+
+  // Save new password (hashed)
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  await User.updateOne(
+    { email },
+    { $set: { password: hashedPassword, lastPasswordChange: new Date() } }
+  );
+
   // Clear reset token after use
   resetTokens.delete(email);
 
-  console.log(`✅ Password reset for ${email}. New password stored.`);
+  console.log(`✅ Password reset successful for ${email} at ${new Date().toISOString()}`);
   // Send HTTP 200 only — frontend will display its own modal/message
   return res.sendStatus(200);
 });
@@ -600,9 +659,16 @@ if (
       { expiresIn: '15m' }
     );
 
+    const successfulLoginCount = await LoginEvent.countDocuments({
+      userId: user._id,
+      success: true,
+    });
+
     return res.json({ 
       token,
-      shouldForcePasswordChange   // ← send this flag to frontend
+      shouldForcePasswordChange,
+      isFirstLogin: successfulLoginCount === 1,
+      ownedFeatureFlags: user.ownedFeatureFlags || [],
     });
 
   } catch (err) {
@@ -909,6 +975,49 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
+const FEATURE_GROUP_TO_FLAGS = {
+  identity: ["password_vault", "siem_dashboard"],
+  threat: ["malware_analyzer", "phishing_detector", "deepfake_detector"],
+  "ai-security": ["ai_red_team", "ai_agent_scanner", "prompt_injection", "pii_detector"],
+  "web-infra": ["watch_agent", "site_shield", "csp_builder"],
+  "team-workspaces": ["findings_board", "team_workspaces"],
+  learn: ["security_awareness", "insights", "security_chatbot"],
+};
+
+const ALL_OWNED_FEATURE_FLAGS = Array.from(
+  new Set(Object.values(FEATURE_GROUP_TO_FLAGS).flat())
+);
+
+const LEGACY_PLAN_TO_FLAGS = {
+  free: [],
+  pro: FEATURE_GROUP_TO_FLAGS.identity,
+  premium: [
+    ...FEATURE_GROUP_TO_FLAGS.threat,
+    ...FEATURE_GROUP_TO_FLAGS["ai-security"],
+  ],
+  business: ALL_OWNED_FEATURE_FLAGS,
+};
+
+function mergeOwnedFeatureFlags(currentFlags = [], featureGroup, plan) {
+  const merged = new Set(currentFlags);
+
+  if (featureGroup === "bundle") {
+    ALL_OWNED_FEATURE_FLAGS.forEach((flag) => merged.add(flag));
+    return Array.from(merged);
+  }
+
+  if (featureGroup && FEATURE_GROUP_TO_FLAGS[featureGroup]) {
+    FEATURE_GROUP_TO_FLAGS[featureGroup].forEach((flag) => merged.add(flag));
+    return Array.from(merged);
+  }
+
+  if (plan && LEGACY_PLAN_TO_FLAGS[plan]) {
+    LEGACY_PLAN_TO_FLAGS[plan].forEach((flag) => merged.add(flag));
+  }
+
+  return Array.from(merged);
+}
+
 
 authRouter.post("/create-order", authenticateToken, async (req, res) => {
   try {
@@ -944,7 +1053,7 @@ authRouter.post("/create-order", authenticateToken, async (req, res) => {
 // ----------------- PAYMENT SUCCESS -----------------
 authRouter.post("/payment-success", authenticateToken, async (req, res) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, plan } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, plan, featureGroup } = req.body;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return res.status(400).json({ success: false, message: "Incomplete payment details" });
@@ -953,6 +1062,11 @@ authRouter.post("/payment-success", authenticateToken, async (req, res) => {
     const allowedPlans = ["free", "pro", "premium", "business"];
     if (!allowedPlans.includes(plan)) {
       return res.status(400).json({ success: false, message: "Invalid plan selected" });
+    }
+
+    const allowedFeatureGroups = ["identity", "threat", "ai-security", "web-infra", "team-workspaces", "learn", "bundle"];
+    if (featureGroup && !allowedFeatureGroups.includes(featureGroup)) {
+      return res.status(400).json({ success: false, message: "Invalid feature group selected" });
     }
 
     // Validate Razorpay signature
@@ -968,6 +1082,12 @@ authRouter.post("/payment-success", authenticateToken, async (req, res) => {
 
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
+    const nextOwnedFeatureFlags = mergeOwnedFeatureFlags(
+      user.ownedFeatureFlags || [],
+      featureGroup,
+      plan
+    );
+
     // ❗ Prevent repeating payment update
    
 const updatedUser = await User.findByIdAndUpdate(
@@ -979,6 +1099,7 @@ const updatedUser = await User.findByIdAndUpdate(
         razorpay_order_id,
         razorpay_signature,
         paymentDate: new Date(),
+        ownedFeatureFlags: nextOwnedFeatureFlags,
       },
       { new: true } // Returns the updated document
     );
@@ -987,6 +1108,7 @@ const updatedUser = await User.findByIdAndUpdate(
       success: true,
       message: "Payment verified successfully",
       plan: updatedUser.plan, // Return the plan from the DB, not the request
+      ownedFeatureFlags: updatedUser.ownedFeatureFlags || [],
     });
 
   } catch (err) {
@@ -1040,6 +1162,51 @@ authRouter.post("/check-payment", authenticateToken, async (req, res) => {
   } catch (err) {
     console.error("check-payment error:", err);
     res.status(500).json({ hasPaid: false, message: "Internal server error" });
+  }
+});
+
+authRouter.post("/activate-free-plan", authenticateToken, async (req, res) => {
+  try {
+    const { featureGroup = "learn" } = req.body;
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    if (featureGroup !== "learn") {
+      return res.status(400).json({ success: false, message: "Invalid free plan group" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const nextOwnedFeatureFlags = mergeOwnedFeatureFlags(
+      user.ownedFeatureFlags || [],
+      featureGroup,
+      "free"
+    );
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        plan: user.plan || "free",
+        ownedFeatureFlags: nextOwnedFeatureFlags,
+      },
+      { new: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Free plan activated successfully",
+      plan: updatedUser.plan || "free",
+      ownedFeatureFlags: updatedUser.ownedFeatureFlags || [],
+    });
+  } catch (err) {
+    console.error("activate-free-plan error:", err);
+    return res.status(500).json({ success: false, message: "Internal server error" });
   }
 });
 

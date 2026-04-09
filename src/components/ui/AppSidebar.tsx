@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   FileSearch, KeyRound, BarChart3, ShieldCheck, Phone,
-  Shield, Eye, ShieldAlert, Globe, ScanEye, Bot, Zap, Target, CreditCard,
+  Shield, Eye, ShieldAlert, Globe, ScanEye, Bot, Zap, Target, CreditCard, Users,
 } from "lucide-react";
 import { API_BASE_URL } from "../../services/api";
 
@@ -19,14 +19,18 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ sidebarExpanded, setSidebarExpa
   const [phishingEnabled, setPhishingEnabled]       = useState(false);
   const [siteShieldEnabled, setSiteShieldEnabled]   = useState(false);
   const [injectionEnabled, setInjectionEnabled]     = useState(false);
-  const [threatDetectionEnabled, setThreatDetectionEnabled] = useState(true);
-  const [aiSecuritySuiteEnabled, setAiSecuritySuiteEnabled] = useState(true);
-  const [identityAccessEnabled, setIdentityAccessEnabled]   = useState(true);
-  const [webInfraEnabled, setWebInfraEnabled]               = useState(true);
-  const [learnSecureEnabled, setLearnSecureEnabled]         = useState(true);
+  const [threatDetectionEnabled, setThreatDetectionEnabled] = useState(false);
+  const [aiSecuritySuiteEnabled, setAiSecuritySuiteEnabled] = useState(false);
+  const [identityAccessEnabled, setIdentityAccessEnabled]   = useState(false);
+  const [webInfraEnabled, setWebInfraEnabled]               = useState(false);
+  const [teamsEnabled, setTeamsEnabled]                     = useState(false);
+  const [learnSecureEnabled, setLearnSecureEnabled]         = useState(false);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/feature-flags/read`)
+    const token = localStorage.getItem("token");
+    fetch(`${API_BASE_URL}/feature-flags/read`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(d => {
         setPhishingEnabled(d.phishingDetectorEnabled === true);
@@ -36,6 +40,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ sidebarExpanded, setSidebarExpa
         setAiSecuritySuiteEnabled(d.aiSecuritySuiteEnabled !== false);
         setIdentityAccessEnabled(d.identityAccessEnabled !== false);
         setWebInfraEnabled(d.webInfraEnabled !== false);
+        setTeamsEnabled(d.teamsEnabled !== false);
         setLearnSecureEnabled(d.learnSecureEnabled !== false);
       })
       .catch(() => {});
@@ -47,7 +52,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ sidebarExpanded, setSidebarExpa
   const navGroups: NavGroup[] = [
     {
       id: "identity", label: "Identity & Access",
-      groupIcon: <KeyRound className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-indigo-400", groupFlag: identityAccessEnabled,
+      groupIcon: <KeyRound className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-sky-400", groupFlag: identityAccessEnabled,
       items: [
         { label: "Password Manager",        path: "/dashboard",      icon: <KeyRound   className="w-5 h-5 flex-shrink-0" /> },
         { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3  className="w-5 h-5 flex-shrink-0" /> },
@@ -55,7 +60,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ sidebarExpanded, setSidebarExpa
     },
     {
       id: "threat", label: "Threat Detection",
-      groupIcon: <ShieldAlert className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-red-400", groupFlag: threatDetectionEnabled,
+      groupIcon: <ShieldAlert className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-orange-400", groupFlag: threatDetectionEnabled,
       items: [
         { label: "Analyze Malware",   path: "/malware-analysis",  icon: <FileSearch  className="w-5 h-5 flex-shrink-0" /> },
         { label: "DeepFake Detector", path: "/deepfake-detector", icon: <ScanEye     className="w-5 h-5 flex-shrink-0" /> },
@@ -64,7 +69,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ sidebarExpanded, setSidebarExpa
     },
     {
       id: "ai-security", label: "AI Security Suite",
-      groupIcon: <Target className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-rose-400", groupFlag: aiSecuritySuiteEnabled,
+      groupIcon: <Target className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-cyan-400", groupFlag: aiSecuritySuiteEnabled,
       items: [
         { label: "AI Red-Team Agent", path: "/red-team",         icon: <Target className="w-5 h-5 flex-shrink-0" /> },
         { label: "AI Agent Scanner",  path: "/ai-agent-scanner", icon: <Bot    className="w-5 h-5 flex-shrink-0" /> },
@@ -73,7 +78,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ sidebarExpanded, setSidebarExpa
     },
     {
       id: "web-infra", label: "Web & Infrastructure",
-      groupIcon: <Globe className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-emerald-400", groupFlag: webInfraEnabled,
+      groupIcon: <Globe className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-teal-400", groupFlag: webInfraEnabled,
       items: [
         { label: "Watch Agent", path: "/watch-agent", icon: <Eye         className="w-5 h-5 flex-shrink-0" /> },
         { label: "CSP Builder", path: "/csp-builder", icon: <ShieldCheck className="w-5 h-5 flex-shrink-0" /> },
@@ -82,9 +87,17 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ sidebarExpanded, setSidebarExpa
     },
     {
       id: "learn", label: "Learn & Stay Secure",
-      groupIcon: <Shield className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-violet-400", groupFlag: learnSecureEnabled,
+      groupIcon: <Shield className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-lime-400", groupFlag: learnSecureEnabled,
       items: [
         { label: "Security Awareness", path: "/securityAwareness", icon: <ShieldCheck className="w-5 h-5 flex-shrink-0" /> },
+      ],
+    },
+    {
+      id: "workspaces", label: "Team Workspaces",
+      groupIcon: <Users className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-amber-400", groupFlag: teamsEnabled,
+      items: [
+        { label: "Findings", path: "/findings", icon: <ShieldAlert className="w-5 h-5 flex-shrink-0" /> },
+        { label: "Workspaces", path: "/workspaces", icon: <Users className="w-5 h-5 flex-shrink-0" /> },
       ],
     },
     {
@@ -144,8 +157,8 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ sidebarExpanded, setSidebarExpa
                     onClick={() => navigate(path)}
                     className={`relative group flex items-center gap-3 px-2 py-2 rounded-lg transition cursor-pointer ${
                       active
-                        ? "bg-indigo-600 text-white"
-                        : "hover:bg-indigo-600 text-gray-300 hover:text-white"
+                        ? "bg-amber-500 text-slate-900 font-semibold"
+                        : "hover:bg-amber-500 hover:text-slate-900 text-gray-300"
                     }`}
                   >
                     {icon}

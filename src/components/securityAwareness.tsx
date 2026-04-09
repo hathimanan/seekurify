@@ -288,7 +288,7 @@ useEffect(() => {
 
   return (
 <div className="min-h-screen flex flex-col 
-  bg-gradient-to-br from-indigo-100 via-white to-pink-100
+  bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900
   dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-800 dark:to-gray-700
   text-gray-900 dark:text-gray-100">
       <title> Security Awareness </title>
@@ -318,7 +318,7 @@ useEffect(() => {
         <main className="flex-grow px-6 py-6 max-w-6xl mx-auto">
           {/* Page Header */}
           <header className="text-center mb-12">
-            <h1 className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-pink-600 drop-shadow-md">
+            <h1 className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-amber-500 to-amber-400 drop-shadow-md">
               Stay Safe Online
             </h1>
             <p className="text-gray-600 mt-2 text-lg">
@@ -328,7 +328,7 @@ useEffect(() => {
 
           {/* Security Tips */}
           <section className="mb-14 border rounded-2xl p-6 bg-white/70 shadow-md">
-            <h2 className="text-2xl font-semibold mb-6 text-indigo-700">
+            <h2 className="text-2xl font-semibold mb-6 text-amber-600">
               Steps to Stay Secure Online
             </h2>
 
@@ -337,7 +337,7 @@ useEffect(() => {
               {tips.map((tip, index) => (
                 <li
                   key={index}
-                  className="bg-white shadow-md hover:shadow-lg p-4 rounded-xl border-l-4 border-indigo-500 hover:border-pink-500 
+                  className="bg-white shadow-md hover:shadow-lg p-4 rounded-xl border-l-4 border-amber-500 hover:border-amber-400 
               transition-all duration-300 cursor-pointer hover:bg-gray-100"
                   onClick={() => openModal(tip)}
                 >
@@ -357,7 +357,7 @@ useEffect(() => {
                     ✖
                   </button>
 
-                  <h3 className="text-2xl font-semibold mb-4 text-indigo-700">
+                  <h3 className="text-2xl font-semibold mb-4 text-amber-600">
                     {selectedTip.title}
                   </h3>
 
@@ -506,7 +506,7 @@ useEffect(() => {
               onClick={() =>
                 window.open("https://www.haveibeenpwned.com/", "_blank")
               }
-              className="bg-purple-500 text-white px-6 py-3 rounded hover:bg-purple-600 transition-colors"
+            className="bg-amber-500 text-slate-900 px-6 py-3 rounded hover:bg-amber-400 transition-colors"
             >
               Go to Have I Been Pwned
             </button>
@@ -535,7 +535,7 @@ useEffect(() => {
                 href={mockRecentAttacks[current].link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-indigo-700 font-medium hover:underline"
+                className="text-amber-600 font-medium hover:text-amber-500 hover:underline"
               >
                 🔗 Read more →
               </a>
@@ -581,7 +581,7 @@ useEffect(() => {
                         href={article.link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block mt-3 text-indigo-600 hover:underline font-medium text-sm"
+                        className="block mt-3 text-amber-600 hover:text-amber-500 hover:underline font-medium text-sm"
                       >
                         Read full article →
                       </a>

@@ -176,8 +176,8 @@ const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
   };
 
   return (
-<div className="min-h-screen flex flex-col 
-  bg-gradient-to-br from-indigo-100 via-white to-pink-100
+<div className="min-h-screen flex flex-col
+  bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900
   dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-800 dark:to-gray-700
   text-gray-900 dark:text-gray-100">
           <title>Contact Us</title>
@@ -203,7 +203,7 @@ const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
      <main className="flex-grow px-4 sm:px-6 md:px-12 py-8 flex flex-col">
   {/* Back Button */}
 
- <div className="w-full max-w-lg bg-white shadow-xl rounded-3xl p-8 border border-gray-200 mx-auto">
+ <div className="w-full max-w-lg bg-white shadow-xl rounded-3xl p-8 border border-slate-200 mx-auto">
     <div className="text-center mb-6">
       <h2 className="text-3xl font-extrabold text-gray-800">Contact Us</h2>
             <p className="text-gray-500 mt-1">We’ll get back to you shortly!</p>
@@ -221,10 +221,10 @@ const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
                   value={(formData as any)[field]}
                   onChange={handleChange}
                   placeholder={`Enter your ${field}`}
-                  className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 transition 
+                  className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 transition
                     ${errors[field as keyof FormData]
                       ? "border-red-500 focus:ring-red-300"
-                      : "border-gray-300 focus:ring-blue-400"
+                      : "border-gray-300 focus:ring-amber-400"
                     }`}
                 />
                 {errors[field as keyof FormData] && (
@@ -240,8 +240,8 @@ const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
                 value={formData.message}
                 onChange={handleChange}
                 placeholder="Type your message..."
-                className={`w-full px-4 py-3 border rounded-xl h-36 resize-none focus:outline-none focus:ring-2 transition 
-                  ${errors.message ? "border-red-500 focus:ring-red-300" : "border-gray-300 focus:ring-blue-400"
+                className={`w-full px-4 py-3 border rounded-xl h-36 resize-none focus:outline-none focus:ring-2 transition
+                  ${errors.message ? "border-red-500 focus:ring-red-300" : "border-gray-300 focus:ring-amber-400"
                   }`}
               />
               {errors.message && (
@@ -260,7 +260,7 @@ const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         attachment: e.target.files?.[0] || null,
       }))
     }
-    className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 border-gray-300 focus:ring-blue-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100"
+    className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 border-gray-300 focus:ring-amber-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100"
   />
   {errors.attachment && (
     <p className="text-sm text-red-600 mt-1">{errors.attachment}</p>
@@ -272,7 +272,7 @@ const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
 
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl text-lg transition-shadow shadow-md hover:shadow-lg"
+              className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 px-4 rounded-xl text-lg transition-shadow shadow-md hover:shadow-lg"
             >
               Send Message
             </button>

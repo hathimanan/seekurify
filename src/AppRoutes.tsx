@@ -8,6 +8,7 @@ import { Dashboard } from "./components/Dashboard";
 import { MalwareAnalyzer } from "./components/MalwareAnalyzer";
 import { SecurityAwareness } from "./components/securityAwareness";
 import ContactForm from "./components/ContactForm";
+import PublicContactPage from "./components/PublicContactPage";
 import SIEMDashboard from "./components/SIEMDashboard";
 import { ForgotPasswordForm } from "./components/ForgotPasswordForm"; 
 import Profile from "./components/Profile";
@@ -46,6 +47,11 @@ import DeepFakeDetector from "./components/DeepFakeDetector";
 import AIAgentScanner from "./components/AIAgentScanner";
 import RedTeamAgent from "./components/RedTeamAgent";
 import PricingPage from "./components/PricingPage";
+import FindingsBoard from "./components/FindingsBoard";
+import WorkspaceDashboard from "./components/WorkspaceDashboard";
+import WorkspaceVault from "./components/WorkspaceVault";
+import WorkspaceSettings from "./components/WorkspaceSettings";
+import WorkspaceInviteAccept from "./components/WorkspaceInviteAccept";
 
 const AppRoutes = () => {
   const navigate = useNavigate();
@@ -64,9 +70,9 @@ React.useEffect(() => {
 const currentPath = window.location.pathname;
   const searchParams = window.location.search;
 const isPublicRoute = [
-    "/HomePageBefore", "/login", "/signup", "/forgot-password", 
-    "/reset-password", "/features", "/", "/insights", "/set-new-pin"
-  ].includes(currentPath);
+    "/HomePageBefore", "/login", "/signup", "/forgot-password",
+    "/reset-password", "/features", "/", "/insights", "/set-new-pin", "/contact", "/contact-public"
+  ].includes(currentPath) || currentPath.startsWith("/workspace-invite/");
 
  const hasSetNewPinToken = currentPath === "/set-new-pin" && 
                            new URLSearchParams(searchParams).has("token");
@@ -129,6 +135,7 @@ const isPublicRoute = [
         <Route path="/securityAwareness" element={<SecurityAwareness />} />
 
         <Route path="/contact" element={<ContactForm />} />
+        <Route path="/contact-public" element={<PublicContactPage />} />
 
 {/* <Route path="/devices" element={<SIEMDashboard />} /> */}
         <Route path="/siem-dashboard" element={<SIEMDashboard />} />
@@ -168,8 +175,13 @@ const isPublicRoute = [
         <Route path="/deepfake-detector" element={<DeepFakeDetector />} />
         <Route path="/ai-agent-scanner" element={<AIAgentScanner />} />
         <Route path="/red-team" element={<RedTeamAgent />} />
+        <Route path="/findings" element={<FindingsBoard />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/pii-detector" element={<PromptScanner />} />
+        <Route path="/workspaces" element={<WorkspaceDashboard />} />
+        <Route path="/workspaces/:workspaceId/vault" element={<WorkspaceVault />} />
+        <Route path="/workspaces/:workspaceId/settings" element={<WorkspaceSettings />} />
+        <Route path="/workspace-invite/:token" element={<WorkspaceInviteAccept />} />
 
 
 <Route path="/privacy-policy" element={<PrivacyPolicy />} />

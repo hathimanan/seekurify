@@ -45,12 +45,40 @@ interface PasswordEntry {
 }
 
 class ApiService {
+private handleUnauthorized(message: string = 'Session expired or unauthorized.') {
+  authService.notifySessionExpired('unauthorized');
+  throw new Error(message);
+}
+
+private async parseError(response: Response, fallback: string) {
+  const contentType = response.headers.get('content-type') || '';
+  try {
+    if (contentType.includes('application/json')) {
+      const error = await response.json();
+      return error.error || error.message || fallback;
+    }
+
+    const text = await response.text();
+    return text.trim() || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+private async parseJson(response: Response, fallbackMessage: string) {
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const text = await response.text();
+    throw new Error(text?.trim() || fallbackMessage);
+  }
+  return response.json();
+}
+
 private getAuthHeaders() {
   const token = localStorage.getItem('token');
-  if (!token)  {
-     authService.logout(); // 🔒 Token missing = logout
-    throw new Error('User not authenticated. Token missing.');
-  };
+  if (!token) {
+    return this.handleUnauthorized('User not authenticated. Token missing.');
+  }
   return {
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json',
@@ -64,8 +92,7 @@ async createPasswordShare(
   const token = localStorage.getItem("token");
 
   if (!token) {
-    authService.logout();
-    throw new Error("User not authenticated.");
+    return this.handleUnauthorized("User not authenticated.");
   }
 
   const response = await fetch(
@@ -77,9 +104,12 @@ async createPasswordShare(
     }
   );
 
+  if (response.status === 401) {
+    return this.handleUnauthorized('Session expired or unauthorized.');
+  }
+
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Failed to share password");
+    throw new Error(await this.parseError(response, "Failed to share password"));
   }
 
   return response.json(); // { shareId }
@@ -115,11 +145,10 @@ async login(credentials: LoginCredentials) {
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Login failed');
+    throw new Error(await this.parseError(response, 'Login failed'));
   }
 
-  return await response.json(); // returns { message: "Logged in. Proceed to OTP." }
+  return await this.parseJson(response, 'Invalid login response'); // returns { message: "Logged in. Proceed to OTP." }
 }
 async onverifyOtp(email: string, otp: string, otpToken: string) {
   const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
@@ -129,11 +158,10 @@ async onverifyOtp(email: string, otp: string, otpToken: string) {
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Invalid OTP');
+    throw new Error(await this.parseError(response, 'Invalid OTP'));
   }
 
-  return await response.json(); // { success: true }
+  return await this.parseJson(response, 'Invalid OTP response'); // { success: true }
 }
 
 async verifyPin(email: string, pin: string) {
@@ -143,7 +171,7 @@ async verifyPin(email: string, pin: string) {
     body: JSON.stringify({ email, pin }),
   });
 
-  const data = await response.json(); // parse **once**
+  const data = await this.parseJson(response, 'Invalid PIN response'); // parse **once**
 
   if (!response.ok) {
     throw new Error(data.error || 'Invalid PIN');
@@ -194,9 +222,12 @@ async  logLoginEvent(userId: string) {
       headers: this.getAuthHeaders()
     });
 
+    if (response.status === 401) {
+      return this.handleUnauthorized('Session expired or unauthorized.');
+    }
+
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch dashboard');
+      throw new Error(await this.parseError(response, 'Failed to fetch dashboard'));
     }
 
     return response.json();
@@ -209,9 +240,8 @@ async getPasswords(cacheBuster?: number) {
   const token = localStorage.getItem('token');
 
   if (!token) {
- authService.logout(); // 🔒 Token missing = logout
-    throw new Error('User not authenticated. Token missing.');
-    }
+    return this.handleUnauthorized('User not authenticated. Token missing.');
+  }
 
       const url = cacheBuster
     ? `${API_BASE_URL}/passwords?t=${cacheBuster}`
@@ -223,9 +253,12 @@ async getPasswords(cacheBuster?: number) {
      cache: 'no-store',
   });
 
+  if (response.status === 401) {
+    return this.handleUnauthorized('Session expired or unauthorized.');
+  }
+
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to fetch passwords');
+    throw new Error(await this.parseError(response, 'Failed to fetch passwords'));
   }
 
   return await response.json();
@@ -238,9 +271,12 @@ async getSIEMEvents() {
     headers: this.getAuthHeaders(),
   });
 
+  if (response.status === 401) {
+    return this.handleUnauthorized('Session expired or unauthorized.');
+  }
+
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Failed to fetch SIEM events");
+    throw new Error(await this.parseError(response, "Failed to fetch SIEM events"));
   }
 
   return response.json();
@@ -254,9 +290,12 @@ const response = await fetch(`${API_BASE_URL}/passwords`, {
     body: JSON.stringify(passwordData)
   });
 
+  if (response.status === 401) {
+    return this.handleUnauthorized('Session expired or unauthorized.');
+  }
+
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to add password');
+    throw new Error(await this.parseError(response, 'Failed to add password'));
   }
 
   return response.json();
@@ -273,9 +312,12 @@ async detectPhishing(emailContent: string) {
     body: JSON.stringify({ emailContent })
   });
 
+  if (response.status === 401) {
+    return this.handleUnauthorized('Session expired or unauthorized.');
+  }
+
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Backend failed to respond');
+    throw new Error(await this.parseError(response, 'Backend failed to respond'));
   }
 
   return response.json();
@@ -285,8 +327,7 @@ async updatePassword(id: string, passwordData: PasswordEntry & { currentPassword
   const token = localStorage.getItem('token');
 
   if (!token) {
-    authService.logout(); // no token = force logout
-    throw new Error('User not authenticated.');
+    return this.handleUnauthorized('User not authenticated.');
   }
 
   const response = await fetch(`${API_BASE_URL}/passwords/${id}`, {
@@ -301,21 +342,18 @@ async updatePassword(id: string, passwordData: PasswordEntry & { currentPassword
   // }
 
 if (response.status === 401) {
-  authService.logout();
-  throw new Error('Session expired or unauthorized. Logging out.');
+  return this.handleUnauthorized('Session expired or unauthorized.');
 }
 
 if (response.status === 403) {
-  const error = await response.json();
-  throw new Error(error.error || 'Forbidden request');
+  throw new Error(await this.parseError(response, 'Forbidden request'));
 }
 
 
 
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to update password');
+    throw new Error(await this.parseError(response, 'Failed to update password'));
   }
 
   return response.json();
@@ -324,8 +362,7 @@ if (response.status === 403) {
 async deletePassword(id: string) {
   const token = localStorage.getItem('token');
   if (!token) {
-    authService.logout(); // 🔒 Token missing = logout
-    throw new Error('User not authenticated. Token missing.')
+    return this.handleUnauthorized('User not authenticated. Token missing.')
   }
 
   const resp = await fetch(`${API_BASE_URL}/passwords/${id}`, {
@@ -336,16 +373,13 @@ async deletePassword(id: string) {
     }
   });
 
+  if (resp.status === 401) {
+    return this.handleUnauthorized('Session expired or unauthorized.');
+  }
+
   // If the server returns an error status, try to parse its JSON message
   if (!resp.ok) {
-    let errorMsg = 'Failed to delete password';
-    try {
-      const errData = await resp.json();
-      errorMsg = errData.error || errorMsg;
-    } catch {
-      // fall back if no JSON body
-    }
-    throw new Error(errorMsg);
+    throw new Error(await this.parseError(resp, 'Failed to delete password'));
   }
 
   // On success, might be 204 No Content or JSON
@@ -365,6 +399,9 @@ async deletePassword(id: string) {
   const res = await fetch(FEATURE_FLAGS_ENDPOINT, {
     headers: { Authorization: `Bearer ${token}` }
   });
+  if (res.status === 401) {
+    return this.handleUnauthorized('Session expired or unauthorized.');
+  }
   return res.json();
 }
 
@@ -378,13 +415,16 @@ async toggleFlag(token: string, key: string, payload: { enabled: boolean; rollou
     },
     body: JSON.stringify({ key, ...payload })
   });
+  if (res.status === 401) {
+    return this.handleUnauthorized('Session expired or unauthorized.');
+  }
   return res.json();
 }
 
 
 
   logout() {
-    localStorage.removeItem('token');
+    authService.clearSession();
   }
 
   isAuthenticated() {

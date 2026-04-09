@@ -9,6 +9,26 @@ import { Logo } from './ui/logo';
 
 interface ForgotPasswordFormProps {}
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+const getResetCodeError = (value: string) => {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    return 'Please enter the reset code';
+  }
+
+  if (!/^\d+$/.test(trimmedValue)) {
+    return 'Reset code must contain only numbers';
+  }
+
+  if (trimmedValue.length !== 6) {
+    return 'Reset code must be exactly 6 digits';
+  }
+
+  return '';
+};
+
 export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
   const [email, setEmail] = useState('');
   const [resetToken, setResetToken] = useState('');
@@ -20,6 +40,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
       const [resendTimer, setResendTimer] = useState(30);
   const [canResend, setCanResend] = useState(false);
+  const [serverMessage, setServerMessage] = useState('');
 
   const navigate = useNavigate();
 
@@ -50,13 +71,20 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
   };
 
   const handleResendCode = async () => {
-  if (!canResend) return;
+  const trimmedEmail = email.trim().toLowerCase();
+  if (!canResend || !trimmedEmail) return;
+  setError('');
   try {
-    await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+    const res = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email: trimmedEmail }),
     });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to resend reset code');
+    }
+    setServerMessage(data.message || 'If an account with this email exists, a reset code has been sent.');
     setCanResend(false);
     setResendTimer(30);
     const countdown = setInterval(() => {
@@ -69,8 +97,8 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
         return prev - 1;
       });
     }, 1000);
-  } catch (err) {
-    console.error('Error resending code:', err);
+  } catch (err: any) {
+    setError(err.message || 'Failed to resend reset code');
   }
 };
 
@@ -78,15 +106,30 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
   const handleSendResetEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    const trimmedEmail = email.trim().toLowerCase();
+
+    if (!EMAIL_REGEX.test(trimmedEmail)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const res = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: trimmedEmail }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to send reset email');
+      if (!res.ok) {
+        // Handle validation errors
+        if (data.errors && Array.isArray(data.errors)) {
+          throw new Error(data.errors.map((err: any) => err.message).join(', '));
+        }
+        throw new Error(data.error || 'Failed to send reset email');
+      }
+      setServerMessage(data.message || 'Reset code sent successfully');
+      setEmail(trimmedEmail);
       setStep('sent');
     } catch (err: any) {
       setError(err.message || 'Failed to send reset email');
@@ -95,21 +138,74 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
     }
   };
 
-  const handleVerifyToken = (e: React.FormEvent) => {
+  const handleVerifyToken = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (resetToken.length === 6) setStep('reset');
-    else setError('Please enter a valid 6-digit code');
+    setError('');
+    const trimmedToken = resetToken.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+    const resetCodeError = getResetCodeError(trimmedToken);
+
+    if (resetCodeError) {
+      setError(resetCodeError);
+      return;
+    }
+
+    if (!EMAIL_REGEX.test(normalizedEmail)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/verify-reset-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: normalizedEmail, token: trimmedToken }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (data.errors && Array.isArray(data.errors)) {
+          throw new Error(data.errors.map((err: any) => err.message).join(', '));
+        }
+        throw new Error(data.error || 'Failed to verify reset code');
+      }
+
+      setEmail(normalizedEmail);
+      setResetToken(trimmedToken);
+      setStep('reset');
+    } catch (err: any) {
+      setError(err.message || 'Failed to verify reset code');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    const trimmedToken = resetToken.trim();
+    const resetCodeError = getResetCodeError(trimmedToken);
+
+    if (resetCodeError) {
+      setError(resetCodeError);
+      return;
+    }
     if (newPassword !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+    // Basic complexity check
+    const hasUpperCase = /[A-Z]/.test(newPassword);
+    const hasLowerCase = /[a-z]/.test(newPassword);
+    const hasNumbers = /\d/.test(newPassword);
+    const hasSpecialChar = /[@$!%*?&]/.test(newPassword);
+    
+    if (!hasUpperCase || !hasLowerCase || !hasNumbers || !hasSpecialChar) {
+      setError('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)');
       return;
     }
 
@@ -118,10 +214,14 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
       const res = await fetch(`${API_BASE_URL}/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: resetToken, newPassword }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), token: trimmedToken, newPassword }),
       });
       if (!res.ok) {
         const data = await res.json().catch(()=>({ error: 'Failed to reset password' }));
+        // Handle validation errors
+        if (data.errors && Array.isArray(data.errors)) {
+          throw new Error(data.errors.map((err: any) => err.message).join(', '));
+        }
         throw new Error(data.error || 'Failed to reset password');
       }
       // success — show custom modal
@@ -156,8 +256,8 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
           <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-2">
             <Mail className="w-8 h-8 text-green-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Email Sent!</h1>
-          <p className="text-gray-600 mb-4">We've sent a password reset code to <strong>{email}</strong></p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Check Your Email</h1>
+          <p className="text-gray-600 mb-4">{serverMessage}</p>
           <p className="text-sm text-gray-500 mb-4">Didn't receive it? Check spam folder or try again.</p>
           {/* Resend Code Section */}
 <div className="text-sm text-gray-600 mb-4">
@@ -183,18 +283,20 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
           <input
             type="text"
             value={resetToken}
-            onChange={(e) => setResetToken(e.target.value.slice(0, 6))}
+            onChange={(e) => setResetToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
             className="w-full px-4 py-3 border border-gray-300 rounded-md bg-white/80 text-gray-900 text-center text-xl font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400"
             placeholder="Enter 6-digit code"
             maxLength={6}
+            inputMode="numeric"
+            pattern="[0-9]{6}"
             required
           />
           <Button
             type="submit"
-            disabled={resetToken.length !== 6}
+            disabled={isLoading || resetToken.length !== 6}
             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-4 rounded-md font-semibold text-lg"
           >
-            Verify Code
+            {isLoading ? 'Verifying...' : 'Verify Code'}
           </Button>
         </form>
 
@@ -238,7 +340,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
               onChange={(e) => setNewPassword(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-md bg-white/80 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
               required
-              minLength={6}
+              minLength={8}
             />
           </div>
 
@@ -253,7 +355,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-md bg-white/80 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
               required
-              minLength={6}
+              minLength={8}
             />
           </div>
 
@@ -299,8 +401,11 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onBlur={(e) => setEmail(e.target.value.trim().toLowerCase())}
               className="w-full px-4 py-3 border border-gray-300 rounded-md bg-white/80 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
               placeholder="Enter your email address"
+              pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$"
+              title="Please enter a valid email address"
               required
             />
           </div>

@@ -17,14 +17,28 @@ export const handleValidationErrors = (req, res, next) => {
 
 // Common validation rules
 export const emailValidation = body('email')
-  .isEmail()
-  .normalizeEmail()
-  .withMessage('Valid email is required');
+  .trim()
+  .notEmpty()
+  .withMessage('Email is required')
+  .bail()
+  .isEmail({ require_tld: true })
+  .withMessage('Valid email is required')
+  .normalizeEmail();
 
 export const passwordValidation = body('password')
   .isLength({ min: 8 })
-  .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+  .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/)
   .withMessage('Password must be at least 8 characters with uppercase, lowercase, number, and special character');
+
+export const newPasswordValidation = body('newPassword')
+  .isLength({ min: 8 })
+  .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/)
+  .withMessage('Password must be at least 8 characters with uppercase, lowercase, number, and special character');
+
+export const resetTokenValidation = body('token')
+  .trim()
+  .matches(/^\d{6}$/)
+  .withMessage('Reset token must be exactly 6 digits');
 
 export const usernameValidation = body('username')
   .isAlphanumeric()

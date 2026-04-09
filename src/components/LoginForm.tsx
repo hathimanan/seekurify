@@ -116,8 +116,18 @@ if (otpEnabled === false) {
     });
 
     if (!otpRes.ok) {
-      const errorData = await otpRes.json();
-      throw new Error(errorData.error || 'Failed to send OTP.');
+      const contentType = otpRes.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const errorData = await otpRes.json();
+        throw new Error(errorData.error || 'Failed to send OTP.');
+      }
+      const text = await otpRes.text();
+      throw new Error(text.trim() || 'Failed to send OTP.');
+    }
+
+    const otpContentType = otpRes.headers.get('content-type') || '';
+    if (!otpContentType.includes('application/json')) {
+      throw new Error('Invalid OTP response from server.');
     }
 
     const { otpToken } = await otpRes.json();
@@ -146,6 +156,10 @@ if (otpEnabled === false) {
    const fetchOtpFlag = async () => {
   try {
     const res = await fetch(`${API_BASE_URL}/feature-flags/read`);
+    const contentType = res.headers.get('content-type') || '';
+    if (!res.ok || !contentType.includes('application/json')) {
+      throw new Error('Invalid feature flag response');
+    }
     const data = await res.json();
 
     setOtpEnabled(data.otpEnabled); // <-- MongoDB value
@@ -211,7 +225,7 @@ if (otpEnabled === false) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-100 to-purple-200 flex items-center justify-center px-4 py-10">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
         {success && (
           <div className="mb-6 rounded-xl border border-green-400 bg-green-50 px-4 py-3 flex items-center justify-between shadow-md animate-bounce">
@@ -229,7 +243,7 @@ if (otpEnabled === false) {
             <CardContent className="p-8">
               <div className="text-center mb-6">
                <Logo />
-                <h1 className="text-4xl font-extrabold text-indigo-700 drop-shadow-sm">
+                <h1 className="text-4xl font-extrabold text-amber-400 drop-shadow-sm">
                   Login to Seekurify
                 </h1>
                 <p className="text-gray-500 mt-1">Sign in to your Seekurify account</p>
@@ -269,7 +283,7 @@ if (otpEnabled === false) {
                     id="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-md bg-white/80 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition shadow-sm"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-md bg-white/80 text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-400 transition shadow-sm"
                     placeholder='Enter your email here'
                   />
                   {emailError && <p className="text-red-600 text-sm mt-1">{emailError}</p>}
@@ -286,14 +300,14 @@ if (otpEnabled === false) {
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="off"
                     
-                    className="w-full px-4 py-3 border border-gray-300 rounded-md bg-white/80 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition shadow-sm"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-md bg-white/80 text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-400 transition shadow-sm"
                     placeholder='Enter your password here'
                   />
                   <div className="text-right mt-2">
                     <button
                       type="button"
                       onClick={() => setShowForgotPassword(true)}
-                      className="text-sm text-indigo-600 hover:text-indigo-800 transition underline"
+                      className="text-sm text-amber-400 hover:text-amber-300 transition underline"
                     >
                       Forgot Password?
                     </button>
@@ -304,7 +318,7 @@ if (otpEnabled === false) {
                 <Button
                   type="submit"
   disabled={isLoading || otpEnabled === null}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-4 rounded-md font-semibold text-lg shadow-md hover:shadow-lg transition transform hover:scale-[1.02] disabled:opacity-50"
+                    className="w-full bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold py-3 px-4 rounded-md text-lg shadow-md hover:shadow-lg transition transform hover:scale-[1.02] disabled:opacity-50"
                 >
              {otpEnabled === null
     ? "Loading security..."
@@ -335,7 +349,7 @@ if (otpEnabled === false) {
                   Don’t have an account?{' '}
                   <button
                     onClick={onToggleMode}
-                    className="text-indigo-600 hover:text-indigo-800 font-semibold transition"
+                    className="text-amber-400 hover:text-amber-300 font-semibold transition"
                   >
                     Create one
                   </button>

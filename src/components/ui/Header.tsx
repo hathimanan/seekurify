@@ -5,6 +5,7 @@ import defaultProfileIcon from "../../assets/default-profile.png";
 import { Bell } from "lucide-react";
 import { API_BASE_URL } from "../../services/api";
 import { jwtDecode } from "jwt-decode";
+import { authService } from "../../services/authService";
 
 interface HeaderProps {
   profileImage?: string;
@@ -112,8 +113,7 @@ const Header: React.FC<HeaderProps> = ({
     console.log(decoded);
         // token expired?
         if (decoded.exp * 1000 < Date.now()) {
-          localStorage.removeItem("token");
-          setIsAdmin(false);
+          authService.notifySessionExpired('token_expired');
           return;
         }
   
@@ -200,12 +200,12 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="relative bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-6 text-white shadow-md z-50 h-16 flex items-center">
+    <header className="relative bg-slate-900 border-b border-slate-700 px-6 text-white shadow-md z-50 h-16 flex items-center">
       {/* Logo — absolutely centred */}
       <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 pointer-events-none">
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="h-7 w-7 text-blue-300"
+          className="h-7 w-7 text-amber-400"
           fill="transparent"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -218,7 +218,7 @@ const Header: React.FC<HeaderProps> = ({
         </svg>
         <a
           href="/"
-          className="text-blue-300 font-bold text-xl tracking-wide hover:text-blue-200 transition-colors pointer-events-auto"
+          className="text-amber-400 font-bold text-xl tracking-wide hover:text-amber-300 transition-colors pointer-events-auto"
         >
           Seekurify
         </a>
@@ -229,7 +229,7 @@ const Header: React.FC<HeaderProps> = ({
           <button
             onClick={toggleDarkMode}
             aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-            className="px-4 py-2 rounded-lg bg-black/30 text-white text-sm font-medium shadow hover:bg-black/40 hover:scale-105 transition"
+            className="px-4 py-2 rounded-lg bg-white/10 text-white text-sm font-medium shadow hover:bg-white/20 hover:scale-105 transition"
           >
             {darkMode ? "Light Mode" : "Dark Mode"}
           </button>

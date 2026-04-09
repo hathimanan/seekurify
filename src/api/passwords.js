@@ -47,11 +47,9 @@ const authenticateToken = (req, res, next) => {
   }
 
   const token = authHeader.split(' ')[1];
-console.log("Authorization Header:", authHeader);
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // Attach decoded payload to request
-    console.log("Generated token:", token);
+    req.user = decoded;
     next();
   } catch (error) {
     return res.status(403).json({ error: 'Invalid or expired token' });
@@ -133,8 +131,6 @@ passwordRouter.put("/:id", authenticateToken, async (req, res) => {
     }
 
     const decryptedStoredPassword = decrypt(entry.password);
-    console.log("Decrypted stored password:", decryptedStoredPassword);
-    console.log("Current password provided:", currentPassword);
 
     if (decryptedStoredPassword !== currentPassword) {
       return res.status(403).json({

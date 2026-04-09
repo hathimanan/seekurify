@@ -305,7 +305,7 @@ const SectionCard: React.FC<{ title: string; icon: React.ReactNode; children: Re
       <button onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
         <div className="flex items-center gap-2 font-semibold text-gray-800 dark:text-gray-100">
-          <span className="text-indigo-500">{icon}</span>{title}
+          <span className="text-amber-500">{icon}</span>{title}
         </div>
         {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
       </button>
@@ -449,7 +449,7 @@ const PromptInjectionScanner: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <title>AI Injection Scanner — Seekurify</title>
 
       <Header token={token ?? ""} handleLogout={handleLogout} profileImage="" />
@@ -468,10 +468,10 @@ const PromptInjectionScanner: React.FC = () => {
             {/* Page title */}
             <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
               <div className="inline-flex items-center gap-3 mb-3">
-                <Zap className="w-10 h-10 text-indigo-600" />
-                <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white">AI Injection Scanner</h1>
+                <Zap className="w-10 h-10 text-amber-400" />
+                <h1 className="text-4xl font-extrabold text-white">AI Injection Scanner</h1>
               </div>
-              <p className="text-gray-500 dark:text-gray-400 text-lg">
+              <p className="text-gray-400 text-lg">
                 Detect prompt injection, role override, tool hijacking & agentic failure vectors in any content.
               </p>
               {/* Legend */}
@@ -496,7 +496,7 @@ const PromptInjectionScanner: React.FC = () => {
                   <button key={t.id} onClick={() => { setMode(t.id); setError(null); setResult(null); }}
                     className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition ${
                       mode === t.id
-                        ? "bg-indigo-600 text-white shadow"
+                        ? "bg-amber-500 text-slate-900 shadow"
                         : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                     }`}>
                     {t.icon}{t.label}
@@ -510,7 +510,7 @@ const PromptInjectionScanner: React.FC = () => {
                   <textarea value={textInput} onChange={e => setTextInput(e.target.value)}
                     rows={8} placeholder="Paste email body, document excerpt, web page content, or any text you want to scan for injection payloads…"
                     disabled={scanning}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm resize-y focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60" />
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm resize-y focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-60" />
                 )}
 
                 {/* File upload */}
@@ -521,16 +521,16 @@ const PromptInjectionScanner: React.FC = () => {
                     onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) setSelectedFile(f); }}
                     onClick={() => fileInputRef.current?.click()}
                     className={`flex flex-col items-center justify-center border-2 border-dashed rounded-xl px-6 py-10 cursor-pointer transition ${
-                      dragOver ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20" : "border-gray-300 dark:border-gray-600 hover:border-indigo-400"
+                      dragOver ? "border-amber-500 bg-amber-50 dark:bg-amber-900/20" : "border-gray-300 dark:border-gray-600 hover:border-amber-400"
                     }`}>
                     <input ref={fileInputRef} type="file"
                       accept=".txt,.html,.htm,.md,.markdown,.csv,.json,.xml,.pdf,.docx"
                       className="hidden"
                       onChange={e => { const f = e.target.files?.[0]; if (f) setSelectedFile(f); }} />
-                    <Upload className={`w-10 h-10 mb-3 ${selectedFile ? "text-indigo-500" : "text-gray-400"}`} />
+                    <Upload className={`w-10 h-10 mb-3 ${selectedFile ? "text-amber-500" : "text-gray-400"}`} />
                     {selectedFile ? (
                       <div className="text-center">
-                        <p className="font-semibold text-indigo-600 dark:text-indigo-400">{selectedFile.name}</p>
+                        <p className="font-semibold text-amber-500 dark:text-amber-400">{selectedFile.name}</p>
                         <p className="text-xs text-gray-400 mt-1">{(selectedFile.size / 1024).toFixed(1)} KB</p>
                         <button type="button" onClick={e => { e.stopPropagation(); setSelectedFile(null); }}
                           className="mt-2 text-xs text-red-500 hover:underline flex items-center gap-1 mx-auto">
@@ -553,14 +553,14 @@ const PromptInjectionScanner: React.FC = () => {
                     <input type="text" value={urlInput} onChange={e => setUrlInput(e.target.value)}
                       placeholder="https://example.com/page-to-scan"
                       disabled={scanning}
-                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60" />
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-60" />
                   </div>
                 )}
 
                 {/* Advanced options */}
                 <div>
                   <button type="button" onClick={() => setShowOptions(o => !o)}
-                    className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 transition">
+                    className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-amber-500 transition">
                     {showOptions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     Advanced options
                   </button>
@@ -574,7 +574,7 @@ const PromptInjectionScanner: React.FC = () => {
                               className="mt-0.5 w-4 h-4 accent-indigo-600" />
                             <div>
                               <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-1">
-                                <Cpu className="w-4 h-4 text-indigo-500" /> Semantic Analysis
+                                <Cpu className="w-4 h-4 text-amber-500" /> Semantic Analysis
                               </p>
                               <p className="text-xs text-gray-400 mt-0.5">AI-powered second opinion (uses Claude — slightly slower)</p>
                             </div>
@@ -596,7 +596,7 @@ const PromptInjectionScanner: React.FC = () => {
                 </div>
 
                 <button type="submit" disabled={scanning}
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-xl shadow-md disabled:opacity-50 transition hover:scale-105 active:scale-95 w-full sm:w-auto justify-center">
+                  className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold px-6 py-3 rounded-xl shadow-md disabled:opacity-50 transition hover:scale-105 active:scale-95 w-full sm:w-auto justify-center">
                   {scanning ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
                   {scanning ? "Scanning…" : "Run Injection Scan"}
                 </button>
@@ -683,7 +683,7 @@ const PromptInjectionScanner: React.FC = () => {
                         Export PDF
                       </button>
                       <button onClick={() => navigate("/ask")}
-                        className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl shadow transition hover:scale-105">
+                        className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold px-5 py-2.5 rounded-xl shadow transition hover:scale-105">
                         <MessageCircle className="w-4 h-4" /> Ask Nick
                       </button>
                     </div>
@@ -698,7 +698,7 @@ const PromptInjectionScanner: React.FC = () => {
                           {result.truncated && " Content was truncated to 10 000 chars for display."}
                         </p>
                         <button onClick={() => setShowRaw(r => !r)}
-                          className="flex items-center gap-1 text-xs text-gray-500 hover:text-indigo-600 transition">
+                          className="flex items-center gap-1 text-xs text-gray-500 hover:text-amber-500 transition">
                           {showRaw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           {showRaw ? "Show annotated" : "Show raw"}
                         </button>
@@ -741,7 +741,7 @@ const PromptInjectionScanner: React.FC = () => {
                               </div>
                             </div>
                             {f.remediation && (
-                              <div className="mt-2 pl-6 text-xs text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg px-3 py-2">
+                              <div className="mt-2 pl-6 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2">
                                 <span className="font-semibold">Fix: </span>{f.remediation}
                               </div>
                             )}
@@ -760,7 +760,7 @@ const PromptInjectionScanner: React.FC = () => {
                                     className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-semibold transition ${
                                       copiedIdx === i
                                         ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
-                                        : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 hover:text-indigo-700 dark:hover:text-indigo-300"
+                                        : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-amber-100 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-300"
                                     }`}
                                   >
                                     {copiedIdx === i
@@ -809,7 +809,7 @@ const PromptInjectionScanner: React.FC = () => {
                                 </p>
                               )}
                               {result.mlResult.novelDetection && (
-                                <p className="text-xs text-indigo-600 dark:text-indigo-300 mt-2">
+                                <p className="text-xs text-amber-600 dark:text-amber-300 mt-2">
                                   ML flagged a likely novel injection pattern that regex did not confidently match.
                                 </p>
                               )}
@@ -912,15 +912,15 @@ const PromptInjectionScanner: React.FC = () => {
                   )}
 
                   {/* Ask Nick CTA */}
-                  <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 rounded-2xl p-5 flex flex-col md:flex-row items-center gap-4">
+                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-2xl p-5 flex flex-col md:flex-row items-center gap-4">
                     <div className="flex-1">
-                      <p className="font-semibold text-indigo-800 dark:text-indigo-200">Want plain-English fixes?</p>
-                      <p className="text-sm text-indigo-600 dark:text-indigo-400 mt-1">
+                      <p className="font-semibold text-amber-800 dark:text-amber-200">Want plain-English fixes?</p>
+                      <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
                         Ask Nick — Seekurify's AI assistant — for step-by-step remediation advice based on these findings.
                       </p>
                     </div>
                     <button onClick={() => navigate("/ask")}
-                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl shadow transition hover:scale-105 flex-shrink-0">
+                      className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold px-5 py-2.5 rounded-xl shadow transition hover:scale-105 flex-shrink-0">
                       <MessageCircle className="w-4 h-4" /> Ask Nick
                     </button>
                   </div>
@@ -932,7 +932,7 @@ const PromptInjectionScanner: React.FC = () => {
             {(history.length > 0 || historyLoading) && (
               <div className="mt-12">
                 <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
-                  <Server className="w-5 h-5 text-indigo-500" /> Scan History
+                  <Server className="w-5 h-5 text-amber-500" /> Scan History
                 </h2>
 
                 {historyLoading && history.length === 0 ? (

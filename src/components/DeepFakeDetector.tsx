@@ -185,14 +185,14 @@ const DropZone: React.FC<DropZoneProps> = ({ mode, onFile, accept, disabled, chi
       onDrop={onDrop}
       onClick={() => !disabled && inputRef.current?.click()}
       className={`relative cursor-pointer rounded-2xl border-2 border-dashed transition-all duration-300 p-10 flex flex-col items-center gap-3 text-center
-        ${dragging ? "border-indigo-400 bg-indigo-900/20 scale-[1.01]" : "border-gray-600 hover:border-indigo-500 bg-gray-900/40 hover:bg-indigo-900/10"}
+        ${dragging ? "border-amber-400 bg-amber-900/20 scale-[1.01]" : "border-gray-600 hover:border-amber-500 bg-gray-900/40 hover:bg-amber-900/10"}
         ${disabled ? "opacity-50 cursor-not-allowed" : ""}
       `}
     >
       <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={e => handle(e.target.files?.[0] ?? null)} disabled={disabled} />
-      <div className="text-indigo-400">{icons[mode]}</div>
+      <div className="text-amber-400">{icons[mode]}</div>
       <p className="text-gray-300 font-medium">
-        {children ?? <>Drag & drop or <span className="text-indigo-400 underline">browse</span></>}
+        {children ?? <>Drag & drop or <span className="text-amber-400 underline">browse</span></>}
       </p>
       <p className="text-xs text-gray-500">
         {mode === "image" && "JPEG · PNG · WebP · GIF — up to 10 MB"}
@@ -201,7 +201,7 @@ const DropZone: React.FC<DropZoneProps> = ({ mode, onFile, accept, disabled, chi
       </p>
       {dragging && (
         <motion.div
-          className="absolute inset-0 rounded-2xl border-2 border-indigo-400 bg-indigo-900/10 pointer-events-none"
+          className="absolute inset-0 rounded-2xl border-2 border-amber-400 bg-amber-900/10 pointer-events-none"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         />
       )}
@@ -582,7 +582,7 @@ const DeepFakeDetector: React.FC = () => {
 
           {/* Page header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-extrabold text-indigo-400 flex items-center gap-2">
+            <h1 className="text-3xl font-extrabold text-amber-400 flex items-center gap-2">
               <ScanEye className="w-8 h-8" /> DeepFake Detector
             </h1>
             <p className="text-sm text-gray-500 mt-1">
@@ -598,7 +598,7 @@ const DeepFakeDetector: React.FC = () => {
                 onClick={() => switchMode(m)}
                 className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition capitalize ${
                   mode === m
-                    ? "bg-indigo-600 text-white shadow"
+                    ? "bg-amber-500 text-slate-900 shadow"
                     : "text-gray-400 hover:text-white hover:bg-gray-800"
                 }`}
               >
@@ -637,7 +637,7 @@ const DeepFakeDetector: React.FC = () => {
                     )}
                     {mode === "audio" && (
                       <div className="p-4 flex flex-col items-center gap-3">
-                        <Mic className="w-12 h-12 text-indigo-400 opacity-60" />
+                        <Mic className="w-12 h-12 text-amber-400 opacity-60" />
                         <p className="text-sm text-gray-400 truncate max-w-full">{file?.name}</p>
                         <audio src={preview} controls className="w-full" />
                       </div>
@@ -663,7 +663,7 @@ const DeepFakeDetector: React.FC = () => {
                 <button
                   onClick={handleAnalyze}
                   disabled={analyzing}
-                  className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold px-6 py-3 rounded-xl shadow-lg shadow-indigo-900/30 transition"
+                  className="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-slate-900 font-bold px-6 py-3 rounded-xl shadow-lg shadow-amber-900/20 transition"
                 >
                   {analyzing
                     ? <><Loader2 className="w-5 h-5 animate-spin" /> {status || "Analysing…"}</>
@@ -677,7 +677,7 @@ const DeepFakeDetector: React.FC = () => {
                 <div className="space-y-1">
                   <div className="w-full bg-gray-800 rounded-full h-1.5">
                     <motion.div
-                      className="h-1.5 rounded-full bg-indigo-500"
+                      className="h-1.5 rounded-full bg-amber-500"
                       animate={{ width: `${progress}%` }}
                       transition={{ duration: 0.3 }}
                     />
@@ -734,10 +734,10 @@ const DeepFakeDetector: React.FC = () => {
                         transition={{ duration: 2, repeat: Infinity, delay: 0.3 }}
                       />
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <ScanEye className="w-10 h-10 text-indigo-400 animate-pulse" />
+                        <ScanEye className="w-10 h-10 text-amber-400 animate-pulse" />
                       </div>
                     </div>
-                    <p className="text-indigo-300 font-semibold">{status || "Analysing…"}</p>
+                    <p className="text-amber-300 font-semibold">{status || "Analysing…"}</p>
                     <p className="text-xs text-gray-500">Hugging Face models may take 20–30 s on first run</p>
                   </motion.div>
                 )}
@@ -837,7 +837,7 @@ const DeepFakeDetector: React.FC = () => {
           <div className="mt-8 grid gap-4 sm:grid-cols-3 text-sm">
             {[
               {
-                icon: <ImageIcon className="w-5 h-5 text-indigo-400" />,
+                icon: <ImageIcon className="w-5 h-5 text-amber-400" />,
                 title: "Image Forensics",
                 desc: "Three independent signals: Error Level Analysis (ELA) detects recompression inconsistencies, noise uniformity flags AI's unnaturally smooth textures, and metadata inspection checks for AI tool signatures and suspicious structure.",
               },

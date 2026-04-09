@@ -454,8 +454,9 @@ router.post('/injection-scan', requireScanAuth, upload.single('file'), async (re
     };
 
     // ── Persist log ───────────────────────────────────────────────────────────
+    let scanLogId;
     try {
-      await InjectionScanLog.create({
+      const scanLog = await InjectionScanLog.create({
         userId:       req._userId,
         inputType,
         inputSummary: text.slice(0, 300),
@@ -468,11 +469,12 @@ router.post('/injection-scan', requireScanAuth, upload.single('file'), async (re
         semantic:     semantic ?? undefined,
         agenticSim:   agenticSim ?? undefined,
       });
+      scanLogId = scanLog._id.toString();
     } catch (saveErr) {
       console.error('Failed to save injection scan log:', saveErr.message);
     }
 
-    res.json(result);
+    res.json({ ...result, scanLogId });
   } catch (err) {
     console.error('Injection scan error:', err);
     res.status(500).json({ error: 'Scan failed: ' + err.message });

@@ -312,6 +312,8 @@ import piiLeakageRouter      from './src/api/piiLeakageDetector.js';
 import llmSiemRouter         from './src/api/llmSiem.js';
 import redTeamRouter         from './src/api/redTeamScan.js';
 import vulnerableMockRouter  from './src/api/vulnerableAiMock.js';
+import workspaceRouter       from './src/routes/workspaceRoutes.js';
+import findingRouter         from './src/routes/findingRoutes.js';
 import cron                  from 'node-cron';
 import { runWatchAgent, runDueScheduledScans } from './src/agent/watchAgent.js';
 import WatchlistItemCron     from './src/models/WatchlistItem.js';
@@ -347,6 +349,8 @@ app.use('/api', piiLeakageRouter);
 app.use('/api', llmSiemRouter);
 app.use('/api', redTeamRouter);
 app.use('/api', vulnerableMockRouter);
+app.use('/api', workspaceRouter);
+app.use('/api', findingRouter);
 
 
 // --- Serve static files from Vite build ---

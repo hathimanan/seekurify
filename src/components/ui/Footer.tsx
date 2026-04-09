@@ -7,13 +7,13 @@ const Footer: React.FC = () => {
   <div className="flex flex-col md:flex-row justify-between items-center px-6 lg:px-12">
     <p>© {new Date().getFullYear()} Seekurify. All rights reserved.</p>
     <div className="flex space-x-4 mt-2 md:mt-0">
-      <Link to="/privacy-policy" className="hover:text-cyan-400">
+      <Link to="/privacy-policy" className="hover:text-amber-400">
         Privacy Policy
       </Link>
-      <Link to="/terms-and-conditions" className="hover:text-cyan-400">
+      <Link to="/terms-and-conditions" className="hover:text-amber-400">
         Terms & Conditions
       </Link>
-      <Link to="/contact" className="hover:text-cyan-400">
+      <Link to="/contact" className="hover:text-amber-400">
         Contact
       </Link>
     </div>

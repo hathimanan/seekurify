@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
 import { apiService } from '../services/api';
+import { authService, SESSION_EXPIRED_EVENT } from '../services/authService';
 import { useNavigate } from 'react-router-dom';
 
 interface User {
@@ -43,36 +44,71 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   const navigate = useNavigate();
+  const expiryTimeoutRef = useRef<number | null>(null);
 
-  function isTokenExpired(token: string | null): boolean {
-    if (!token) return true;
+  const clearExpiryTimeout = useCallback(() => {
+    if (expiryTimeoutRef.current !== null) {
+      window.clearTimeout(expiryTimeoutRef.current);
+      expiryTimeoutRef.current = null;
+    }
+  }, []);
+
+  const parseTokenPayload = useCallback((token: string | null) => {
+    if (!token) return null;
     try {
       const base64Payload = token.split('.')[1];
       const decodedPayload = base64UrlDecode(base64Payload);
-      const payload = JSON.parse(decodedPayload);
-
-      return payload.exp * 1000 < Date.now();
+      return JSON.parse(decodedPayload);
     } catch (err) {
-      console.error('Failed to parse token expiry:', err);
-      return true;
+      console.error('Failed to parse token payload:', err);
+      return null;
     }
-  }
+  }, []);
+
+  const logout = useCallback(() => {
+    clearExpiryTimeout();
+    authService.clearSession();
+    localStorage.removeItem('googleToken');
+    setUser(null);
+    navigate('/HomePageBefore', { replace: true });
+  }, [clearExpiryTimeout, navigate]);
+
+  const scheduleTokenExpiry = useCallback((token: string) => {
+    clearExpiryTimeout();
+    const payload = parseTokenPayload(token);
+    if (!payload?.exp) {
+      logout();
+      return;
+    }
+
+    const expiresAt = payload.exp * 1000;
+    const msUntilExpiry = expiresAt - Date.now();
+    if (msUntilExpiry <= 0) {
+      logout();
+      return;
+    }
+
+    expiryTimeoutRef.current = window.setTimeout(() => {
+      console.warn('Token expired during active session');
+      authService.notifySessionExpired('token_expired');
+    }, msUntilExpiry);
+  }, [clearExpiryTimeout, logout, parseTokenPayload]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
 
     if (token) {
-      if (isTokenExpired(token)) {
+      const payload = parseTokenPayload(token);
+      if (!payload?.exp || payload.exp * 1000 <= Date.now()) {
         console.warn('Token expired on load, logging out');
-        logout(); // <-- FIX: use logout function instead of manual clearing
+        logout();
         setIsLoading(false);
         return;
       }
 
       try {
-        const base64Payload = token.split('.')[1];
-        const payload = JSON.parse(atob(base64Payload));
-        setUser({ id: payload.id, email: payload.email });
+        setUser({ id: payload.id || payload._id, email: payload.email });
+        scheduleTokenExpiry(token);
       } catch (error) {
         console.error('Invalid token structure:', error);
         logout();
@@ -81,17 +117,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     setIsLoading(false);
 
-    // Periodic token check
-    const interval = setInterval(() => {
-      const t = localStorage.getItem('token');
-      if (t && isTokenExpired(t)) {
-        console.warn('Token expired during active session');
-        logout(); // <-- FIX: centralize logic
-      }
-    }, 30000);
+    const handleSessionExpired = () => {
+      logout();
+    };
 
-    return () => clearInterval(interval);
-  }, []);
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'token' && !event.newValue) {
+        logout();
+      }
+    };
+
+    window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      clearExpiryTimeout();
+      window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [clearExpiryTimeout, logout, parseTokenPayload, scheduleTokenExpiry]);
 
   const login = async (email: string, password: string) => {
     await apiService.login({ email, password });
@@ -109,8 +153,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const token = response.token;
       localStorage.setItem('token', token); // <-- FIX: store token
 
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      setUser({ id: payload.id, email: payload.email });
+      const payload = parseTokenPayload(token);
+      if (!payload?.email) {
+        throw new Error('Invalid token received from server.');
+      }
+
+      setUser({ id: payload.id || payload._id, email: payload.email });
+      scheduleTokenExpiry(token);
     } finally {
       setIsLoading(false);
     }
@@ -118,14 +167,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signup = async (email: string, username: string, password: string) => {
     await apiService.signup({ email, username, password });
-  };
-
-  const logout = () => {
-    apiService.logout();
-
-    localStorage.removeItem('token'); // <-- FIX: token first
-    setUser(null);                    // <-- FIX: clear state
-    navigate('/HomePageBefore', { replace: true }); // <-- FIX: redirect always
   };
 
   const value = {

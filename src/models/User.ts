@@ -24,6 +24,7 @@ lastPasswordChange: Date,
 plan?: 'free' | 'premium' | 'pro',
 planAmount?: number,
 role?: string
+ownedFeatureFlags?: string[];
 
 }
 
@@ -61,7 +62,8 @@ lastSuspiciousLogin: { type: Date, default: Date.now },
 lastPasswordChange: { type: Date, default: Date.now },
 plan: { type: String, default: 'free' }, // 🔍 Ensure this exists!
 planAmount: { type: Number },
-role: { type: String, default: 'user' } // 'user' or 'admin'
+role: { type: String, default: 'user' }, // 'user' or 'admin'
+ownedFeatureFlags: { type: [String], default: [] }
 
 });
 

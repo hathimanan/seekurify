@@ -82,7 +82,7 @@ const severityIcon = (s: Severity) => {
 };
 
 const toolIcon = (tool: string) => {
-  if (tool === "fingerprint_target")     return <Eye className="w-4 h-4 text-indigo-400" />;
+  if (tool === "fingerprint_target")     return <Eye className="w-4 h-4 text-amber-400" />;
   if (tool === "send_adversarial_probe") return <Zap className="w-4 h-4 text-orange-400" />;
   if (tool === "record_finding")         return <Database className="w-4 h-4 text-purple-400" />;
   if (tool === "complete_scan")          return <ShieldCheck className="w-4 h-4 text-green-400" />;
@@ -170,7 +170,7 @@ const FindingCard: React.FC<{ finding: Finding; index: number }> = ({ finding, i
           <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{finding.description}</p>
           <button
             onClick={() => setOpen(o => !o)}
-            className="mt-2 flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700"
+            className="mt-2 flex items-center gap-1 text-xs text-amber-500 hover:text-amber-400"
           >
             {open ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
             {open ? "Hide" : "Show"} evidence
@@ -429,7 +429,7 @@ const RedTeamAgent: React.FC = () => {
   const resistedFindings   = findings.filter(f => !f.succeeded);
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <Header
         profileImage={profileImage}
         token={localStorage.getItem("token") || ""}
@@ -445,8 +445,8 @@ const RedTeamAgent: React.FC = () => {
               <Target className="w-6 h-6 text-red-600 dark:text-red-400" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">AI Pipeline Red-Team Agent</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <h1 className="text-2xl font-bold text-white">AI Pipeline Red-Team Agent</h1>
+              <p className="text-sm text-gray-400">
                 Agentic adversarial testing — Claude autonomously discovers vulnerabilities in your AI system
               </p>
             </div>
@@ -460,7 +460,7 @@ const RedTeamAgent: React.FC = () => {
               className="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 p-6"
             >
               <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-5 flex items-center gap-2">
-                <Globe className="w-5 h-5 text-indigo-500" /> Target Configuration
+                <Globe className="w-5 h-5 text-amber-400" /> Target Configuration
               </h2>
 
               <div className="space-y-4">
@@ -474,7 +474,7 @@ const RedTeamAgent: React.FC = () => {
                     value={targetUrl}
                     onChange={e => setTargetUrl(e.target.value)}
                     placeholder="https://api.example.com/chat/completions"
-                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
                   />
                 </div>
 
@@ -490,7 +490,7 @@ const RedTeamAgent: React.FC = () => {
                         onClick={() => setRequestFormat(fmt)}
                         className={`py-2 rounded-lg text-sm font-medium border transition ${
                           requestFormat === fmt
-                            ? "bg-indigo-600 text-white border-indigo-600"
+                            ? "bg-amber-500 text-slate-900 border-amber-500"
                             : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-indigo-400"
                         }`}
                       >
@@ -511,7 +511,7 @@ const RedTeamAgent: React.FC = () => {
                       value={customBodyTemplate}
                       onChange={e => setCustomBodyTemplate(e.target.value)}
                       placeholder='{"message":"{{payload}}"}'
-                      className="w-full font-mono text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full font-mono text-xs rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
                     />
                     <p className="text-xs text-gray-400 mt-1">Use <code>{"{{payload}}"}</code> as the placeholder for the probe text.</p>
                   </div>
@@ -526,7 +526,7 @@ const RedTeamAgent: React.FC = () => {
                       value={apiKey}
                       onChange={e => setApiKey(e.target.value)}
                       placeholder="sk-..."
-                      className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
                     />
                   </div>
                   <div>
@@ -538,7 +538,7 @@ const RedTeamAgent: React.FC = () => {
                       value={authHeader}
                       onChange={e => setAuthHeader(e.target.value)}
                       placeholder="Bearer eyJ..."
-                      className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
                     />
                   </div>
                 </div>
@@ -594,13 +594,13 @@ const RedTeamAgent: React.FC = () => {
                 <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
                   <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-700">
                     <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                      <Cpu className="w-4 h-4 text-indigo-400" /> Agent Reasoning
+                      <Cpu className="w-4 h-4 text-amber-400" /> Agent Reasoning
                     </h3>
                   </div>
                   <div ref={stepLogRef} className="h-80 overflow-y-auto p-4 space-y-2 font-mono text-xs">
                     {fingerprint && (
-                      <div className="p-2 rounded bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800">
-                        <p className="text-indigo-600 dark:text-indigo-300 font-semibold mb-1">🔍 Fingerprint complete</p>
+                      <div className="p-2 rounded bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                        <p className="text-amber-600 dark:text-amber-300 font-semibold mb-1">🔍 Fingerprint complete</p>
                         <p className="text-gray-500 truncate">{fingerprint.response}</p>
                       </div>
                     )}
@@ -616,7 +616,7 @@ const RedTeamAgent: React.FC = () => {
                         <span className="text-gray-700 dark:text-gray-300">
                           <span className={`font-semibold ${
                             step.tool === "send_adversarial_probe" ? "text-orange-500" :
-                            step.tool === "fingerprint_target"     ? "text-indigo-400" :
+                            step.tool === "fingerprint_target"     ? "text-amber-400" :
                             step.tool === "record_finding"         ? "text-purple-400" : "text-green-400"
                           }`}>{step.tool}</span>
                           {step.category && <span className="text-gray-400"> [{step.category}]</span>}
@@ -705,7 +705,7 @@ const RedTeamAgent: React.FC = () => {
                   <div className="flex gap-2">
                     <button
                       onClick={() => exportPDF(report, targetUrl)}
-                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition"
+                      className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-900 rounded-lg text-sm font-medium transition"
                     >
                       <Download className="w-4 h-4" /> PDF
                     </button>
@@ -769,7 +769,7 @@ const RedTeamAgent: React.FC = () => {
                     <ol className="space-y-2">
                       {report.recommendations.map((rec, i) => (
                         <li key={i} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-                          <span className="flex-shrink-0 w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 text-xs font-bold flex items-center justify-center">
+                          <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-300 text-xs font-bold flex items-center justify-center">
                             {i + 1}
                           </span>
                           {rec}
@@ -783,7 +783,7 @@ const RedTeamAgent: React.FC = () => {
               {/* Agent step log (collapsible) */}
               <details className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700">
                 <summary className="px-5 py-4 cursor-pointer font-semibold text-gray-700 dark:text-gray-200 text-sm flex items-center gap-2">
-                  <Cpu className="w-4 h-4 text-indigo-400" /> Agent Step Log ({steps.length} steps)
+                  <Cpu className="w-4 h-4 text-amber-400" /> Agent Step Log ({steps.length} steps)
                 </summary>
                 <div className="px-5 pb-4 font-mono text-xs space-y-1 max-h-64 overflow-y-auto">
                   {steps.map((step, i) => (

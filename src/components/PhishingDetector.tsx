@@ -270,7 +270,7 @@ export default function PhishingDetector() {
   //  RENDER
   // ─────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
 
       <Header
         token={localStorage.getItem('token') || ''}
@@ -296,12 +296,12 @@ export default function PhishingDetector() {
             {/* ── Title Card ── */}
             <div className="bg-white/5 backdrop-blur border border-white/10 rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-indigo-500/20 rounded-xl">
-                  <ShieldAlert className="text-indigo-400 w-8 h-8" />
+                <div className="p-2 bg-amber-500/20 rounded-xl">
+                  <ShieldAlert className="text-amber-400 w-8 h-8" />
                 </div>
                 <div>
                   <h2 className="text-2xl font-black text-white tracking-tight">Phishing Detector</h2>
-                  <p className="text-indigo-300 text-sm font-medium flex items-center gap-1">
+                  <p className="text-amber-300 text-sm font-medium flex items-center gap-1">
                     <Brain className="w-3 h-3" /> AI-Powered NLP Analysis
                   </p>
                 </div>
@@ -317,7 +317,7 @@ export default function PhishingDetector() {
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
                 placeholder="Paste full email including headers (From, To, Subject, body)…"
-                className="w-full h-52 p-4 rounded-xl border border-gray-200 bg-gray-50 text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
+                className="w-full h-52 p-4 rounded-xl border border-gray-200 bg-gray-50 text-sm font-mono focus:ring-2 focus:ring-amber-400 focus:outline-none resize-none"
               />
 
               {/* ── Two scan buttons ── */}
@@ -345,7 +345,7 @@ export default function PhishingDetector() {
               </div>
 
               {(result || aiResult) && (
-                <button onClick={resetAll} className="mt-3 text-sm font-semibold text-indigo-600 hover:underline block">
+                <button onClick={resetAll} className="mt-3 text-sm font-semibold text-amber-400 hover:text-amber-300 hover:underline block">
                   Reset Scan
                 </button>
               )}
@@ -592,7 +592,7 @@ export default function PhishingDetector() {
                       value={value}
                       onChange={(e) => setter(e.target.value)}
                       placeholder={placeholder}
-                      className="w-full p-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                      className="w-full p-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none"
                     />
                   </div>
                 ))}

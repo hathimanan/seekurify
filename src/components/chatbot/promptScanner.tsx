@@ -72,14 +72,14 @@ const RiskBadge: React.FC<{ level: "safe" | "moderate" | "high"; score: number }
     <div className={`flex items-center gap-4 rounded-xl border px-5 py-4 ${c.bg}`}>
       <div className="text-center">
         <div className={`text-3xl font-semibold ${c.score}`}>{score}</div>
-        <div className="text-xs text-gray-500 mt-0.5">/ 100</div>
+        <div className="text-xs text-gray-400 mt-0.5">/ 100</div>
       </div>
       <div className="w-px h-10 bg-gray-200" />
       <div className="flex items-center gap-2">
         {c.icon}
         <div>
           <div className={`font-medium text-sm ${c.text}`}>{c.label}</div>
-          <div className="text-xs text-gray-500 mt-0.5">
+          <div className="text-xs text-gray-400 mt-0.5">
             {level === "safe" ? "No critical data detected" : level === "moderate" ? "Some sensitive patterns found" : "Sensitive data detected — review before sending"}
           </div>
         </div>
@@ -102,15 +102,15 @@ const FlagGrid: React.FC<{ hits: ReturnType<typeof import("./detectors").runLoca
         const hit = hitMap.get(d.id);
         const triggered = !!hit;
         const cardStyle = triggered
-          ? d.severity === "critical" ? "border-red-200 bg-red-50"
-          : d.severity === "warning"  ? "border-amber-200 bg-amber-50"
-          : "border-blue-200 bg-blue-50"
-          : "border-gray-100 bg-gray-50";
+          ? d.severity === "critical" ? "border-red-700/50 bg-red-900/20"
+          : d.severity === "warning"  ? "border-amber-700/50 bg-amber-900/20"
+          : "border-blue-700/50 bg-blue-900/20"
+          : "border-slate-700 bg-slate-800/40";
         return (
           <div key={d.id} className={`rounded-lg border px-3 py-2.5 ${cardStyle}`}>
             <div className="flex items-center gap-1.5 mb-1">
               <SeverityDot severity={d.severity} triggered={triggered} />
-              <span className="text-xs font-medium text-gray-700 truncate">{d.label}</span>
+              <span className="text-xs font-medium text-gray-200 truncate">{d.label}</span>
             </div>
             <div className={`text-xs ${triggered ? d.severity === "critical" ? "text-red-600" : "text-amber-600" : "text-gray-400"}`}>
               {triggered ? `Detected (${hit!.count})` : "Clear"}
@@ -139,7 +139,7 @@ const PIIGauge: React.FC<{ score: number; riskLevel: PIIRisk }> = ({ score, risk
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className={`text-2xl font-extrabold ${piiRiskColor[riskLevel]}`}>{score}</span>
-        <span className="text-[10px] text-gray-500">/100</span>
+        <span className="text-[10px] text-gray-400">/100</span>
       </div>
     </div>
     <span className={`text-sm font-bold uppercase tracking-wide ${piiRiskColor[riskLevel]}`}>{riskLevel}</span>
@@ -150,21 +150,21 @@ const PIIFindingCard: React.FC<{ finding: PIIFinding }> = ({ finding }) => {
   const [open, setOpen] = useState(false);
   const [showEx, setShowEx] = useState(false);
   return (
-    <div className={`border rounded-xl overflow-hidden ${piiRiskBg[finding.severity as PIIRisk] || "bg-gray-50 border-gray-200"}`}>
+    <div className={`border rounded-xl overflow-hidden ${piiRiskBg[finding.severity as PIIRisk] || "bg-slate-800/60 border-slate-700"}`}>
       <button className="w-full flex items-center gap-3 px-4 py-3 text-left" onClick={() => setOpen(o => !o)}>
         <div className="flex-1 flex items-center gap-2 flex-wrap">
           <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${piiSevBadge[finding.severity]}`}>{finding.severity.toUpperCase()}</span>
           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${catColor[finding.category] || "bg-gray-100 text-gray-600"}`}>{finding.category}</span>
-          <span className="font-semibold text-gray-800 text-sm">{finding.label}</span>
-          <span className="ml-auto text-xs text-gray-500">{finding.count} match{finding.count !== 1 ? "es" : ""}</span>
+          <span className="font-semibold text-gray-100 text-sm">{finding.label}</span>
+          <span className="ml-auto text-xs text-gray-400">{finding.count} match{finding.count !== 1 ? "es" : ""}</span>
         </div>
         {open ? <ChevronUp className="w-4 h-4 text-gray-500 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" />}
       </button>
       <AnimatePresence>
         {open && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
-            <div className="px-4 pb-4 space-y-3 border-t border-gray-200">
-              <p className="text-sm text-gray-600 mt-3">{finding.description}</p>
+            <div className="px-4 pb-4 space-y-3 border-t border-slate-700">
+              <p className="text-sm text-gray-300 mt-3">{finding.description}</p>
               {finding.examples.length > 0 && (
                 <div>
                   <button onClick={() => setShowEx(e => !e)} className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-medium">
@@ -277,7 +277,7 @@ const PromptScanner: React.FC = () => {
   const visibleFindings = auditResult?.findings.filter(f => auditCatFilter === "All" || f.category === auditCatFilter) ?? [];
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <title>Privacy &amp; PII Scanner – Seekurify</title>
       <Header token={token || ""} handleLogout={handleLogout} profileImage={profileImage} />
 
@@ -291,17 +291,17 @@ const PromptScanner: React.FC = () => {
               <Shield className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Privacy &amp; PII Scanner</h1>
-              <p className="text-sm text-gray-500">Scan prompts before sending, and audit AI responses for leaked data.</p>
+              <h1 className="text-xl font-bold text-white">Privacy &amp; PII Scanner</h1>
+              <p className="text-sm text-gray-400">Scan prompts before sending, and audit AI responses for leaked data.</p>
             </div>
           </div>
 
           {/* Main tabs */}
-          <div className="flex gap-1 border-b border-gray-200">
+          <div className="flex gap-1 border-b border-slate-700">
             <button
               onClick={() => setActiveTab("presend")}
               className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition -mb-px ${
-                activeTab === "presend" ? "bg-white border border-b-white border-gray-200 text-emerald-700" : "text-gray-500 hover:text-gray-700"
+                activeTab === "presend" ? "bg-slate-700 border border-b-slate-700 border-slate-600 text-emerald-400" : "text-gray-400 hover:text-gray-200"
               }`}
             >
               <span className="flex items-center gap-1.5"><Zap className="w-3.5 h-3.5" /> Pre-Send Scanner</span>
@@ -309,7 +309,7 @@ const PromptScanner: React.FC = () => {
             <button
               onClick={() => setActiveTab("audit")}
               className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition -mb-px ${
-                activeTab === "audit" ? "bg-white border border-b-white border-gray-200 text-indigo-700" : "text-gray-500 hover:text-gray-700"
+                activeTab === "audit" ? "bg-slate-700 border border-b-slate-700 border-slate-600 text-indigo-400" : "text-gray-400 hover:text-gray-200"
               }`}
             >
               <span className="flex items-center gap-1.5"><ScanSearch className="w-3.5 h-3.5" /> Response PII Audit</span>
@@ -326,7 +326,7 @@ const PromptScanner: React.FC = () => {
                   onChange={e => setPrompt(e.target.value)}
                   placeholder={`Paste your AI prompt here before sending to ChatGPT, Gemini, or any LLM...\n\nExample: "My name is Rahul Mehta, email rahul@company.com. Review this contract clause for Acme Corp Ltd."`}
                   rows={7}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm font-mono text-gray-800 placeholder-gray-400 resize-y focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-shadow"
+                  className="w-full rounded-xl border border-slate-600 bg-slate-900 px-4 py-3.5 text-sm font-mono text-gray-100 placeholder-gray-500 resize-y focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-shadow"
                 />
                 <span className="absolute bottom-3 right-3 text-xs text-gray-400">{prompt.length} chars</span>
               </div>
@@ -340,7 +340,7 @@ const PromptScanner: React.FC = () => {
                   <Zap size={14} /> Scan Prompt
                 </button>
                 {(isDone || prompt) && (
-                  <button onClick={handleClear} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 px-3 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+                  <button onClick={handleClear} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-200 px-3 py-2.5 rounded-lg border border-slate-600 hover:bg-slate-700 transition-colors">
                     <RotateCcw size={13} /> Clear
                   </button>
                 )}
@@ -357,7 +357,7 @@ const PromptScanner: React.FC = () => {
 
                   <div>
                     <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2.5">Analysis</h2>
-                    <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3.5 text-sm text-gray-700 leading-relaxed">{state.analysis.summary}</div>
+                    <div className="rounded-xl border border-slate-700 bg-slate-800/60 px-4 py-3.5 text-sm text-gray-300 leading-relaxed">{state.analysis.summary}</div>
                   </div>
 
                   {state.analysis.hasSensitive && state.analysis.sanitizedPrompt && (
@@ -366,7 +366,7 @@ const PromptScanner: React.FC = () => {
                       <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3.5">
                         <p className="text-xs font-medium text-emerald-700 uppercase tracking-wider mb-2">Safe to send</p>
                         <pre className="text-sm text-emerald-800 font-mono whitespace-pre-wrap break-words leading-relaxed">{state.analysis.sanitizedPrompt}</pre>
-                        <button onClick={handleCopy} className="mt-3 flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-white border border-emerald-300 hover:bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors">
+                        <button onClick={handleCopy} className="mt-3 flex items-center gap-1.5 text-xs font-medium text-emerald-400 bg-slate-800 border border-emerald-700 hover:bg-slate-700 px-3 py-1.5 rounded-lg transition-colors">
                           <Copy size={12} /> {copied ? "Copied!" : "Copy sanitized prompt"}
                         </button>
                       </div>
@@ -378,7 +378,7 @@ const PromptScanner: React.FC = () => {
                       <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2.5">Recommendations</h2>
                       <div className="space-y-2">
                         {state.analysis.recommendations.map((rec, i) => (
-                          <div key={i} className="flex items-start gap-2.5 rounded-lg border border-gray-100 bg-white px-3.5 py-2.5 text-sm text-gray-700">
+                          <div key={i} className="flex items-start gap-2.5 rounded-lg border border-slate-700 bg-slate-800/60 px-3.5 py-2.5 text-sm text-gray-300">
                             <span className="text-emerald-600 mt-0.5 flex-shrink-0">→</span>{rec}
                           </div>
                         ))}
@@ -388,7 +388,7 @@ const PromptScanner: React.FC = () => {
                 </div>
               )}
 
-              <p className="text-xs text-gray-400 leading-relaxed">
+              <p className="text-xs text-gray-500 leading-relaxed">
                 Pattern detection runs entirely in your browser. No data is sent to any server or third-party AI. No prompts are stored or logged.
               </p>
             </div>
@@ -398,11 +398,11 @@ const PromptScanner: React.FC = () => {
           {activeTab === "audit" && (
             <div className="space-y-5">
               {/* Sub-tabs */}
-              <div className="flex gap-1 border-b border-gray-200">
+              <div className="flex gap-1 border-b border-slate-700">
                 {(["scan", "history"] as const).map(st => (
                   <button key={st} onClick={() => setAuditSubTab(st)}
                     className={`px-4 py-1.5 text-sm font-semibold rounded-t-lg capitalize transition -mb-px ${
-                      auditSubTab === st ? "bg-white border border-b-white border-gray-200 text-indigo-700" : "text-gray-500 hover:text-gray-700"
+                      auditSubTab === st ? "bg-slate-700 border border-b-slate-700 border-slate-600 text-indigo-400" : "text-gray-400 hover:text-gray-200"
                     }`}>
                     {st === "scan" ? "Scan" : "History"}
                   </button>
@@ -412,23 +412,23 @@ const PromptScanner: React.FC = () => {
               {auditSubTab === "scan" && (
                 <div className="space-y-5">
                   {/* Input */}
-                  <div className="bg-white rounded-2xl shadow border border-gray-200 p-5 space-y-4">
+                  <div className="bg-slate-800/80 rounded-2xl shadow border border-slate-700 p-5 space-y-4">
                     <input
                       type="text" value={auditLabel} onChange={e => setAuditLabel(e.target.value)}
                       placeholder="Scan label (optional) — e.g. Customer support bot response"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      className="w-full px-3 py-2 border border-slate-600 bg-slate-900 text-gray-100 placeholder-gray-500 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                     />
                     <div className="relative">
                       <textarea
                         value={auditText} onChange={e => setAuditText(e.target.value)} rows={9}
                         placeholder={`Paste an AI response or log snippet here...\n\nThis scanner detects:\n• Personal: emails, phone numbers, SSNs, passport numbers\n• Financial: credit cards, IBANs, bank accounts\n• Credentials: API keys, AWS keys, GitHub tokens, JWTs, passwords\n• Network: private IPs, internal URLs, connection strings`}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+                        className="w-full px-4 py-3 border border-slate-600 bg-slate-900 text-gray-100 placeholder-gray-500 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
                       />
-                      <span className="absolute bottom-3 right-3 text-xs text-gray-400">{auditText.length.toLocaleString()} / 50,000</span>
+                      <span className="absolute bottom-3 right-3 text-xs text-gray-500">{auditText.length.toLocaleString()} / 50,000</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <button onClick={() => { setAuditText(""); setAuditResult(null); setAuditError(null); setAuditLabel(""); }}
-                        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+                        className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-200">
                         <Trash2 className="w-4 h-4" /> Clear
                       </button>
                       <button onClick={handleAuditScan} disabled={auditLoading || !auditText.trim()}
@@ -450,18 +450,18 @@ const PromptScanner: React.FC = () => {
                       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
                         {/* Score + category breakdown */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                          <div className={`bg-white rounded-2xl shadow border p-5 flex flex-col items-center gap-3 ${piiRiskBg[auditResult.riskLevel]}`}>
+                          <div className={`bg-slate-800/80 rounded-2xl shadow border p-5 flex flex-col items-center gap-3 ${piiRiskBg[auditResult.riskLevel]}`}>
                             <PIIGauge score={auditResult.score} riskLevel={auditResult.riskLevel} />
-                            <div className="text-center text-sm text-gray-500">
-                              <p><span className="font-semibold text-gray-700">{auditResult.findings.length}</span> PII type{auditResult.findings.length !== 1 ? "s" : ""} detected</p>
+                            <div className="text-center text-sm text-gray-400">
+                              <p><span className="font-semibold text-gray-200">{auditResult.findings.length}</span> PII type{auditResult.findings.length !== 1 ? "s" : ""} detected</p>
                               <p>in {auditResult.scannedLength.toLocaleString()} characters</p>
                             </div>
                           </div>
 
-                          <div className="bg-white rounded-2xl shadow border border-gray-200 p-5">
+                          <div className="bg-slate-800/80 rounded-2xl shadow border border-slate-700 p-5">
                             <div className="flex items-center gap-2 mb-4">
-                              <BarChart2 className="w-5 h-5 text-indigo-500" />
-                              <h3 className="font-semibold text-gray-800 text-sm">Category Breakdown</h3>
+                              <BarChart2 className="w-5 h-5 text-indigo-400" />
+                              <h3 className="font-semibold text-gray-100 text-sm">Category Breakdown</h3>
                             </div>
                             {Object.keys(auditResult.categoryBreakdown).length > 0 ? (
                               <div className="space-y-2">
@@ -470,11 +470,11 @@ const PromptScanner: React.FC = () => {
                                   return (
                                     <div key={cat} className="flex items-center gap-3">
                                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full w-20 text-center ${catColor[cat] || "bg-gray-100 text-gray-600"}`}>{cat}</span>
-                                      <div className="flex-1 bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                                      <div className="flex-1 bg-slate-700 rounded-full h-2.5 overflow-hidden">
                                         <motion.div initial={{ width: 0 }} animate={{ width: `${(count / max) * 100}%` }} transition={{ duration: 0.5 }}
                                           className={`h-full rounded-full ${cat === "Personal" ? "bg-purple-500" : cat === "Financial" ? "bg-rose-500" : cat === "Credential" ? "bg-red-500" : "bg-cyan-500"}`} />
                                       </div>
-                                      <span className="text-xs font-bold text-gray-700 w-5 text-right">{count}</span>
+                                      <span className="text-xs font-bold text-gray-300 w-5 text-right">{count}</span>
                                     </div>
                                   );
                                 })}
@@ -490,16 +490,16 @@ const PromptScanner: React.FC = () => {
 
                         {/* Findings */}
                         {auditResult.findings.length > 0 && (
-                          <div className="bg-white rounded-2xl shadow border border-gray-200 p-5 space-y-4">
+                          <div className="bg-slate-800/80 rounded-2xl shadow border border-slate-700 p-5 space-y-4">
                             <div className="flex items-center justify-between flex-wrap gap-3">
-                              <h3 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
+                              <h3 className="font-semibold text-gray-100 flex items-center gap-2 text-sm">
                                 <AlertTriangle className="w-4 h-4 text-red-500" /> Detected PII Types
                               </h3>
                               <div className="flex flex-wrap gap-2">
                                 {auditCategories.map(cat => (
                                   <button key={cat} onClick={() => setAuditCatFilter(cat)}
                                     className={`text-xs font-semibold px-3 py-1 rounded-full transition border ${
-                                      auditCatFilter === cat ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-gray-600 border-gray-300 hover:border-indigo-400"
+                                      auditCatFilter === cat ? "bg-indigo-600 text-white border-indigo-600" : "bg-slate-700 text-gray-300 border-slate-600 hover:border-indigo-400"
                                     }`}>
                                     {cat}
                                   </button>
@@ -527,10 +527,10 @@ const PromptScanner: React.FC = () => {
 
               {/* History sub-tab */}
               {auditSubTab === "history" && (
-                <div className="bg-white rounded-2xl shadow border border-gray-200 p-5">
+                <div className="bg-slate-800/80 rounded-2xl shadow border border-slate-700 p-5">
                   <div className="flex items-center gap-2 mb-4">
-                    <Clock className="w-5 h-5 text-indigo-500" />
-                    <h3 className="font-semibold text-gray-800 text-sm">Scan History</h3>
+                    <Clock className="w-5 h-5 text-indigo-400" />
+                    <h3 className="font-semibold text-gray-100 text-sm">Scan History</h3>
                     <button onClick={loadHistory} className="ml-auto text-xs text-indigo-600 hover:underline">Refresh</button>
                   </div>
                   {histLoading ? (
@@ -547,7 +547,7 @@ const PromptScanner: React.FC = () => {
                           <div className={`text-2xl font-extrabold ${piiRiskColor[entry.riskLevel]} w-10 text-center`}>{entry.score}</div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-gray-800 text-sm truncate">{entry.label}</span>
+                              <span className="font-semibold text-gray-100 text-sm truncate">{entry.label}</span>
                               <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full border ${
                                 entry.riskLevel === "safe" ? "bg-green-100 text-green-700 border-green-300" :
                                 entry.riskLevel === "low"  ? "bg-blue-100 text-blue-700 border-blue-300"   :

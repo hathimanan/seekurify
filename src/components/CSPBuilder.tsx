@@ -159,7 +159,7 @@ const CSPBuilder: React.FC = () => {
   const deploySnippets = livePolicy ? buildDeploySnippets(headerName, livePolicy) : null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <title>CSP Builder — Seekurify</title>
       <Header token={token || ""} handleLogout={handleLogout} profileImage={profileImage} />
 
@@ -171,14 +171,14 @@ const CSPBuilder: React.FC = () => {
         {/* Hero */}
         <motion.div initial={{ opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-10">
           <div className="inline-flex items-center gap-3 mb-3">
-            <ShieldCheck className="w-11 h-11 text-violet-600" />
-            <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white">CSP Builder</h1>
+            <ShieldCheck className="w-11 h-11 text-amber-400" />
+            <h1 className="text-4xl font-extrabold text-white">CSP Builder</h1>
           </div>
-          <p className="text-gray-500 dark:text-gray-400 text-lg max-w-xl mx-auto">
+          <p className="text-gray-400 text-lg max-w-xl mx-auto">
             Paste a URL. We crawl every script, style, font, and frame your page actually loads,
             then generate a <strong>Content-Security-Policy that won't break your site</strong>.
           </p>
-          <div className="flex justify-center gap-6 mt-4 text-sm text-gray-400 dark:text-gray-500">
+          <div className="flex justify-center gap-6 mt-4 text-sm text-gray-500">
             <span className="flex items-center gap-1"><Globe className="w-4 h-4" /> Passive — no install</span>
             <span className="flex items-center gap-1"><Zap className="w-4 h-4" /> Live toggle sandbox</span>
             <span className="flex items-center gap-1"><Lock className="w-4 h-4" /> Platform-specific deploy code</span>
@@ -191,10 +191,10 @@ const CSPBuilder: React.FC = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input type="text" value={url} onChange={e => setUrl(e.target.value)}
               placeholder="https://yoursite.com" disabled={loading}
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-60 transition" />
+              className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-60 transition" />
           </div>
           <button type="submit" disabled={loading || !url.trim()}
-            className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-semibold px-6 py-3 rounded-xl shadow-md transition hover:scale-105 active:scale-95">
+            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-900 font-semibold px-6 py-3 rounded-xl shadow-md transition hover:scale-105 active:scale-95">
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Code2 className="w-5 h-5" />}
             {loading ? "Building…" : "Build CSP"}
           </button>
@@ -212,10 +212,10 @@ const CSPBuilder: React.FC = () => {
 
             {/* ── Policy Output + Toggles ── */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-violet-200 dark:border-violet-800 overflow-hidden">
-              <div className="px-5 py-4 bg-violet-50 dark:bg-violet-900/30 flex items-center justify-between">
+              <div className="px-5 py-4 bg-amber-50 dark:bg-amber-900/30 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-violet-600" />
-                  <span className="font-bold text-violet-900 dark:text-violet-100">Generated Policy</span>
+                  <Shield className="w-5 h-5 text-amber-600" />
+                  <span className="font-bold text-amber-900 dark:text-amber-100">Generated Policy</span>
                 </div>
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${RISK_COLORS[result.analysis.riskLevel]}`}>
                   {result.analysis.riskLevel.toUpperCase()} restriction
@@ -242,10 +242,10 @@ const CSPBuilder: React.FC = () => {
                       { key: "reportOnly",    label: "Report-Only mode",  desc: "Use CSP-Report-Only header — monitor without blocking" },
                     ] as { key: keyof PolicyOptions; label: string; desc: string }[]).map(({ key, label, desc }) => (
                       <button key={key} onClick={() => toggleOpt(key)}
-                        className={`text-left p-3 rounded-xl border-2 transition ${opts[key] ? "border-violet-500 bg-violet-50 dark:bg-violet-900/30" : "border-gray-200 dark:border-gray-600 hover:border-violet-300"}`}>
+                        className={`text-left p-3 rounded-xl border-2 transition ${opts[key] ? "border-amber-500 bg-amber-50 dark:bg-amber-900/30" : "border-gray-200 dark:border-gray-600 hover:border-amber-300"}`}>
                         <div className="flex items-center justify-between mb-0.5">
                           <span className="text-xs font-mono font-bold text-gray-800 dark:text-gray-200">{label}</span>
-                          <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${opts[key] ? "bg-violet-500 border-violet-500" : "border-gray-300"}`} />
+                          <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${opts[key] ? "bg-amber-500 border-amber-500" : "border-gray-300"}`} />
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400">{desc}</p>
                       </button>
@@ -260,7 +260,7 @@ const CSPBuilder: React.FC = () => {
               <button onClick={() => setOpenSources(o => !o)}
                 className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
                 <div className="flex items-center gap-2 font-semibold text-gray-800 dark:text-gray-100">
-                  <Globe className="w-4 h-4 text-violet-500" />
+                  <Globe className="w-4 h-4 text-amber-500" />
                   Sources detected on {result.hostname}
                 </div>
                 {openSources ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
@@ -278,7 +278,7 @@ const CSPBuilder: React.FC = () => {
                           </p>
                           <div className="flex flex-wrap gap-1.5">
                             {srcs.map(s => (
-                              <span key={s} className="text-xs font-mono px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
+                              <span key={s} className="text-xs font-mono px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                                 {s}
                               </span>
                             ))}
@@ -310,7 +310,7 @@ const CSPBuilder: React.FC = () => {
             {result.analysis.recommendations.length > 0 && (
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 p-5">
                 <h3 className="font-bold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-violet-500" /> Recommendations
+                  <ShieldCheck className="w-4 h-4 text-amber-500" /> Recommendations
                 </h3>
                 <div className="space-y-3">
                   {result.analysis.recommendations.map((r, i) => (
@@ -328,14 +328,14 @@ const CSPBuilder: React.FC = () => {
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
                 <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
                   <h3 className="font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                    <Code2 className="w-4 h-4 text-violet-500" /> Deploy to your platform
+                    <Code2 className="w-4 h-4 text-amber-500" /> Deploy to your platform
                   </h3>
                 </div>
                 <div className="px-5 py-4">
                   <div className="flex gap-1.5 flex-wrap mb-4">
                     {(["nginx","apache","vercel","netlify","cloudflare","meta"] as PlatformKey[]).map(k => (
                       <button key={k} onClick={() => setActiveTab(k)}
-                        className={`text-xs px-3 py-1.5 rounded-lg font-mono font-semibold transition ${activeTab === k ? "bg-violet-600 text-white shadow" : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:border-violet-400 border border-transparent"}`}>
+                        className={`text-xs px-3 py-1.5 rounded-lg font-mono font-semibold transition ${activeTab === k ? "bg-amber-500 text-slate-900 shadow" : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:border-amber-400 border border-transparent"}`}>
                         {k}
                       </button>
                     ))}

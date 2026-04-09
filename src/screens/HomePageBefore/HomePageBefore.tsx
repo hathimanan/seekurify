@@ -124,7 +124,7 @@ export const HomePageBefore: FC = () => {
             <div className="hidden md:flex items-center gap-8 text-sm text-slate-300">
               <button onClick={() => navigate("/features")} className="hover:text-white transition-colors">Platform</button>
               <button onClick={() => navigate("/insights")} className="hover:text-white transition-colors">Insights</button>
-              <button onClick={() => navigate("/contact")} className="hover:text-white transition-colors">Contact</button>
+              <button onClick={() => navigate("/contact-public")} className="hover:text-white transition-colors">Contact</button>
             </div>
 
             <div className="flex items-center gap-3">
@@ -136,7 +136,7 @@ export const HomePageBefore: FC = () => {
               </button>
               <button
                 onClick={() => navigate("/signup")}
-                className="rounded-full bg-cyan-400 text-slate-950 px-5 py-2.5 text-sm font-semibold hover:bg-cyan-300 transition-colors"
+                className="rounded-full bg-amber-400 text-slate-950 px-5 py-2.5 text-sm font-semibold hover:bg-amber-300 transition-colors"
               >
                 Start Free
               </button>
@@ -154,7 +154,7 @@ export const HomePageBefore: FC = () => {
 
               <h1 className="mt-7 max-w-4xl text-5xl sm:text-6xl xl:text-7xl font-black leading-[0.95] tracking-tight">
                 Ship faster with
-                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-sky-300 to-amber-200">
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-200 to-white">
                   practical AI security testing
                 </span>
               </h1>
@@ -166,7 +166,7 @@ export const HomePageBefore: FC = () => {
               <div className="mt-10 flex flex-wrap gap-4">
                 <button
                   onClick={() => navigate("/signup")}
-                  className="inline-flex items-center gap-2 rounded-full bg-cyan-400 px-7 py-4 text-base font-semibold text-slate-950 hover:bg-cyan-300 transition-colors"
+                  className="inline-flex items-center gap-2 rounded-full bg-amber-400 px-7 py-4 text-base font-semibold text-slate-950 hover:bg-amber-300 transition-colors"
                 >
                   Start Free
                   <ArrowRight className="h-4 w-4" />
@@ -341,7 +341,7 @@ export const HomePageBefore: FC = () => {
                 <ArrowRight className="h-4 w-4" />
               </button>
               <button
-                onClick={() => navigate("/contact")}
+                onClick={() => navigate("/contact-public")}
                 className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 px-7 py-4 text-base font-semibold text-white hover:bg-white/10 transition-colors"
               >
                 Talk to Us

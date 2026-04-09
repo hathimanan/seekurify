@@ -1,10 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Button } from './ui/button';
-import { X } from 'lucide-react';
+import { X, Mail } from 'lucide-react';
 import { apiService } from '../services/api';
-import { HomePageAfter } from '../screens/HomePageAfter/HomePageAfter';
 import { Logo } from './ui/logo';
-import { API_BASE_URL } from '../services/api';
 
 interface OTPFormProps {
   email: string;
@@ -19,31 +16,18 @@ export const OTPForm: React.FC<OTPFormProps> = ({ email, otpToken, onBack, onSuc
   const [isLoading, setIsLoading] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const isOtpValid = otp.every((digit) => /^\d$/.test(digit));
-  const [goToHome, setGoToHome] = useState(false);
-
 
   useEffect(() => {
-    if (inputRefs.current[0]) {
-      inputRefs.current[0].focus();
-    }
+    inputRefs.current[0]?.focus();
   }, []);
 
-
-
-
-
   const handleInputChange = (index: number, value: string) => {
-    if (value.length > 1) return;
-    if (!/^\d*$/.test(value)) return;
-
+    if (value.length > 1 || !/^\d*$/.test(value)) return;
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
     setError('');
-
-    if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
+    if (value && index < 5) inputRefs.current[index + 1]?.focus();
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
@@ -56,115 +40,104 @@ export const OTPForm: React.FC<OTPFormProps> = ({ email, otpToken, onBack, onSuc
     e.preventDefault();
     const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
     const newOtp = [...otp];
-    for (let i = 0; i < pastedData.length && i < 6; i++) {
-      newOtp[i] = pastedData[i];
-    }
+    for (let i = 0; i < pastedData.length && i < 6; i++) newOtp[i] = pastedData[i];
     setOtp(newOtp);
     inputRefs.current[Math.min(pastedData.length, 5)]?.focus();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('otpToken', otpToken);
-
     if (!otpToken) {
       setError('Missing OTP token. Please log in again.');
-      setIsLoading(false);
       return;
     }
-
     const otpString = otp.join('');
     if (otpString.length !== 6) {
-      setError('Please enter all 6 digits');
+      setError('Please enter all 6 digits.');
       return;
     }
-
     setIsLoading(true);
     setError('');
-
     try {
-      const userData = await apiService.onverifyOtp(email, otpString, otpToken);
-
-        if (onSuccess) onSuccess();
+      await apiService.onverifyOtp(email, otpString, otpToken);
+      if (onSuccess) onSuccess();
     } catch (err: any) {
-      const errorMessage = err?.message || (typeof err === 'string' ? err : 'Invalid OTP');
-      setError(errorMessage);
+      setError(err?.message || 'Invalid OTP. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (goToHome) {
-    return <HomePageAfter />;
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-100 to-purple-200 flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md transform transition-all duration-300 hover:scale-[1.01]">
-        <div className="text-center mb-6">
-          <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">🔒 Secure Sign In</h1>
-          <p className="text-gray-600 mt-2">Welcome back! Enter the OTP sent to your email</p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-md">
 
+        {/* Error */}
         {error && (
-          <div className="mb-6 rounded-xl border border-red-300 bg-red-100 px-4 py-3 flex items-start justify-between shadow-md animate-shake">
-            <div className="flex items-center space-x-3">
-              <div className="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center shadow">
+          <div className="mb-5 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0">
                 <span className="text-white text-xs font-bold">!</span>
               </div>
-              <span className="text-red-700 text-sm font-medium">{error}</span>
+              <span className="text-red-400 text-sm">{error}</span>
             </div>
-            <button
-              onClick={() => setError('')}
-              className="text-red-500 hover:text-red-700 transition"
-            >
-              <X className="w-5 h-5" />
+            <button onClick={() => setError('')} className="text-red-500 hover:text-red-300 transition ml-3">
+              <X className="w-4 h-4" />
             </button>
           </div>
         )}
 
-        <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl px-6 py-8 border border-gray-200">
-                      <div className="text-center mb-6">
-<Logo />
-</div>
-          <h2 className="text-2xl font-semibold text-center text-gray-800 mb-6">Enter OTP</h2>
+        {/* Card */}
+        <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-xl px-8 py-10">
+          {/* Logo + header */}
+          <div className="flex flex-col items-center mb-8">
+            <Logo />
+            <h1 className="text-2xl font-bold text-white mt-4">Email Verification</h1>
+            <p className="text-gray-400 text-sm mt-1.5 text-center">
+              We sent a 6-digit code to
+            </p>
+            <div className="flex items-center gap-1.5 mt-1">
+              <Mail className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-amber-400 text-sm font-medium">{email}</span>
+            </div>
+          </div>
 
           <form onSubmit={handleSubmit}>
-            <div className="flex justify-center gap-3 mb-6">
-{otp.map((digit, index) => (
-  <input
-    key={index}
-    ref={(el) => {
-      inputRefs.current[index] = el;
-    }}
-    type="password" // <-- masked input
-    value={digit}
-    onChange={(e) => handleInputChange(index, e.target.value)}
-    onKeyDown={(e) => handleKeyDown(index, e)}
-    onPaste={index === 0 ? handlePaste : undefined}   
-    maxLength={1}
-    className="w-12 h-12 text-center text-xl font-semibold border border-gray-300 rounded-lg shadow-sm focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200 transition outline-none bg-white hover:shadow-md"
-  />
-))}
-
+            {/* OTP inputs */}
+            <div className="flex justify-center gap-3 mb-8">
+              {otp.map((digit, index) => (
+                <input
+                  key={index}
+                  ref={(el) => { inputRefs.current[index] = el; }}
+                  type="password"
+                  inputMode="numeric"
+                  value={digit}
+                  onChange={(e) => handleInputChange(index, e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(index, e)}
+                  onPaste={index === 0 ? handlePaste : undefined}
+                  maxLength={1}
+                  className={`w-12 h-12 text-center text-xl font-bold rounded-xl border transition-all duration-150 bg-gray-900 text-white outline-none
+                    ${digit ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-gray-600'}
+                    focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20`}
+                />
+              ))}
             </div>
 
-            <div className="flex justify-center">
-              <Button
-                type="submit"
-                disabled={isLoading || !isOtpValid}
-                className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 transition-all duration-200 text-white px-6 py-3 rounded-lg font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? 'Verifying...' : 'Verify OTP'}
-              </Button>
-            </div>
+            <button
+              type="submit"
+              disabled={isLoading || !isOtpValid}
+              className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-slate-900 font-semibold py-3 rounded-xl transition-all duration-200 shadow-md"
+            >
+              {isLoading ? 'Verifying…' : 'Verify Code'}
+            </button>
           </form>
         </div>
 
+        {/* Back link */}
         <div className="mt-6 text-center">
           <button
             onClick={onBack}
-            className="text-sm text-indigo-600 hover:text-indigo-800 transition font-medium underline-offset-4 hover:underline"
+            className="text-sm text-amber-400 hover:text-amber-300 transition font-medium hover:underline underline-offset-2"
           >
             ← Back to login
           </button>

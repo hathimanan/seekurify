@@ -135,7 +135,7 @@ const SectionCard: React.FC<{
         className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition"
       >
         <div className="flex items-center gap-2 font-semibold text-gray-800 dark:text-gray-100">
-          <span className="text-indigo-500">{icon}</span>{title}
+          <span className="text-amber-500">{icon}</span>{title}
         </div>
         {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
       </button>
@@ -260,15 +260,15 @@ const ExfilTab: React.FC = () => {
     <div className="space-y-6">
 
       {/* ── Quick Preset: Nick Bot ── */}
-      <div className={`rounded-2xl border-2 p-4 transition ${useNickPreset ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20" : "border-dashed border-gray-300 dark:border-gray-600"}`}>
+      <div className={`rounded-2xl border-2 p-4 transition ${useNickPreset ? "border-amber-500 bg-amber-50 dark:bg-amber-900/20" : "border-dashed border-gray-300 dark:border-gray-600"}`}>
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center flex-shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0">
               <Bot className="w-5 h-5 text-white" />
             </div>
             <div>
               <p className="font-semibold text-gray-800 dark:text-gray-100 text-sm flex items-center gap-2">
-                Nick Bot <span className="text-xs font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-800 dark:text-indigo-200 px-2 py-0.5 rounded-full">Built-in</span>
+                Nick Bot <span className="text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-800 dark:text-amber-200 px-2 py-0.5 rounded-full">Built-in</span>
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 Test Seekurify's own AI assistant for system prompt leakage — no URL or API key needed.
@@ -279,7 +279,7 @@ const ExfilTab: React.FC = () => {
             onClick={() => { setUseNickPreset(v => !v); setError(null); setResult(null); }}
             className={`px-4 py-2 rounded-xl text-sm font-semibold transition shadow-sm ${
               useNickPreset
-                ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                ? "bg-amber-500 text-slate-900 hover:bg-amber-400"
                 : "bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:border-indigo-400"
             }`}
           >
@@ -288,9 +288,9 @@ const ExfilTab: React.FC = () => {
         </div>
 
         {useNickPreset && (
-          <div className="mt-3 flex items-start gap-2 bg-indigo-100 dark:bg-indigo-900/40 rounded-xl px-4 py-3">
-            <Info className="w-4 h-4 text-indigo-600 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-indigo-700 dark:text-indigo-300 leading-relaxed">
+          <div className="mt-3 flex items-start gap-2 bg-amber-100 dark:bg-amber-900/40 rounded-xl px-4 py-3">
+            <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
               Probes are sent <strong>directly</strong> to Nick's AI model using its configured system prompt — no HTTP request, no SSRF restriction. Nick's persona is: <em>"Seekurify Assistant (Nick), a cybersecurity coach."</em>
             </p>
           </div>
@@ -318,7 +318,7 @@ const ExfilTab: React.FC = () => {
                   value={endpointUrl}
                   onChange={e => setEndpointUrl(e.target.value)}
                   placeholder="https://api.your-ai-agent.com/v1/chat/completions"
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
                 />
                 <p className="mt-1 text-xs text-gray-500">Must be an external URL. Private/localhost endpoints are blocked for security.</p>
               </div>
@@ -334,7 +334,7 @@ const ExfilTab: React.FC = () => {
                       value={apiKey}
                       onChange={e => setApiKey(e.target.value)}
                       placeholder="sk-..."
-                      className="w-full px-4 py-2.5 pr-10 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-4 py-2.5 pr-10 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
                     />
                     <button
                       type="button"
@@ -354,7 +354,7 @@ const ExfilTab: React.FC = () => {
                     value={authHeader}
                     onChange={e => setAuthHeader(e.target.value)}
                     placeholder="Bearer your-token or X-API-Key: ..."
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
                   />
                 </div>
               </div>
@@ -370,10 +370,10 @@ const ExfilTab: React.FC = () => {
             <p className="text-sm text-gray-500">Select which probes to run ({selectedProbes.size}/{PROBE_META.length} selected)</p>
             <div className="flex gap-2">
               <button onClick={() => setSelectedProbes(new Set(PROBE_META.map(p => p.id)))}
-                className="text-xs text-indigo-600 hover:underline">All</button>
+                className="text-xs text-amber-500 hover:underline">All</button>
               <span className="text-gray-300">|</span>
               <button onClick={() => setSelectedProbes(new Set())}
-                className="text-xs text-indigo-600 hover:underline">None</button>
+                className="text-xs text-amber-500 hover:underline">None</button>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -402,7 +402,7 @@ const ExfilTab: React.FC = () => {
       <button
         onClick={runScan}
         disabled={loading}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-semibold transition"
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-slate-900 font-semibold transition"
       >
         {loading
           ? <><Loader2 className="w-5 h-5 animate-spin" />Running {selectedProbes.size} probes…</>
@@ -589,7 +589,7 @@ const RagTab: React.FC = () => {
             onChange={e => setRagContext(e.target.value)}
             rows={6}
             placeholder="Paste a sample document from your RAG knowledge base here (optional)…&#10;&#10;Example: Company FAQ, policy document, product description, etc."
-            className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none font-mono"
+            className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none font-mono"
           />
           <p className="text-xs text-gray-400">Leave blank to simulate a generic RAG context.</p>
         </div>
@@ -602,10 +602,10 @@ const RagTab: React.FC = () => {
             <p className="text-sm text-gray-500">{selectedVectors.size}/{VECTOR_META.length} selected</p>
             <div className="flex gap-2">
               <button onClick={() => setSelectedVectors(new Set(VECTOR_META.map(v => v.id)))}
-                className="text-xs text-indigo-600 hover:underline">All</button>
+                className="text-xs text-amber-500 hover:underline">All</button>
               <span className="text-gray-300">|</span>
               <button onClick={() => setSelectedVectors(new Set())}
-                className="text-xs text-indigo-600 hover:underline">None</button>
+                className="text-xs text-amber-500 hover:underline">None</button>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -757,7 +757,7 @@ const AIAgentScanner: React.FC = () => {
   const handleLogout = () => { localStorage.removeItem("token"); navigate("/"); };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-gray-100 flex flex-col">
       <Header
         token={token ?? ""}
         handleLogout={handleLogout}
@@ -772,16 +772,16 @@ const AIAgentScanner: React.FC = () => {
         {/* Page header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2.5 rounded-xl bg-indigo-100 dark:bg-indigo-900/40">
-              <Bot className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+            <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/40">
+              <Bot className="w-6 h-6 text-amber-600 dark:text-amber-400" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">AI Agent Security Scanner</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Test your AI agents and LLM-powered apps for critical vulnerabilities</p>
+              <h1 className="text-2xl font-bold text-white">AI Agent Security Scanner</h1>
+              <p className="text-sm text-gray-400">Test your AI agents and LLM-powered apps for critical vulnerabilities</p>
             </div>
           </div>
 
-          <div className="mt-4 p-4 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 text-sm text-indigo-800 dark:text-indigo-300">
+          <div className="mt-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 text-sm text-amber-800 dark:text-amber-300">
             <strong>OWASP LLM Top 10 Coverage:</strong> This tool tests for LLM01 (Prompt Injection), LLM02 (Insecure Output Handling), and LLM06 (Sensitive Information Disclosure) — the most critical AI security risks identified by OWASP for LLM applications.
           </div>
         </div>
@@ -792,14 +792,14 @@ const AIAgentScanner: React.FC = () => {
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 p-2 mb-4">
               <button
                 onClick={() => setMode("exfil")}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition mb-1 ${mode === "exfil" ? "bg-indigo-600 text-white" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"}`}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition mb-1 ${mode === "exfil" ? "bg-amber-500 text-slate-900" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"}`}
               >
                 <Lock className="w-4 h-4 flex-shrink-0" />
                 System Prompt Exfiltration
               </button>
               <button
                 onClick={() => setMode("rag")}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition ${mode === "rag" ? "bg-purple-600 text-white" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"}`}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition ${mode === "rag" ? "bg-amber-500 text-slate-900" : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"}`}
               >
                 <Database className="w-4 h-4 flex-shrink-0" />
                 RAG Data Poisoning

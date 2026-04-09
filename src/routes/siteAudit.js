@@ -625,7 +625,7 @@ router.post('/site-audit', async (req, res) => {
         } catch (_) {}
       }
 
-      await SiteAuditLog.create({
+      const savedLog = await SiteAuditLog.create({
         userId,
         url: finalResult.url,
         hostname: finalResult.hostname,
@@ -639,6 +639,7 @@ router.post('/site-audit', async (req, res) => {
         exposedPaths: Array.isArray(finalResult.exposedPaths) ? finalResult.exposedPaths : [],
         mixedContent: finalResult.mixedContent,
       });
+      finalResult.scanLogId = savedLog._id.toString();
     } catch (saveErr) {
       console.error('Failed to save audit log:', saveErr.message);
     }

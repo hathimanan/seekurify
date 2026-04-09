@@ -217,7 +217,7 @@ function SectionCard({ title, icon, children }: { title: string; icon: React.Rea
         className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition"
       >
         <div className="flex items-center gap-2 font-semibold text-gray-800 dark:text-gray-100">
-          <span className="text-indigo-500">{icon}</span>
+          <span className="text-amber-500">{icon}</span>
           {title}
         </div>
         {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
@@ -683,7 +683,7 @@ function WebhookManager({ apiBase, token: authToken }: { apiBase: string; token:
         className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition"
       >
         <div className="flex items-center gap-2 font-semibold text-gray-800 dark:text-gray-100">
-          <Cpu className="w-5 h-5 text-indigo-500" />
+          <Cpu className="w-5 h-5 text-amber-500" />
           CI/CD Webhooks
           <span className="text-xs font-normal text-gray-400 ml-1">— scan on every deploy</span>
         </div>
@@ -757,13 +757,13 @@ function WebhookManager({ apiBase, token: authToken }: { apiBase: string; token:
                 <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Add new webhook</p>
                 <div className="grid grid-cols-2 gap-3">
                   <input required value={newWh.name} onChange={e => setNewWh(p => ({ ...p, name: e.target.value }))}
-                    placeholder="Name (e.g. Production)" className="col-span-2 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                    placeholder="Name (e.g. Production)" className="col-span-2 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-400" />
                   <input required value={newWh.targetUrl} onChange={e => setNewWh(p => ({ ...p, targetUrl: e.target.value }))}
-                    placeholder="Site URL to scan" className="col-span-2 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                    placeholder="Site URL to scan" className="col-span-2 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-400" />
                   <input required value={newWh.webhookUrl} onChange={e => setNewWh(p => ({ ...p, webhookUrl: e.target.value }))}
-                    placeholder="Slack / custom webhook URL" className="col-span-2 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                    placeholder="Slack / custom webhook URL" className="col-span-2 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-400" />
                   <select value={newWh.webhookType} onChange={e => setNewWh(p => ({ ...p, webhookType: e.target.value }))}
-                    className="px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    className="px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-400">
                     <option value="slack">Slack</option>
                     <option value="github">GitHub</option>
                     <option value="custom">Custom JSON</option>
@@ -771,11 +771,11 @@ function WebhookManager({ apiBase, token: authToken }: { apiBase: string; token:
                   <div className="flex items-center gap-2">
                     <label className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Fail if score &lt;</label>
                     <input type="number" min={0} max={100} value={newWh.threshold} onChange={e => setNewWh(p => ({ ...p, threshold: Number(e.target.value) }))}
-                      className="w-20 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+                      className="w-20 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-amber-400" />
                   </div>
                 </div>
                 <button type="submit" disabled={creating}
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
+                  className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-900 text-sm font-semibold px-4 py-2 rounded-lg transition">
                   {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                   {creating ? "Creating…" : "Create Webhook"}
                 </button>
@@ -884,17 +884,17 @@ function PatchPathPanel({ fixes, stack, url, apiBase }: {
   const hasDnsFixes    = !!(fixes.dnsSpf || fixes.dnsDmarc);
 
   return (
-    <div className="rounded-2xl border-2 border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-950/30 overflow-hidden shadow-md">
+    <div className="rounded-2xl border-2 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 overflow-hidden shadow-md">
       {/* Header */}
-      <div className="px-5 py-4 bg-violet-100 dark:bg-violet-900/40 flex flex-col md:flex-row md:items-center gap-3">
+      <div className="px-5 py-4 bg-amber-100 dark:bg-amber-900/40 flex flex-col md:flex-row md:items-center gap-3">
         <div className="flex items-center gap-2">
-          <Wrench className="w-5 h-5 text-violet-600 dark:text-violet-400" />
-          <span className="font-bold text-violet-900 dark:text-violet-100 text-lg">PatchPath</span>
-          <span className="text-xs text-violet-600 dark:text-violet-400 font-medium">— exact fixes for your stack</span>
+          <Wrench className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+          <span className="font-bold text-amber-900 dark:text-amber-100 text-lg">PatchPath</span>
+          <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">— exact fixes for your stack</span>
         </div>
         <div className="md:ml-auto flex items-center gap-2">
-          <Cpu className="w-4 h-4 text-violet-500" />
-          <span className="text-xs text-violet-700 dark:text-violet-300 font-medium">Detected stack:</span>
+          <Cpu className="w-4 h-4 text-amber-500" />
+          <span className="text-xs text-amber-700 dark:text-amber-300 font-medium">Detected stack:</span>
           <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${PLATFORM_COLORS[stack.platform]}`}>
             {stack.server || PLATFORM_LABELS[stack.platform]}
           </span>
@@ -909,7 +909,7 @@ function PatchPathPanel({ fixes, stack, url, apiBase }: {
         {/* ── Header Fix Snippets ── */}
         {hasHeaderFixes && (
           <div>
-            <p className="text-sm font-semibold text-violet-800 dark:text-violet-200 mb-3">
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-3">
               Missing security headers — paste the config for your platform:
             </p>
             {/* Tab bar */}
@@ -920,8 +920,8 @@ function PatchPathPanel({ fixes, stack, url, apiBase }: {
                   onClick={() => setActiveTab(t.key)}
                   className={`text-xs px-3 py-1.5 rounded-lg font-mono font-semibold transition ${
                     activeTab === t.key
-                      ? "bg-violet-600 text-white shadow"
-                      : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:border-violet-400"
+                      ? "bg-amber-500 text-slate-900 shadow"
+                    : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:border-amber-400"
                   }`}
                 >
                   {t.label}
@@ -945,7 +945,7 @@ function PatchPathPanel({ fixes, stack, url, apiBase }: {
         {/* ── DNS Fix Snippets ── */}
         {hasDnsFixes && (
           <div>
-            <p className="text-sm font-semibold text-violet-800 dark:text-violet-200 mb-3">
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-3">
               DNS records to add (email spoofing protection):
             </p>
             <div className="space-y-3">
@@ -973,15 +973,15 @@ function PatchPathPanel({ fixes, stack, url, apiBase }: {
         <div className="border-t border-violet-200 dark:border-violet-800 pt-4">
           <div className="flex flex-col md:flex-row md:items-center gap-3">
             <div className="flex-1">
-              <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">Applied the fix?</p>
-              <p className="text-xs text-violet-600 dark:text-violet-400 mt-0.5">
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Applied the fix?</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
                 Re-scan only the failing items to confirm they're resolved.
               </p>
             </div>
             <button
               onClick={runVerify}
               disabled={verifying}
-              className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-semibold px-5 py-2.5 rounded-xl shadow transition hover:scale-105 active:scale-95 flex-shrink-0"
+              className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-900 font-semibold px-5 py-2.5 rounded-xl shadow transition hover:scale-105 active:scale-95 flex-shrink-0"
             >
               {verifying
                 ? <><Loader2 className="w-4 h-4 animate-spin" /> Verifying…</>
@@ -1129,7 +1129,7 @@ const SiteShieldAudit: React.FC = () => {
   const infoCount     = result?.findings.filter((f) => f.severity === "info").length ?? 0;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <title>SiteShield Audit — Seekurify</title>
 
       <Header
@@ -1151,10 +1151,10 @@ const SiteShieldAudit: React.FC = () => {
           className="text-center mb-8"
         >
           <div className="inline-flex items-center gap-3 mb-3">
-            <ShieldCheck className="w-10 h-10 text-indigo-600" />
-            <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white">SiteShield Audit</h1>
+            <ShieldCheck className="w-10 h-10 text-amber-400" />
+            <h1 className="text-4xl font-extrabold text-white">SiteShield Audit</h1>
           </div>
-          <p className="text-gray-500 dark:text-gray-400 text-lg">
+          <p className="text-gray-400 text-lg">
             One-click website security scan — SSL, headers, blacklists, DNS, exposed paths & more.
           </p>
         </motion.div>
@@ -1175,13 +1175,13 @@ const SiteShieldAudit: React.FC = () => {
               onChange={(e) => setUrl(e.target.value)}
               placeholder="example.com or https://example.com"
               disabled={scanning}
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60 transition"
+              className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-60 transition"
             />
           </div>
           <button
             type="submit"
             disabled={scanning || !url.trim()}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-xl shadow-md disabled:opacity-50 transition hover:scale-105 active:scale-95"
+            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold px-6 py-3 rounded-xl shadow-md disabled:opacity-50 transition hover:scale-105 active:scale-95"
           >
             {scanning ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShieldAlert className="w-5 h-5" />}
             {scanning ? "Scanning…" : "Run Audit"}
@@ -1213,9 +1213,9 @@ const SiteShieldAudit: React.FC = () => {
               className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 mb-8"
             >
               <div className="flex items-center gap-3 mb-6">
-                <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+                <Loader2 className="w-6 h-6 text-amber-500 animate-spin" />
                 <span className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-                  Auditing <span className="text-indigo-600 font-mono">{url}</span>…
+                  Auditing <span className="text-amber-500 font-mono">{url}</span>…
                 </span>
               </div>
               <div className="space-y-3">
@@ -1227,7 +1227,7 @@ const SiteShieldAudit: React.FC = () => {
                     transition={{ delay: i * 0.15 }}
                     className="flex items-center gap-3"
                   >
-                    <div className={`transition-colors duration-300 ${i <= stepsDone ? "text-indigo-500" : "text-gray-300 dark:text-gray-600"}`}>
+                    <div className={`transition-colors duration-300 ${i <= stepsDone ? "text-amber-500" : "text-gray-300 dark:text-gray-600"}`}>
                       {i < stepsDone ? <CheckCircle className="w-5 h-5 text-green-500" /> : i === stepsDone ? <Loader2 className="w-5 h-5 animate-spin" /> : step.icon}
                     </div>
                     <span className={`text-sm transition-colors duration-300 ${i <= stepsDone ? "text-gray-800 dark:text-gray-200" : "text-gray-400 dark:text-gray-500"}`}>
@@ -1269,7 +1269,7 @@ const SiteShieldAudit: React.FC = () => {
                       href={result.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline break-all"
+                      className="text-amber-500 dark:text-amber-400 font-semibold hover:underline break-all"
                     >
                       {result.url}
                     </a>
@@ -1311,7 +1311,7 @@ const SiteShieldAudit: React.FC = () => {
                       finally { setPdfGenerating(false); }
                     }}
                     disabled={pdfGenerating}
-                    className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-semibold px-5 py-2.5 rounded-xl shadow transition hover:scale-105 active:scale-95"
+                    className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-900 font-semibold px-5 py-2.5 rounded-xl shadow transition hover:scale-105 active:scale-95"
                   >
                     {pdfGenerating
                       ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -1322,7 +1322,7 @@ const SiteShieldAudit: React.FC = () => {
                   {/* Ask Nick button */}
                   <button
                     onClick={() => navigate("/ask")}
-                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl shadow transition hover:scale-105"
+                    className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold px-5 py-2.5 rounded-xl shadow transition hover:scale-105"
                   >
                     <MessageCircle className="w-4 h-4" />
                     Ask Nick
@@ -1337,7 +1337,7 @@ const SiteShieldAudit: React.FC = () => {
                     <h2 className="font-bold text-gray-800 dark:text-gray-100 text-lg">All Findings</h2>
                     <button
                       onClick={() => navigate("/csp-builder")}
-                      className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-800/50 transition"
+                      className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-800/50 transition"
                     >
                       <Shield className="w-3.5 h-3.5" /> CSP Builder
                     </button>
@@ -1515,16 +1515,16 @@ const SiteShieldAudit: React.FC = () => {
               </SectionCard>
 
               {/* Ask Nick CTA */}
-              <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 rounded-2xl p-5 flex flex-col md:flex-row items-center gap-4">
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-2xl p-5 flex flex-col md:flex-row items-center gap-4">
                 <div className="flex-1">
-                  <p className="font-semibold text-indigo-800 dark:text-indigo-200">Not sure what these findings mean?</p>
-                  <p className="text-sm text-indigo-600 dark:text-indigo-400 mt-1">
+                  <p className="font-semibold text-amber-800 dark:text-amber-200">Not sure what these findings mean?</p>
+                  <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
                     Ask Nick — Seekurify's AI assistant — for plain-English explanations and step-by-step fixes.
                   </p>
                 </div>
                 <button
                   onClick={() => navigate("/ask")}
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl shadow transition hover:scale-105 flex-shrink-0"
+                  className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-900 font-semibold px-5 py-2.5 rounded-xl shadow transition hover:scale-105 flex-shrink-0"
                 >
                   <MessageCircle className="w-4 h-4" />
                   Ask Nick
@@ -1540,8 +1540,8 @@ const SiteShieldAudit: React.FC = () => {
         {/* ── Audit History ─────────────────────────────────────────────── */}
         {(history.length > 0 || historyLoading) && (
           <div className="mt-12">
-            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
-              <Server className="w-5 h-5 text-indigo-500" />
+            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+              <Server className="w-5 h-5 text-amber-500" />
               Audit History
             </h2>
 

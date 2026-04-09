@@ -8,7 +8,7 @@ import Footer from "../../components/ui/Footer";
 import {
   Shield, ShieldAlert, ShieldCheck, Eye, ScanEye, Bot,
   FileSearch, KeyRound, BarChart3, Globe, Target, Cpu,
-  Fingerprint, AlertTriangle, BookOpen, Lightbulb, ChevronRight,
+  Fingerprint, AlertTriangle, BookOpen, Lightbulb, ChevronRight, Users,
   Activity, Zap, Lock
 } from "lucide-react";
 
@@ -61,11 +61,12 @@ export const HomePageAfter = (): JSX.Element => {
   const [phishingDetectorEnabled, setPhishingDetectorEnabled] = useState<boolean>(false);
   const [siteShieldEnabled, setSiteShieldEnabled] = useState<boolean>(false);
   const [promptInjectionEnabled, setPromptInjectionEnabled] = useState<boolean>(false);
-  const [threatDetectionEnabled, setThreatDetectionEnabled] = useState<boolean>(true);
-  const [aiSecuritySuiteEnabled, setAiSecuritySuiteEnabled] = useState<boolean>(true);
-  const [identityAccessEnabled, setIdentityAccessEnabled] = useState<boolean>(true);
-  const [webInfraEnabled, setWebInfraEnabled] = useState<boolean>(true);
-  const [learnSecureEnabled, setLearnSecureEnabled] = useState<boolean>(true);
+  const [threatDetectionEnabled, setThreatDetectionEnabled] = useState<boolean>(false);
+  const [aiSecuritySuiteEnabled, setAiSecuritySuiteEnabled] = useState<boolean>(false);
+  const [identityAccessEnabled, setIdentityAccessEnabled] = useState<boolean>(false);
+  const [webInfraEnabled, setWebInfraEnabled] = useState<boolean>(false);
+  const [teamsEnabled, setTeamsEnabled] = useState<boolean>(false);
+  const [learnSecureEnabled, setLearnSecureEnabled] = useState<boolean>(false);
   const [featuresLoaded, setFeaturesLoaded] = useState(false);
 
   // Greeting based on time of day
@@ -81,7 +82,9 @@ export const HomePageAfter = (): JSX.Element => {
   useEffect(() => {
     const fetchFeatureFlags = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/feature-flags/read`);
+        const res = await fetch(`${API_BASE_URL}/feature-flags/read`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
         if (!res.ok) throw new Error("Failed to fetch feature flags");
         const data = await res.json();
         setPhishingDetectorEnabled(data.phishingDetectorEnabled === true);
@@ -91,6 +94,7 @@ export const HomePageAfter = (): JSX.Element => {
         setAiSecuritySuiteEnabled(data.aiSecuritySuiteEnabled !== false);
         setIdentityAccessEnabled(data.identityAccessEnabled !== false);
         setWebInfraEnabled(data.webInfraEnabled !== false);
+        setTeamsEnabled(data.teamsEnabled !== false);
         setLearnSecureEnabled(data.learnSecureEnabled !== false);
       } catch (err) {
         console.error("❌ Failed to load feature flags:", err);
@@ -155,13 +159,13 @@ export const HomePageAfter = (): JSX.Element => {
       label: "Identity & Access Protection",
       description: "Manage credentials and monitor authentication events.",
       icon: KeyRound,
-      accentColor: "text-indigo-500",
-      borderColor: "border-indigo-400",
-      bgColor: "bg-indigo-50 dark:bg-indigo-950/40",
+      accentColor: "text-sky-600 dark:text-sky-400",
+      borderColor: "border-sky-400",
+      bgColor: "bg-sky-50 dark:bg-sky-950/40",
       groupFlag: identityAccessEnabled,
       tools: [
-        { title: "Password Vault", description: "Store and manage credentials in an encrypted vault.", path: "/dashboard", icon: KeyRound, color: "from-indigo-500 to-indigo-700" },
-        { title: "SIEM Dashboard", description: "Monitor security events, logs, and threat analytics.", path: "/siem-dashboard", icon: BarChart3, color: "from-blue-500 to-blue-700" },
+        { title: "Password Vault", description: "Store and manage credentials in an encrypted vault.", path: "/dashboard", icon: KeyRound, color: "from-sky-600 to-sky-800" },
+        { title: "SIEM Dashboard", description: "Monitor security events, logs, and threat analytics.", path: "/siem-dashboard", icon: BarChart3, color: "from-slate-600 to-sky-700" },
       ],
     },
     {
@@ -169,14 +173,14 @@ export const HomePageAfter = (): JSX.Element => {
       label: "Threat Detection",
       description: "Identify malware, phishing, and synthetic media threats.",
       icon: ShieldAlert,
-      accentColor: "text-red-500",
-      borderColor: "border-red-400",
-      bgColor: "bg-red-50 dark:bg-red-950/40",
+      accentColor: "text-orange-600 dark:text-orange-400",
+      borderColor: "border-orange-400",
+      bgColor: "bg-orange-50 dark:bg-orange-950/40",
       groupFlag: threatDetectionEnabled,
       tools: [
-        { title: "Malware Analyzer", description: "Upload and scan files for viruses, trojans, and malware.", path: "/malware-analysis", icon: FileSearch, color: "from-red-500 to-red-700" },
-        { title: "Phishing Detector", description: "Identify phishing URLs and suspicious domains in real time.", path: "/detect-attacker", icon: AlertTriangle, color: "from-pink-500 to-rose-600", featureFlag: phishingDetectorEnabled || !featuresLoaded },
-        { title: "Deepfake Detector", description: "Detect AI-generated deepfake images and media.", path: "/deepfake-detector", icon: ScanEye, color: "from-orange-500 to-orange-700" },
+        { title: "Malware Analyzer", description: "Upload and scan files for viruses, trojans, and malware.", path: "/malware-analysis", icon: FileSearch, color: "from-orange-600 to-orange-800" },
+        { title: "Phishing Detector", description: "Identify phishing URLs and suspicious domains in real time.", path: "/detect-attacker", icon: AlertTriangle, color: "from-red-600 to-orange-700", featureFlag: phishingDetectorEnabled || !featuresLoaded },
+        { title: "Deepfake Detector", description: "Detect AI-generated deepfake images and media.", path: "/deepfake-detector", icon: ScanEye, color: "from-orange-500 to-red-700" },
       ],
     },
     {
@@ -184,15 +188,15 @@ export const HomePageAfter = (): JSX.Element => {
       label: "AI Security Suite",
       description: "Secure AI systems, pipelines, and data flows.",
       icon: Cpu,
-      accentColor: "text-rose-500",
-      borderColor: "border-rose-400",
-      bgColor: "bg-rose-50 dark:bg-rose-950/40",
+      accentColor: "text-cyan-600 dark:text-cyan-400",
+      borderColor: "border-cyan-500",
+      bgColor: "bg-cyan-50 dark:bg-cyan-950/40",
       groupFlag: aiSecuritySuiteEnabled,
       tools: [
-        { title: "AI Red-Team Agent", description: "Autonomously probe AI systems for prompt injection vulnerabilities.", path: "/red-team", icon: Target, color: "from-rose-500 to-pink-700", badge: "AI" },
-        { title: "AI Agent Scanner", description: "Evaluate agentic AI pipelines for security weaknesses.", path: "/ai-agent-scanner", icon: Cpu, color: "from-teal-500 to-teal-700", badge: "AI" },
-        { title: "Prompt Injection Scanner", description: "Detect prompt injection vulnerabilities in AI-integrated systems.", path: "/injection-scanner", icon: ShieldAlert, color: "from-yellow-500 to-amber-600", badge: "AI", featureFlag: promptInjectionEnabled || !featuresLoaded },
-        { title: "PII Detector", description: "Scan text and documents for personally identifiable information leakage.", path: "/pii-detector", icon: Fingerprint, color: "from-cyan-500 to-cyan-700", badge: "AI" },
+        { title: "AI Red-Team Agent", description: "Autonomously probe AI systems for prompt injection vulnerabilities.", path: "/red-team", icon: Target, color: "from-cyan-600 to-slate-700", badge: "AI" },
+        { title: "AI Agent Scanner", description: "Evaluate agentic AI pipelines for security weaknesses.", path: "/ai-agent-scanner", icon: Cpu, color: "from-cyan-700 to-cyan-900", badge: "AI" },
+        { title: "Prompt Injection Scanner", description: "Detect prompt injection vulnerabilities in AI-integrated systems.", path: "/injection-scanner", icon: ShieldAlert, color: "from-slate-600 to-cyan-700", badge: "AI", featureFlag: promptInjectionEnabled || !featuresLoaded },
+        { title: "PII Detector", description: "Scan text and documents for personally identifiable information leakage.", path: "/pii-detector", icon: Fingerprint, color: "from-cyan-500 to-cyan-800", badge: "AI" },
       ],
     },
     {
@@ -200,14 +204,28 @@ export const HomePageAfter = (): JSX.Element => {
       label: "Web & Infrastructure Security",
       description: "Audit and harden sites, headers, and external-facing assets.",
       icon: Globe,
-      accentColor: "text-emerald-500",
-      borderColor: "border-emerald-400",
-      bgColor: "bg-emerald-50 dark:bg-emerald-950/40",
+      accentColor: "text-teal-600 dark:text-teal-400",
+      borderColor: "border-teal-400",
+      bgColor: "bg-teal-50 dark:bg-teal-950/40",
       groupFlag: webInfraEnabled,
       tools: [
-        { title: "Watch Agent", description: "Continuously monitor watchlist items for emerging threats.", path: "/watch-agent", icon: Eye, color: "from-purple-500 to-purple-700" },
-        { title: "Site Shield & Audit", description: "Audit websites for security headers, SSL, and misconfigurations.", path: "/site-shield", icon: Globe, color: "from-emerald-500 to-emerald-700", featureFlag: siteShieldEnabled || !featuresLoaded },
-        { title: "CSP Builder", description: "Build and validate Content Security Policy headers for your site.", path: "/csp-builder", icon: ShieldCheck, color: "from-lime-600 to-lime-800" },
+        { title: "Watch Agent", description: "Continuously monitor watchlist items for emerging threats.", path: "/watch-agent", icon: Eye, color: "from-teal-600 to-teal-800" },
+        { title: "Site Shield & Audit", description: "Audit websites for security headers, SSL, and misconfigurations.", path: "/site-shield", icon: Globe, color: "from-slate-600 to-teal-700", featureFlag: siteShieldEnabled || !featuresLoaded },
+        { title: "CSP Builder", description: "Build and validate Content Security Policy headers for your site.", path: "/csp-builder", icon: ShieldCheck, color: "from-teal-700 to-teal-900" },
+      ],
+    },
+    {
+      id: "teams",
+      label: "Teams & Findings",
+      description: "Collaborate on remediation and shared security workspaces.",
+      icon: Users,
+      accentColor: "text-amber-600 dark:text-amber-400",
+      borderColor: "border-amber-400",
+      bgColor: "bg-amber-50 dark:bg-amber-950/40",
+      groupFlag: teamsEnabled,
+      tools: [
+        { title: "Findings", description: "Track, prioritize, and update remediation work from scan results.", path: "/findings", icon: ShieldAlert, color: "from-amber-500 to-amber-700" },
+        { title: "Team Workspaces", description: "Share vaults, members, and security operations with your team.", path: "/workspaces", icon: Users, color: "from-slate-600 to-amber-700" },
       ],
     },
     {
@@ -215,14 +233,14 @@ export const HomePageAfter = (): JSX.Element => {
       label: "Learn & Stay Secure",
       description: "Build security knowledge and get AI-powered guidance.",
       icon: BookOpen,
-      accentColor: "text-violet-500",
-      borderColor: "border-violet-400",
-      bgColor: "bg-violet-50 dark:bg-violet-950/40",
+      accentColor: "text-lime-600 dark:text-lime-400",
+      borderColor: "border-lime-500",
+      bgColor: "bg-lime-50 dark:bg-lime-950/40",
       groupFlag: learnSecureEnabled,
       tools: [
-        { title: "Security Awareness", description: "Stay informed with curated cybersecurity news and best practices.", path: "/securityAwareness", icon: BookOpen, color: "from-violet-500 to-violet-700" },
-        { title: "Insights", description: "Analyse security trends and review your account's risk posture.", path: "/insights", icon: Activity, color: "from-sky-500 to-sky-700" },
-        { title: "Ask Seekurify AI", description: "Chat with your security assistant for instant answers and guidance.", path: "/ask", icon: Bot, color: "from-fuchsia-500 to-fuchsia-700", badge: "AI" },
+        { title: "Security Awareness", description: "Stay informed with curated cybersecurity news and best practices.", path: "/securityAwareness", icon: BookOpen, color: "from-lime-600 to-lime-800" },
+        { title: "Insights", description: "Analyse security trends and review your account's risk posture.", path: "/insights", icon: Activity, color: "from-slate-600 to-lime-700" },
+        { title: "Ask Seekurify AI", description: "Chat with your security assistant for instant answers and guidance.", path: "/ask", icon: Bot, color: "from-lime-500 to-lime-800", badge: "AI" },
       ],
     },
   ];
@@ -303,27 +321,26 @@ export const HomePageAfter = (): JSX.Element => {
             initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="relative bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 rounded-2xl p-6 md:p-8 text-white shadow-xl overflow-hidden"
+            className="relative bg-slate-900 rounded-2xl p-6 md:p-8 text-white shadow-xl overflow-hidden border border-slate-700"
           >
-            {/* decorative circles */}
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full" />
-            <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-white/10 rounded-full" />
+            {/* amber accent line */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 rounded-t-2xl" />
 
             <div className="relative">
-              <p className="text-indigo-200 text-sm font-medium uppercase tracking-widest mb-1">
+              <p className="text-amber-400 text-sm font-medium uppercase tracking-widest mb-1">
                 {getGreeting()}
               </p>
               <h1 className="text-2xl md:text-3xl font-extrabold mb-2">
-                {user?.username || user?.email?.split("@")[0] || ""} 👋
+                {user?.username || user?.email?.split("@")[0] || ""}
               </h1>
-              <p className="text-indigo-100 text-sm md:text-base max-w-xl">
+              <p className="text-slate-400 text-sm md:text-base max-w-xl">
                 Your security dashboard is ready. Scan, monitor, and protect your systems from one place.
               </p>
               <motion.button
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => navigate("/red-team")}
-                className="mt-4 inline-flex items-center gap-2 bg-white text-indigo-700 font-semibold text-sm px-4 py-2 rounded-lg shadow hover:bg-indigo-50 transition-colors"
+                className="mt-4 inline-flex items-center gap-2 bg-amber-400 text-slate-900 font-semibold text-sm px-4 py-2 rounded-lg shadow hover:bg-amber-300 transition-colors"
               >
                 <Zap className="w-4 h-4" /> Run AI Red-Team Scan
               </motion.button>
@@ -391,7 +408,7 @@ export const HomePageAfter = (): JSX.Element => {
                             <Icon className="w-5 h-5 text-white" />
                           </div>
                           {tool.badge && (
-                            <span className="text-xs font-bold bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 px-2 py-0.5 rounded-full">
+                            <span className="text-xs font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full">
                               {tool.badge}
                             </span>
                           )}
@@ -400,7 +417,7 @@ export const HomePageAfter = (): JSX.Element => {
                         <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-1">{tool.title}</h3>
                         <p className="text-gray-500 dark:text-gray-400 text-xs leading-relaxed line-clamp-2">{tool.description}</p>
 
-                        <div className="mt-3 flex items-center text-indigo-500 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="mt-3 flex items-center text-amber-600 dark:text-amber-400 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
                           Open <ChevronRight className="w-3 h-3 ml-0.5" />
                         </div>
                       </motion.button>

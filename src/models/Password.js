@@ -99,6 +99,7 @@ const passwordSchema = new mongoose.Schema({
   username: { type: String, required: true, trim: true },
   password: { type: String, required: true },  // holds encrypted data
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  workspaceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Workspace', default: null },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   category: { type: String, default: 'General' },
