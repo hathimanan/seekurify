@@ -3,7 +3,8 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.ts'; // adjust path as needed
 
 const router = express.Router();
-const secretKey = process.env.secretKey || 'default_secret_key';
+const secretKey = process.env.JWT_SECRET;
+if (!secretKey) throw new Error('Missing required env var: JWT_SECRET');
 
 // Middleware
 const authenticateToken = (req, res, next) => {

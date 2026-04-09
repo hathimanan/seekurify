@@ -71,7 +71,7 @@ const currentPath = window.location.pathname;
   const searchParams = window.location.search;
 const isPublicRoute = [
     "/HomePageBefore", "/login", "/signup", "/forgot-password",
-    "/reset-password", "/features", "/", "/insights", "/set-new-pin", "/contact", "/contact-public"
+    "/reset-password", "/features", "/", "/insights", "/set-new-pin", "/contact", "/contact-public", "/change-password"
   ].includes(currentPath) || currentPath.startsWith("/workspace-invite/");
 
  const hasSetNewPinToken = currentPath === "/set-new-pin" && 

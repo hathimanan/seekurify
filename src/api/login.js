@@ -29,7 +29,7 @@ loginRouter.post('/', async (req, res) => {
       { expiresIn: '3m' }
     );
 
-    console.log('Sending:', { email, password });
+    // console.log('Sending:', { email, password });
 
 
     res.json({ token });

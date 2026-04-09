@@ -72,7 +72,7 @@ const OAuth2 = google.auth.OAuth2;
 const app = express();
 const authRouter = express.Router();
 // const userPasswords = new Map();
-const secretKeyOTP = process.env.secretKeyOTP ?? 'otp_secret_key';
+const secretKeyOTP = process.env.secretKeyOTP;
 if (!process.env.JWT_SECRET || !secretKeyOTP) {
   throw new Error("JWT secret keys are not properly defined in environment variables.");
 }
@@ -110,7 +110,7 @@ async function sendSuspiciousLoginEmail(ip, email) {
         </span>
       </li>
     </ul>
-    <a href="${process.env.REACT_APP_BASE_URL}/change-password" target="_blank"
+    <a href="${process.env.REACT_APP_BASE_URL}/forgot-password" target="_blank"
        style="display: inline-block; padding: 10px 20px; margin: 10px 0; background-color: #d9534f; color: #fff; text-decoration: none; border-radius: 5px;">
        Reset Password
     </a>
@@ -229,12 +229,12 @@ function authenticateToken(req, res, next) {
   }
   if (!token) return res.status(401).json({ error: 'Token missing' });
 
-  jwt.verify(token, process.env.JWT_SECRET || 'defaultsecret', (err, user) => {
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) return res.status(403).json({ error: 'Invalid or expired token' });
     req.user = user;
 
     next();
-          console.log('Decoded user in middleware:', user)
+          // console.log('Decoded user in middleware:', user)
 
   });
 }
@@ -1528,7 +1528,7 @@ authRouter.get("/share/:shareId", async (req, res) => {
       if (authHeader) {
         const token = authHeader.split(' ')[1];
         try {
-          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'defaultsecret');
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
           if (!decoded || (!decoded._id && !decoded.id)) {
             return res.status(403).json({ error: 'PIN not verified' });
           }

@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
-import { ArrowLeft, BarChart3, FileSearch, KeyRound, Phone, ShieldCheck } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Header from "./ui/Header";
 import Footer from "./ui/Footer";
 import { API_BASE_URL } from "../services/api";
-import { motion } from "framer-motion";
 
 interface DecodedToken {
   email: string;
@@ -50,22 +49,14 @@ const [sidebarExpanded,setSidebarExpanded] = useState(true);
       try {
         const res = await fetch(
           `${API_BASE_URL}/profile?email=${decodedEmail}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
+          { headers: { Authorization: `Bearer ${token}` } }
         );
-
-        if (!res.ok) {
-          throw new Error("Failed to fetch user profile");
-        }
-
+        if (!res.ok) return; // new users have no profile yet — fail silently
         const data = await res.json();
         setUser(data);
-        setProfileImage(data.profileImage); // ✅ safe fallback
-      } catch (err: any) {
-        setError(err.message || "Error fetching user profile");
+        if (data.profileImage) setProfileImage(data.profileImage);
+      } catch {
+        // non-critical — header image just won't show
       }
     };
 
@@ -121,7 +112,7 @@ const token = queryParams.get("token");
     });
 
       if (!res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Failed to update PIN");
       }
 

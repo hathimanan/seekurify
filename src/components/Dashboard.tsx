@@ -1408,8 +1408,8 @@ const checkPaymentStatus = async (): Promise<string | null> => {
     } finally {
       // Remove token from localStorage
       localStorage.removeItem('token');
-      // Redirect to login
-      navigate('/login');
+      localStorage.removeItem('googleToken');
+      navigate('/');
     }
   };
   const cardCount = passwords.length;

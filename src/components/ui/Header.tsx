@@ -10,7 +10,7 @@ import { authService } from "../../services/authService";
 interface HeaderProps {
   profileImage?: string;
   token: string;
-  handleLogout: () => void;
+  handleLogout: () => void | Promise<void>;
 }
 
 
@@ -187,9 +187,8 @@ const Header: React.FC<HeaderProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    handleLogout();
+  const logout = async () => {
+    await handleLogout();
   };
 
   const toggleDarkMode = () => {

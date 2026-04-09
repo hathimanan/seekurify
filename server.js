@@ -354,14 +354,18 @@ app.use('/api', findingRouter);
 
 
 // --- Serve static files from Vite build ---
-app.use(express.static(path.join(__dirname, 'seekurify')));
+app.use(express.static(path.join(__dirname, 'dist')));
 
 // --- SPA fallback (non-API routes) ---
 app.get(/^\/(?!api).*/, (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-  req.session.destroy(err => {
-  res.clearCookie("connect.sid"); // default cookie name
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
+
+// --- Global JSON error handler (must be last) ---
+app.use((err, req, res, next) => {
+  console.error('[Error]', err?.message || err);
+  const status = err?.status || err?.statusCode || 500;
+  res.status(status).json({ error: err?.message || 'Internal server error' });
 });
 
 

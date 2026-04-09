@@ -86,7 +86,7 @@ featureFlagRoutes.get("/read", async (req, res) => {
 
     if (token) {
       try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || "defaultsecret");
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const userId = decoded?._id || decoded?.id;
         if (userId) {
           const user = await User.findById(userId).select("ownedFeatureFlags");
