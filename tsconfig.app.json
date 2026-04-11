@@ -21,7 +21,8 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
-    "composite": true
+    "composite": true,
+    "types": ["vite/client"]
   },
   "include": [
     "src",

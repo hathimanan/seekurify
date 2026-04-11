@@ -18,7 +18,6 @@ const workspaceInviteSchema = new mongoose.Schema({
 
 // Auto-delete expired invites
 workspaceInviteSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
-workspaceInviteSchema.index({ token: 1 });
 workspaceInviteSchema.index({ workspaceId: 1, invitedEmail: 1 });
 
 export default mongoose.model('WorkspaceInvite', workspaceInviteSchema);

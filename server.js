@@ -1,18 +1,10 @@
-// --- Load environment variables ---
-import dotenv from 'dotenv';
-const NODE_ENV = process.env.NODE_ENV || "development";
-dotenv.config({
-  path: NODE_ENV === "production"
-    ? ".env.production"
-    : NODE_ENV === "test"
-    ? ".env.test"
-    : ".env.development"
-});
+// --- Load environment variables and resolve production secret aliases ---
+// MUST be the first import: runs before any other module's body (ES module leaf order)
+import './src/lib/resolveSecrets.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
-import session from 'express-session';
 import cors from 'cors';
 import helmet from 'helmet';
 import http from 'http';
@@ -28,6 +20,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // --- Determine if production ---
+const NODE_ENV = process.env.NODE_ENV || "development";
 const PROD = NODE_ENV === "production";
 
 
@@ -42,7 +35,7 @@ const PORT = process.env.PORT || 5000;
 // --- CORS setup ---
 // --- CORS setup ---
 const allowedOrigins = PROD
-  ? ['https://your-domain.com']
+  ? (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean)
   : ['http://localhost:5173', 'http://localhost:5000', 'http://127.0.0.1:5173'];
 
 app.use(cors({
@@ -267,18 +260,6 @@ app.use('/api/', apiLimiter);
 app.use('/api/auth', authLimiter);
 app.use('/api/login', authLimiter);
 
-// --- Sessions (5 min) ---
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'your_secret_key',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: PROD,
-  }
-}));
-
 // --- Database connection ---
 import './src/api/db.js';
 
@@ -314,10 +295,7 @@ import redTeamRouter         from './src/api/redTeamScan.js';
 import vulnerableMockRouter  from './src/api/vulnerableAiMock.js';
 import workspaceRouter       from './src/routes/workspaceRoutes.js';
 import findingRouter         from './src/routes/findingRoutes.js';
-import cron                  from 'node-cron';
-import { runWatchAgent, runDueScheduledScans } from './src/agent/watchAgent.js';
-import WatchlistItemCron     from './src/models/WatchlistItem.js';
-import UserCron              from './src/models/User.ts';
+import cronRouter            from './src/routes/cronRoutes.js';
 
 
 app.use('/api/homepage', homepageBeforeloginRoutes);
@@ -351,6 +329,7 @@ app.use('/api', redTeamRouter);
 app.use('/api', vulnerableMockRouter);
 app.use('/api', workspaceRouter);
 app.use('/api', findingRouter);
+app.use('/api/cron', cronRouter);
 
 
 // --- Serve static files from Vite build ---
@@ -381,48 +360,14 @@ const socketIoOptions = {
 const server = http.createServer(app);
 initSocket(server, socketIoOptions);
 
-let scheduledWatchScanRunning = false;
+// --- Start server (skip when running as a Vercel serverless function) ---
+if (process.env.VERCEL !== '1') {
+  server.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT} in ${NODE_ENV} mode`);
+  });
+}
 
-
-// --- Start server ---
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT} in ${NODE_ENV} mode`);
-});
-
-// --- Nightly Watch Agent (2 AM every day) ---
-cron.schedule('0 2 * * *', async () => {
-  console.log('[Cron] Starting nightly Watch Agent scan...');
-  try {
-    const userIds = await WatchlistItemCron.distinct('userId', { active: true });
-    for (const userId of userIds) {
-      try {
-        const user = await UserCron.findById(userId).select('email').lean();
-        const result = await runWatchAgent(userId, user?.email ?? null);
-        console.log(`[Cron] user=${userId} scanned=${result.scanned} alerts=${result.alertsCreated}`);
-      } catch (err) {
-        console.error(`[Cron] Error for user ${userId}:`, err.message);
-      }
-    }
-  } catch (err) {
-    console.error('[Cron] Nightly scan failed:', err.message);
-  }
-});
-
-// --- Scheduled Watchlist Scans (every minute) ---
-cron.schedule('* * * * *', async () => {
-  if (scheduledWatchScanRunning) return;
-  scheduledWatchScanRunning = true;
-  try {
-    const result = await runDueScheduledScans();
-    if (result.scanned > 0) {
-      console.log(`[Cron] scheduled watch scans processed=${result.scanned} alerts=${result.alertsCreated}`);
-    }
-  } catch (err) {
-    console.error('[Cron] Scheduled watch scans failed:', err.message);
-  } finally {
-    scheduledWatchScanRunning = false;
-  }
-});
+export default server;
 
 // --- Graceful shutdown ---
 const shutdown = () => {

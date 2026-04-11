@@ -15,11 +15,10 @@ import {
   getSecuritySummary,
 } from "./securityAssistant.ts";
 import type { ChatMessage, UserSecurityContext } from "./securityAssistant.ts";
+// @ts-ignore — JS model file
+import Conversation from "../models/Conversation.js";
 
 const router = Router();
-
-// ─── In-memory conversation store (replace with MongoDB in production) ───
-const conversationStore = new Map<string, ChatMessage[]>();
 
 // ════════════════════════════════════════════════════════════
 // PHISHING DETECTION ROUTES
@@ -147,8 +146,9 @@ router.post("/assistant/chat", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "userContext is required." });
     }
 
-    // Get or initialize conversation history
-    const history: ChatMessage[] = conversationStore.get(sessionId) || [];
+    // Get or initialize conversation history from MongoDB
+    const doc = await Conversation.findOne({ sessionId });
+    const history: ChatMessage[] = doc?.messages ?? [];
 
     // Get AI response
     const response = await chatWithSecurityAssistant(
@@ -157,13 +157,18 @@ router.post("/assistant/chat", async (req: Request, res: Response) => {
       userContext as UserSecurityContext
     );
 
-    // Update conversation history
-    history.push({ role: "user", content: message });
-    history.push({ role: "assistant", content: response.message });
+    // Update conversation history, keeping last 20 messages to avoid token overflow
+    const updatedHistory: ChatMessage[] = [
+      ...history,
+      { role: "user" as const, content: message },
+      { role: "assistant" as const, content: response.message },
+    ].slice(-20);
 
-    // Keep last 20 messages to avoid token overflow
-    const trimmedHistory = history.slice(-20);
-    conversationStore.set(sessionId, trimmedHistory);
+    await Conversation.findOneAndUpdate(
+      { sessionId },
+      { messages: updatedHistory, updatedAt: new Date() },
+      { upsert: true }
+    );
 
     return res.status(200).json({ success: true, data: response });
   } catch (error: any) {
@@ -206,7 +211,7 @@ router.delete(
   "/assistant/session/:sessionId",
   async (req: Request, res: Response) => {
     const { sessionId } = req.params;
-    conversationStore.delete(sessionId);
+    await Conversation.deleteOne({ sessionId });
     return res
       .status(200)
       .json({ success: true, message: "Session cleared." });

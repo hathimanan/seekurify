@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "builds": [
     { "src": "server.js", "use": "@vercel/node" }
   ],
@@ -11,5 +13,9 @@
       "memory": 1024,
       "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    { "path": "/api/cron/nightly-watch", "schedule": "0 2 * * *" },
+    { "path": "/api/cron/scheduled-scans", "schedule": "* * * * *" }
+  ]
 }

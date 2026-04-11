@@ -6,7 +6,7 @@ import nodemailer from 'nodemailer';
 import { google } from 'googleapis';
 import multer from "multer";
 
-const upload = multer({ dest: "uploads/" }); // or use memoryStorage if you want in-memory files
+const upload = multer({ storage: multer.memoryStorage() });
 
 // dotenv.config({ path: '.env.development' });
 const contactRouter = express.Router();
@@ -132,27 +132,20 @@ contactRouter.post('/contact', authenticateToken, upload.single("attachment"), a
     const newMessage = new Contact({ name, email, subject, message });
     await newMessage.save();
 
-    // 📎 Prepare attachment if uploaded
-    const attachments = file ? [
-      {
-        filename: file.originalname,
-        path: file.path,          // ✅ Full path from multer (e.g. ./uploads/filename.pdf)
-      }
-    ] : [];
-
     // 📩 Send email with optional attachment
-   await sendEmail({
-  to: process.env.GMAIL_USER,
-  subject: `Contact Form: ${subject}`,
-  text: `New message from ${name} <${email}>: ${message}`,
-  attachments: file ? [
-    {
-      filename: file.originalname,
-      path: file.path
-    }
-  ] : [],
-  formData: { name, email, subject, message } // ✅ ensure values passed
-});
+    await sendEmail({
+      to: process.env.GMAIL_USER,
+      subject: `Contact Form: ${subject}`,
+      text: `New message from ${name} <${email}>: ${message}`,
+      attachments: file ? [
+        {
+          filename: file.originalname,
+          content: file.buffer,
+          contentType: file.mimetype,
+        }
+      ] : [],
+      formData: { name, email, subject, message }
+    });
 
 
     res.status(200).json({ message: 'Message received and email sent successfully' });

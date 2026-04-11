@@ -40,7 +40,7 @@ async function loadPipeline() {
   _loading = true;
   try {
     const { pipeline, env } = await import('@xenova/transformers');
-    env.cacheDir = './.model-cache';           // cache next to server.js
+    env.cacheDir = process.env.VERCEL === '1' ? '/tmp/.model-cache' : './.model-cache';
     env.allowLocalModels = false;              // always fetch from HF hub if missing
 
     console.log('[ML Classifier] Loading model', MODEL_ID, '— first run downloads ~85 MB…');

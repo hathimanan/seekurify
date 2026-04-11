@@ -11,8 +11,10 @@ import InjectionScanLog from '../models/InjectionScanLog.js';
 import ScannerApiKey from '../models/ScannerApiKey.js';
 import { classifyInjection, warmupClassifier } from './mlInjectionClassifier.js';
 
-// Warm the ML model in the background on server start
-warmupClassifier();
+// Warm the ML model in the background on server start (disabled on Vercel to avoid cold start latency)
+if (process.env.DISABLE_ML_WARMUP !== '1') {
+  warmupClassifier();
+}
 
 const router = express.Router();
 
