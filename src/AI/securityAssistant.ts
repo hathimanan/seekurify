@@ -199,11 +199,24 @@ export async function chatWithSecurityAssistant(
     { role: "user" as const, content: userMessage },
   ];
 
+  const litellmBase = process.env.LITELLM_API_BASE;
+  const litellmKey = process.env.LITELLM_API_KEY;
+
+  if (!litellmBase || !litellmKey || process.env.NODE_ENV === "production") {
+    return {
+      message:
+        "The Security Assistant is currently unavailable. Please configure a cloud AI provider (Anthropic, OpenAI, or Google AI) to enable this feature in production.",
+      suggestedActions: [],
+      urgencyLevel: "none",
+    };
+  }
+
   const response = await completion({
-    model: "claude-opus-4-6",
+    model: process.env.LITELLM_MODEL || "claude-opus-4-6",
     max_tokens: 1024,
     messages,
-    apiKey: process.env.ANTHROPIC_API_KEY,
+    apiKey: litellmKey,
+    baseURL: litellmBase,
   } as any);
 
   const rawText = (response.choices[0].message.content || "") as string;
