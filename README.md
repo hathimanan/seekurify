@@ -151,8 +151,6 @@ DISABLE_ML_WARMUP=1
 
 > In production, `JWT_PROD_SECRET` is automatically aliased to `JWT_SECRET` and `PASSWORD_ENCRYPTION_KEY_PROD` to `PASSWORD_ENCRYPTION_KEY` via `src/lib/resolveSecrets.js`.
 
----
-
 ## Running the Application
 
 ### Development (frontend + backend together)
