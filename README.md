@@ -1,32 +1,136 @@
 # Seekurify
 
-**Seekurify** is an all-in-one cybersecurity platform and secure password manager designed to help users stay safe in the digital world. It combines a robust encrypted vault with advanced AI-powered security tools and real-time threat detection.
+**Seekurify** is an all-in-one cybersecurity platform and secure password manager. It combines an encrypted credential vault with AI-powered security tools, real-time threat detection, incident response automation, and interactive security awareness training.
 
 ---
 
 ## Features
 
-### Core
-- **Secure Password Manager** — Encrypted vault with AES-256, strong password generation, breach detection
-- **User Authentication** — JWT-based auth, OTP email verification, suspicious login alerts
-- **Real-time Alerts** — Socket.IO-powered notifications for suspicious activity
+### Identity & Access
+- **Secure Password Manager** — AES-256-GCM encrypted vault, strong password generator, breach detection, risk scoring, expiry tracking, and secure password sharing
+- **SIEM Dashboard** — Security event aggregation, login analytics, password health charts, device session tracking, and LLM-specific threat events
+- **Identity Risk Dashboard** — Score and surface risks across credentials and user identities
+- **Blast Radius Analyzer** — Map the potential impact of a compromised credential or account
 
-### Security Tools
+### Threat Detection
 - **Malware Analyzer** — Upload and scan files for viruses, malware, and suspicious patterns
-- **Phishing Detector** — AI-powered email and link phishing analysis
-- **Deepfake Detector** — Video deepfake detection
-- **Site Audit** — Comprehensive website security assessment
-- **CSP Builder** — Content Security Policy generator
-- **Prompt Injection Scanner** — 3-layer detection (regex + ML + Anthropic Claude)
-- **PII Leakage Detector** — Regex-based sensitive data scanner
-- **Red Team Scanner** — Agentic AI red-team simulation
-- **AI Agent Scanner** — Multi-model AI security probe
-- **Watchlist Monitor** — Scheduled URL and asset monitoring
+- **Phishing Detector** — AI-powered email and URL phishing analysis
+- **Deepfake Detector** — AI-generated image and video detection
+- **Breach Control** — HIBP-powered breach lookup and monitoring
 
-### Dashboard & Analytics
-- **SIEM Dashboard** — Security event aggregation and visualization
-- **LLM SIEM** — AI-specific threat event tracking
-- **AI Security Assistant** — Context-aware security advisor (requires local LiteLLM or cloud AI provider)
+### AI Security Suite
+- **Red Team Agent** — Agentic AI-driven attack simulation
+- **AI Agent Scanner** — Multi-model security probe for AI agents and LLM integrations
+- **Prompt Injection Scanner** — 3-layer detection (regex + ONNX ML + Claude)
+- **PII Leakage Detector** — Regex and AI-assisted sensitive data scanner
+
+### Web & Infrastructure
+- **Watch Agent** — Scheduled monitoring for URLs and endpoints
+- **SiteShield Audit** — Full domain security audit (headers, SSL, DNS)
+- **CSP Builder** — Interactive Content Security Policy generator and validator
+- **Scheduled Scans** — Cron-based automated scan jobs
+
+### SOAR (Security Orchestration, Automation & Response)
+- **SOAR Center** — Unified view of incidents, playbooks, and automation status
+- **Incident Dashboard** — Create, track, and resolve security incidents with severity and status management
+- **Playbook Builder** — Build no-code automation playbooks triggered by incident conditions
+- **Playbook Runs** — Execution history and status for each playbook trigger
+- **Firewall** — Firewall event logging and rule management
+- **Integration Hub** — Connect third-party services (Slack, webhooks, SIEM tools)
+
+### Team & Collaboration
+- **Findings Board** — Centralised security findings tracker across all modules
+- **Team Workspaces** — Shared vaults and collaborative security management
+
+### Learn & Stay Secure
+- **Security Awareness** — Tips, attack simulations, breach checker, and interactive **Cyber Awareness Quiz** (20 India-focused questions, 10 per round, 30-second timer)
+- **Insights** — Security trend summaries and recommendations
+- **Security Chatbot** — AI assistant for security queries and guidance
+- **User Guide** — In-app documentation for all platform features
+
+### Platform
+- **Feature Flags** — Admin-controlled on/off switches for every feature; no payment dependency
+- **Log Report** — Structured audit log viewer
+- **API Docs** — In-app REST API reference
+- **Real-time Alerts** — Socket.IO suspicious login detection and notifications
+
+---
+
+## Chrome Extension
+
+The Seekurify Chrome Extension is a **Manifest V3** browser extension that brings the platform's security capabilities directly into your browser. It opens as a **side panel** (Chrome 114+) and runs passive content scripts in the background — no popup, no interruption.
+
+### Installation
+
+1. Open `chrome://extensions` and enable **Developer mode**
+2. Click **Load unpacked** and select the `extension/` folder
+3. Click the Seekurify icon in the toolbar to open the side panel
+4. Sign in with your Seekurify account (same credentials as the web app)
+
+### Authentication
+
+The extension uses a **4-step auth flow** mirroring the web app:
+
+1. **Email + password** — credentials verified against the backend
+2. **OTP** — 6-digit code sent to your email
+3. **PIN** — 4-digit account PIN
+4. **JWT** stored in `chrome.storage.local` — persists across browser sessions until you sign out
+
+### Features
+
+The side panel has **6 tabs**:
+
+#### Vault
+- Syncs your full password vault from Seekurify
+- **Autofill** — detects login forms on the current page and injects credentials with one click
+- **Save / update** — prompts to save new credentials or update existing ones after login
+- **Search** across all stored passwords
+- **Add / edit / delete** passwords directly from the extension
+
+#### Audit
+- **Site security audit** for the current domain — checks SSL/TLS, HTTP security headers, DNS records, and blacklist status
+- Graded **A–F score** (0–100) with per-check pass/fail breakdown and actionable findings
+
+#### Privacy (PII Monitor)
+- Monitors prompts typed into **AI platforms**: ChatGPT, Claude, Gemini, Microsoft Copilot, Perplexity, Character.AI
+- Detects **50+ PII types** including email, phone, address, national ID, credit card, passport, and India-specific identifiers (Aadhaar, PAN, DPDP categories)
+- Real-time **session log** with detection count, submitted count, and critical-severity counter
+- Toggle monitoring on/off per session; logs auto-clear on browser close (`chrome.storage.session`)
+
+#### Inject (Injection Monitor)
+- Detects **prompt injection and code injection** patterns in AI platform inputs
+- Covers SQL injection, XSS, LDAP injection, NoSQL injection, template injection, and command injection
+- Per-session log with severity breakdown; toggle independently of PII monitoring
+
+#### Phishing (Email Phishing Detection)
+- Passive content script on **Gmail, Outlook (live/office/365), Yahoo Mail, ProtonMail**
+- Analyses open emails for phishing indicators — suspicious links, sender spoofing, urgency patterns, spear-phishing signals
+- Session log with average risk score and critical-count summary
+
+#### Breach
+- **Full vault breach check** — hashes each stored password and checks against HaveIBeenPwned using **k-anonymity** (only the 5-character SHA-1 prefix is sent)
+- **Site-level breach warning** — passive content script warns when the current site's domain appears in known breach data
+- **Email breach check** — looks up your account email against HIBP breach database
+- Shows pwned / clean / newly-found counts per scan
+
+### Background Features (all pages)
+
+These run silently on every website without requiring the side panel to be open:
+
+| Feature | How it works |
+|---------|-------------|
+| **Link Scanner** | On-hover threat scoring for all hyperlinks — heuristic analysis + optional AI backend call |
+| **QR Code Phishing Detection** | Uses the Chrome **BarcodeDetector API** to decode QR codes on-page and flag suspicious URLs |
+| **Password Generator** | Inline generator injected into password fields; uses **WebCrypto API**; UI isolated in **Shadow DOM** to avoid style conflicts |
+| **Autofill prompt** | Detects login forms on page load and shows a non-intrusive credential suggestion |
+
+### Settings
+
+Accessible via the ⚙ icon when signed in:
+
+- **Seekurify server URL** — configurable API base (defaults to `http://localhost:5000`; update to your Vercel URL for production)
+- **Link Scanner** toggle — enable/disable on-hover link threat scoring
+- **Breach Check** toggle — enable/disable passive site breach warnings
 
 ---
 
@@ -96,8 +200,6 @@ LITELLM_MODEL=google/gemma-3-1b
 # Other
 GOOGLE_SAFE_BROWSING_API_KEY=<your-key>
 HF_API_TOKEN=<your-key>
-RAZORPAY_KEY_ID=<your-key>
-RAZORPAY_KEY_SECRET=<your-key>
 
 # CORS & Socket
 ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5000
@@ -135,8 +237,6 @@ GOOGLE_AI_API_KEY=<your-key>
 # Other
 GOOGLE_SAFE_BROWSING_API_KEY=<your-key>
 HF_API_TOKEN=<your-key>
-RAZORPAY_KEY_ID=<your-key>
-RAZORPAY_KEY_SECRET=<your-key>
 
 # CORS & Socket
 ALLOWED_ORIGINS=https://seekurify.vercel.app
@@ -228,6 +328,22 @@ Set all variables from `.env.production` in Vercel → Project Settings → Envi
 | POST | `/api/red-team/scan` | Run red team simulation |
 | POST | `/api/ai/assistant/chat` | Chat with AI security assistant |
 
+### SOAR
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET/POST | `/api/incidents` | List / create incidents |
+| GET/POST | `/api/playbooks` | List / create playbooks |
+| GET | `/api/playbook-runs` | Playbook execution history |
+| GET/POST | `/api/firewall` | Firewall events and rules |
+| GET/POST | `/api/integrations` | Third-party integrations |
+
+### Feature Flags (Admin)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/feature-flags/read` | Read current flag state (authenticated) |
+| POST | `/api/feature-flags/toggle` | Enable / disable a flag |
+| POST | `/api/feature-flags/assign-user-type` | Assign user tier |
+
 ### Cron (Vercel-triggered)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -263,6 +379,12 @@ Set all variables from `.env.production` in Vercel → Project Settings → Envi
 | PII Leakage | Regex only | ✅ Always |
 | LLM SIEM | Aggregation only | ✅ Always |
 | Security Assistant | LiteLLM (local) | ⚠️ Dev only — configure cloud provider for production |
+
+---
+
+## Feature Flags
+
+All features are controlled by admin-managed flags stored in MongoDB. Flags are simple on/off toggles — there is no payment or subscription dependency. Admins can enable or disable any feature for all users via the Feature Flags admin panel (`/admin/feature-flags`).
 
 ---
 
