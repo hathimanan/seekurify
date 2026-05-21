@@ -9,8 +9,8 @@ export default defineConfig({
         target: "http://localhost:5000", // backend server
         changeOrigin: true,              // handles CORS & virtual hosted sites
         secure: false,                   // allow self-signed SSL if needed
-        // Do not strip `/api` so the backend mounted at `/api/*` receives the same path
-        rewrite: (path) => path, 
+        ws: true,                        // proxy WebSocket connections too
+        rewrite: (path) => path,
       },
     },
   },

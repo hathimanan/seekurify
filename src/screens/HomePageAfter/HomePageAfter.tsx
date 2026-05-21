@@ -58,7 +58,6 @@ export const HomePageAfter = (): JSX.Element => {
   const [showPasswordExpiryModal, setShowPasswordExpiryModal] = useState(false);
   const [expireAfterDays, setExpireAfterDays] = useState(null);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
-  const [phishingDetectorEnabled, setPhishingDetectorEnabled] = useState<boolean>(false);
   const [siteShieldEnabled, setSiteShieldEnabled] = useState<boolean>(false);
   const [promptInjectionEnabled, setPromptInjectionEnabled] = useState<boolean>(false);
   const [threatDetectionEnabled, setThreatDetectionEnabled] = useState<boolean>(false);
@@ -87,7 +86,6 @@ export const HomePageAfter = (): JSX.Element => {
         });
         if (!res.ok) throw new Error("Failed to fetch feature flags");
         const data = await res.json();
-        setPhishingDetectorEnabled(data.phishingDetectorEnabled === true);
         setSiteShieldEnabled(data.siteShieldEnabled === true);
         setPromptInjectionEnabled(data.promptInjectionEnabled === true);
         setThreatDetectionEnabled(data.threatDetectionEnabled !== false);
@@ -171,7 +169,7 @@ export const HomePageAfter = (): JSX.Element => {
     {
       id: "threat",
       label: "Threat Detection",
-      description: "Identify malware, phishing, and synthetic media threats.",
+      description: "Identify malware and synthetic media threats.",
       icon: ShieldAlert,
       accentColor: "text-orange-600 dark:text-orange-400",
       borderColor: "border-orange-400",
@@ -179,8 +177,8 @@ export const HomePageAfter = (): JSX.Element => {
       groupFlag: threatDetectionEnabled,
       tools: [
         { title: "Malware Analyzer", description: "Upload and scan files for viruses, trojans, and malware.", path: "/malware-analysis", icon: FileSearch, color: "from-orange-600 to-orange-800" },
-        { title: "Phishing Detector", description: "Identify phishing URLs and suspicious domains in real time.", path: "/detect-attacker", icon: AlertTriangle, color: "from-red-600 to-orange-700", featureFlag: phishingDetectorEnabled || !featuresLoaded },
         { title: "Deepfake Detector", description: "Detect AI-generated deepfake images and media.", path: "/deepfake-detector", icon: ScanEye, color: "from-orange-500 to-red-700" },
+        { title: "SOAR Center", description: "Orchestrate automated incident response playbooks and workflows.", path: "/soar", icon: Zap, color: "from-purple-600 to-orange-700" },
       ],
     },
     {
@@ -210,6 +208,7 @@ export const HomePageAfter = (): JSX.Element => {
       groupFlag: webInfraEnabled,
       tools: [
         { title: "Watch Agent", description: "Continuously monitor watchlist items for emerging threats.", path: "/watch-agent", icon: Eye, color: "from-teal-600 to-teal-800" },
+        { title: "Firewall", description: "Monitor and manage network firewall rules and traffic events.", path: "/firewall", icon: Shield, color: "from-slate-700 to-teal-600" },
         { title: "Site Shield & Audit", description: "Audit websites for security headers, SSL, and misconfigurations.", path: "/site-shield", icon: Globe, color: "from-slate-600 to-teal-700", featureFlag: siteShieldEnabled || !featuresLoaded },
         { title: "CSP Builder", description: "Build and validate Content Security Policy headers for your site.", path: "/csp-builder", icon: ShieldCheck, color: "from-teal-700 to-teal-900" },
       ],

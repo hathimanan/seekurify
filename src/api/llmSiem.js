@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 import InjectionScanLog from '../models/InjectionScanLog.js';
 import AIAgentScanLog   from '../models/AIAgentScanLog.js';
 import PIIScanLog       from '../models/PIIScanLog.js';
+import Finding          from '../models/Finding.js';
+import Incident         from '../models/Incident.js';
 
 const router = express.Router();
 
@@ -19,11 +21,17 @@ function auth(req, res, next) {
 }
 
 // ─── Normalise risk levels to a common scale ──────────────────────────────────
-// InjectionScanLog uses 'clean' instead of 'safe'; unify to safe/low/medium/high/critical
 function normalizeRisk(raw) {
   if (!raw) return 'safe';
-  if (raw === 'clean') return 'safe';
+  if (raw === 'clean' || raw === 'info') return 'safe';
   return raw;
+}
+
+// Map Finding/Incident severity → riskLevel
+function severityToRisk(sev) {
+  if (!sev) return 'safe';
+  if (sev === 'info') return 'safe';
+  return sev; // critical/high/medium/low pass through unchanged
 }
 
 // ─── Risk ordering for sorting ────────────────────────────────────────────────
@@ -36,14 +44,28 @@ router.get('/llm-siem/events', auth, async (req, res) => {
     const userId = req.user?.id || req.user?._id;
     const limit  = Math.min(parseInt(req.query.limit) || 50, 200);
 
-    const [injections, agentScans, piiScans] = await Promise.all([
+    const [injections, agentScans, piiScans, findings, incidents] = await Promise.all([
       InjectionScanLog.find({ userId })
         .sort({ createdAt: -1 }).limit(limit).lean(),
       AIAgentScanLog.find({ userId })
         .sort({ createdAt: -1 }).limit(limit).lean(),
       PIIScanLog.find({ userId })
         .sort({ createdAt: -1 }).limit(limit).lean(),
+      Finding.find({ userId })
+        .sort({ createdAt: -1 }).limit(limit).lean(),
+      Incident.find({ userId })
+        .sort({ createdAt: -1 }).limit(limit).lean(),
     ]);
+
+    const SCAN_TYPE_LABEL = {
+      redteam:   'Red Team',
+      injection: 'Injection Scan',
+      siteaudit: 'Site Audit',
+      pii:       'PII Scan',
+      aiagent:   'AI Agent',
+      waf:       'WAF Block',
+      manual:    'Manual',
+    };
 
     const events = [
       ...injections.map(d => ({
@@ -81,6 +103,30 @@ router.get('/llm-siem/events', auth, async (req, res) => {
         findingCount: d.findingCount ?? 0,
         timestamp: d.createdAt,
       })),
+      ...findings.map(d => ({
+        _id:       d._id.toString(),
+        type:      'finding',
+        typeLabel: `Finding · ${SCAN_TYPE_LABEL[d.scanType] || d.scanType || 'Scan'}`,
+        icon:      'file-search',
+        riskLevel: severityToRisk(d.severity),
+        score:     null,
+        summary:   `${d.title.slice(0, 90)}${d.sourceUrl ? ` — ${d.sourceUrl.slice(0, 40)}` : ''}`,
+        findingCount: null,
+        status:    d.status,
+        timestamp: d.createdAt,
+      })),
+      ...incidents.map(d => ({
+        _id:       d._id.toString(),
+        type:      'incident',
+        typeLabel: 'Incident',
+        icon:      'shield-alert',
+        riskLevel: severityToRisk(d.severity),
+        score:     null,
+        summary:   `${d.title.slice(0, 90)}${d.status ? ` [${d.status}]` : ''}`,
+        findingCount: d.findingIds?.length ?? null,
+        status:    d.status,
+        timestamp: d.createdAt,
+      })),
     ];
 
     // Sort by timestamp desc, then by risk desc
@@ -108,24 +154,28 @@ router.get('/llm-siem/stats', auth, async (req, res) => {
     since.setDate(since.getDate() - 6);
     since.setHours(0, 0, 0, 0);
 
-    const [injections, agentScans, piiScans] = await Promise.all([
+    const [injections, agentScans, piiScans, findings, incidents] = await Promise.all([
       InjectionScanLog.find({ userId }).lean(),
       AIAgentScanLog.find({ userId }).lean(),
       PIIScanLog.find({ userId }).lean(),
+      Finding.find({ userId }).lean(),
+      Incident.find({ userId }).lean(),
     ]);
 
     // Build unified flat list
     const all = [
-      ...injections.map(d => ({ type: 'injection', riskLevel: normalizeRisk(d.riskLevel), ts: new Date(d.createdAt) })),
+      ...injections.map(d => ({ type: 'injection', riskLevel: normalizeRisk(d.riskLevel),   ts: new Date(d.createdAt) })),
       ...agentScans.map(d => ({ type: d.scanType === 'exfil' ? 'exfil' : 'rag', riskLevel: normalizeRisk(d.riskLevel), ts: new Date(d.createdAt) })),
-      ...piiScans.map(d => ({ type: 'pii', riskLevel: normalizeRisk(d.riskLevel), ts: new Date(d.createdAt) })),
+      ...piiScans.map(d => ({ type: 'pii',      riskLevel: normalizeRisk(d.riskLevel),       ts: new Date(d.createdAt) })),
+      ...findings.map(d =>  ({ type: 'finding',  riskLevel: severityToRisk(d.severity),      ts: new Date(d.createdAt) })),
+      ...incidents.map(d => ({ type: 'incident', riskLevel: severityToRisk(d.severity),      ts: new Date(d.createdAt) })),
     ];
 
     // Totals
     const total = all.length;
 
     // By type
-    const byType = { injection: 0, exfil: 0, rag: 0, pii: 0 };
+    const byType = { injection: 0, exfil: 0, rag: 0, pii: 0, finding: 0, incident: 0 };
     for (const e of all) byType[e.type] = (byType[e.type] || 0) + 1;
 
     // By risk

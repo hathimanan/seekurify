@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { io as socketIO } from 'socket.io-client';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
@@ -8,7 +9,6 @@ import Header from "../components/ui/Header";
 import Footer from "../components/ui/Footer";
 import { API_BASE_URL } from '../services/api';
 import { Logo } from './ui/logo';
-import { encryptForShare } from '../utils/encryptForShare';
 // import  from "../components/ui/use-toast";
 import {
   Dialog,
@@ -17,12 +17,11 @@ import {
   DialogTitle,
 } from "../components/ui/dialog";
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, Copy, FileSearch, BarChart3, KeyRound, ShieldCheck, Phone, Share2, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Copy, FileSearch, BarChart3, KeyRound, ShieldCheck, Phone, ShieldAlert, ExternalLink, ArrowRight, X } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
 import { Eye, Pencil } from "lucide-react";
 
 import { motion } from 'framer-motion';
-import { set } from 'mongoose';
 import AppSidebar from './ui/AppSidebar';
 
 interface PasswordEntry {
@@ -33,11 +32,17 @@ interface PasswordEntry {
   currentPassword?: string;
   category: string;
   notes: string;
+  isFinancial?: boolean;
+  daysLeft?: number;
   createdAt: string;
   lastChanged: string;
   updatedAt?: string;
   isExpired?: boolean;
-  // for payment
+  isBreached?: boolean;
+  breachCount?: number;
+  riskScore?: number;
+  riskLevel?: 'critical' | 'high' | 'medium' | 'low' | 'safe';
+  riskSummary?: string;
 }
 
 interface HeaderProps {
@@ -48,12 +53,7 @@ interface HeaderProps {
 
 
 
-interface PaymentEntry {
-  name?: string | '';
-  email?: string | '';
-  contact?: string | '';
-  amount: number | 0;
-}
+const toSafeString = (value: unknown) => typeof value === 'string' ? value : '';
 
 
 
@@ -99,6 +99,52 @@ const getWebsiteIcon = (website: string) => {
 };
 
 
+// Direct password-change URLs for the most common sites.
+// Fallback: Google search query for everything else.
+const CHANGE_PASSWORD_URLS: Record<string, string> = {
+  'google.com':       'https://myaccount.google.com/signinoptions/password',
+  'gmail.com':        'https://myaccount.google.com/signinoptions/password',
+  'facebook.com':     'https://www.facebook.com/settings?tab=security',
+  'instagram.com':    'https://www.instagram.com/accounts/password/change/',
+  'twitter.com':      'https://twitter.com/settings/password',
+  'x.com':            'https://twitter.com/settings/password',
+  'github.com':       'https://github.com/settings/security',
+  'gitlab.com':       'https://gitlab.com/-/user_settings/password/edit',
+  'microsoft.com':    'https://account.microsoft.com/security',
+  'outlook.com':      'https://account.microsoft.com/security',
+  'hotmail.com':      'https://account.microsoft.com/security',
+  'linkedin.com':     'https://www.linkedin.com/mypreferences/d/settings/sign-in-and-security',
+  'amazon.com':       'https://www.amazon.com/gp/css/account/info/ref=ppx_ya_dt_b_account_security',
+  'paypal.com':       'https://www.paypal.com/myaccount/security/password/change',
+  'netflix.com':      'https://www.netflix.com/password',
+  'apple.com':        'https://appleid.apple.com/account/manage',
+  'yahoo.com':        'https://login.yahoo.com/account/security',
+  'dropbox.com':      'https://www.dropbox.com/account/security',
+  'slack.com':        'https://slack.com/account/settings',
+  'reddit.com':       'https://www.reddit.com/settings/privacy',
+  'discord.com':      'https://discord.com/settings/account',
+  'twitch.tv':        'https://www.twitch.tv/settings/security',
+  'spotify.com':      'https://www.spotify.com/account/change-password/',
+  'adobe.com':        'https://account.adobe.com/',
+  'notion.so':        'https://www.notion.so/profile',
+  'figma.com':        'https://www.figma.com/settings',
+  'shopify.com':      'https://accounts.shopify.com/account/security',
+  'paytm.com':        'https://paytm.com/profile/security',
+  'phonepe.com':      'https://phonepe.com/settings/security',
+  'groww.in':         'https://groww.in/profile',
+};
+
+function getChangePasswordUrl(website: string): string {
+  const domain = website.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, '');
+  // Exact match first
+  if (CHANGE_PASSWORD_URLS[domain]) return CHANGE_PASSWORD_URLS[domain];
+  // Partial match (e.g. "chase.bank.com" → "chase.com")
+  const match = Object.keys(CHANGE_PASSWORD_URLS).find(k => domain.includes(k) || k.includes(domain));
+  if (match) return CHANGE_PASSWORD_URLS[match];
+  // Fallback: Google search
+  return `https://www.google.com/search?q=${encodeURIComponent(domain + ' change password')}`;
+}
+
 const getWebsiteColor = (website: string) => {
   const domain = website.toLowerCase();
   if (domain.includes('google')) return 'bg-gradient-to-br from-red-500 to-pink-500';
@@ -107,6 +153,16 @@ const getWebsiteColor = (website: string) => {
   if (domain.includes('twitter') || domain.includes('x.com')) return 'bg-gradient-to-br from-gray-900 to-black';
   if (domain.includes('amazon')) return 'bg-gradient-to-br from-yellow-500 to-orange-500';
   return 'bg-gradient-to-br from-gray-600 to-gray-400';
+};
+
+type RiskLevel = 'critical' | 'high' | 'medium' | 'low' | 'safe';
+
+const RISK_STYLES: Record<RiskLevel, { bg: string; text: string; label: string }> = {
+  critical: { bg: 'bg-red-600',    text: 'text-white', label: 'Critical' },
+  high:     { bg: 'bg-orange-500', text: 'text-white', label: 'High' },
+  medium:   { bg: 'bg-yellow-400', text: 'text-gray-900', label: 'Medium' },
+  low:      { bg: 'bg-lime-500',   text: 'text-white', label: 'Low' },
+  safe:     { bg: 'bg-emerald-500',text: 'text-white', label: 'Safe' },
 };
 
 export const Dashboard: React.FC = () => {
@@ -130,19 +186,8 @@ export const Dashboard: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [prevRoute, setPrevRoute] = useState("/homePageAfterLogin"); // default route
-  const [paymentChecked, setPaymentChecked] = useState(false);
-  const [hasPaid, setHasPaid] = useState<boolean>(false); // 🚨 Payment status
-  const [showPayModal, setShowPayModal] = useState(false);
   const [reverifyPinError, setReverifyPinError] = useState('');
-  const [showTrialModal, setShowTrialModal] = useState(false);
-  const [trialMessage, setTrialMessage] = useState("");
-  const [trialActive, setTrialActive] = useState(false);
-  const [trialPlan, setTrialPlan] = useState<string>('free');
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
-  const [showOnlyPayModal, setShowOnlyPayModal] = useState(false);
-  const [isTrialExpired, setTrialExpired] = useState(false);
   const [showReuseWarning, setShowReuseWarning] = useState(false);
-  const [trialAcknowledged, setTrialAcknowledged] = useState(false);
   const location = useLocation();
   const [profileImage, setProfileImage] = useState<string>(""); // ✅ state for header
   const [pinAction, setPinAction] = useState<"view" | "edit" | "delete" | null>(null);
@@ -158,20 +203,18 @@ export const Dashboard: React.FC = () => {
   const [showExpiryModal, setShowExpiryModal] = useState(false);
   const [passwordToExpire, setPasswordToExpire] = useState<PasswordEntry | null>(null);
   const [showExpiryWarning, setShowExpiryWarning] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
   const [selectedPassword, setSelectedPassword] = useState<any>(null);
-  const [shareLink, setShareLink] = useState<string | null>(null);
-  const [shareExpiry, setShareExpiry] = useState(15); // minutes
-  const [isSharing, setIsSharing] = useState(false);
-  const [isPlanLimitReached, setIsPlanLimitReached] = useState(false);
-  const [showPlanLimitModal, setShowPlanLimitModal] = useState(false);
   const [expiredPassword, setExpiredPassword] = useState<PasswordEntry | null>(null);
   const [editPasswordId, setEditPasswordId] = useState<string | null>(null);
-  const [showPayModalWithoutFreePlan, setShowPayModalWithoutFreePlan] = useState(false);
   const [pinverificationEnabled, setPinVerificationEnabled] = useState<boolean | null>(null);
   const totalPasswords = filteredPasswords.length;
   const [phishingDetectorEnabled, setPhishingDetectorEnabled] = useState<boolean>(false);
   const [featuresLoaded, setFeaturesLoaded] = useState(false);
+  const [isCheckingBreaches, setIsCheckingBreaches] = useState(false);
+  const [breachCheckError, setBreachCheckError] = useState<string | null>(null);
+  const [isScoringRisk, setIsScoringRisk] = useState(false);
+  const [riskScoreError, setRiskScoreError] = useState<string | null>(null);
+  const [suspiciousAlert, setSuspiciousAlert] = useState<{ type: string; ip: string; message: string; location?: string; at: string } | null>(null);
 
   const DAYS_90 = 90;
   const now = Date.now();
@@ -183,7 +226,7 @@ export const Dashboard: React.FC = () => {
     return ageInDays > DAYS_90;
   }).length;
 
-  const strongPasswords = filteredPasswords.filter(p => p.password.length > 15).length;
+  const strongPasswords = filteredPasswords.filter(p => toSafeString(p.password).length > 15).length;
   const websiteCountMap: Record<string, number> = {};
 
   filteredPasswords.forEach(p => {
@@ -194,9 +237,27 @@ export const Dashboard: React.FC = () => {
   const mostUsedWebsites = Object.keys(websiteCountMap).length > 0
     ? Math.max(...Object.values(websiteCountMap))
     : 0;
-  const weakPasswords = filteredPasswords.filter(p => p.password.length <= 5).length;
+  const weakPasswords = filteredPasswords.filter(p => toSafeString(p.password).length <= 5).length;
 
   const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000; // 90 days in ms
+
+  // Password reuse map: plaintext → count across the full vault
+  const reuseMap = useMemo(() => {
+    const freq: Record<string, number> = {};
+    passwords.forEach(p => {
+      const password = toSafeString(p.password);
+      if (password) freq[password] = (freq[password] ?? 0) + 1;
+    });
+    return freq;
+  }, [passwords]);
+
+  // Top-5 credentials ranked by risk score for the action queue
+  const actionQueue = useMemo(() => {
+    const scored = passwords.filter(p => p.riskScore != null);
+    return [...scored]
+      .sort((a, b) => (b.riskScore ?? 0) - (a.riskScore ?? 0))
+      .slice(0, 5);
+  }, [passwords]);
 
   const passwordsChanged90Days = filteredPasswords.filter(p => {
     if (!p.lastChanged) return false;
@@ -264,6 +325,7 @@ export const Dashboard: React.FC = () => {
                 password: '',
                 category: pwdToEdit.category,
                 notes: pwdToEdit.notes,
+                isFinancial: pwdToEdit.isFinancial ?? false,
               });
               setCurrentPassword(''); // ensure current password input is cleared when opening edit
               setShowEditModal(true); // user can now edit and THEN call handleUpdatePassword on submit
@@ -298,17 +360,8 @@ export const Dashboard: React.FC = () => {
     password: '',
     category: 'General',
     notes: '',
+    isFinancial: false,
   });
-
-
-  const [paymentFormData, setPaymentFormData] = useState<PaymentEntry>({
-    name: '',
-    email: '',
-    contact: '',
-    amount: 100, // default amount
-  });
-
-
 
 
   // ==========================================
@@ -358,11 +411,7 @@ useEffect(() => {
     setIsLoading(true);
 
     try {
-      // 1. Check payment status
-      const planInfo = await checkPaymentStatus();
-      const currentPlan = planInfo || localStorage.getItem('plan') || 'free';
-
-      // 2. Get token
+      // 1. Get token
       const token = localStorage.getItem("token");
       if (!token) {
         setIsLoading(false);
@@ -387,37 +436,31 @@ useEffect(() => {
       try {
         const res = await fetchWithAuth(`${API_BASE_URL}/passwords`);
 
-        const data = await res.json();
+        if (!res.ok) {
+          throw new Error('Failed to fetch passwords');
+        }
+
+        const payload = await res.json();
+        const data = Array.isArray(payload) ? payload : [];
         
         if (isMounted) {
           setPasswords(data);
-          const totalPasswords = data.length;
-          setIsPlanLimitReached(currentPlan === 'free' && totalPasswords >= 3);
-
-          console.log('✅ Plan initialized:', { 
-            currentPlan, 
-            totalPasswords, 
-            isPlanLimitReached: currentPlan === 'free' && totalPasswords >= 3 
-          });
 
           // Check if any password is expired
           const expired = data.find((p: PasswordEntry) => p.isExpired);
           if (expired) {
             setExpiredPassword(expired);
             setShowExpiryModal(true);
-            
-            // 🔒 prevent other modals when showing expiry
-            setShowPayModal(false);
-            setShowTrialModal(false);
-            setShowOnlyPayModal(false);
             setShowReverifyPinModal(false);
           }
         }
       } catch (err) {
         console.error("Failed to fetch passwords:", err);
+        if (isMounted) setError("Failed to load passwords. Please refresh the page.");
       }
     } catch (err) {
       console.error("Initialization error:", err);
+      if (isMounted) setError("Something went wrong loading your data. Please refresh.");
     } finally {
       if (isMounted) {
         setIsLoading(false);
@@ -433,45 +476,30 @@ useEffect(() => {
 }, []); // ✅ Empty deps - run once on mount
 
 // ==========================================
+// 2.5 Refresh vault when tab regains focus
+// (picks up passwords saved via extension on other sites)
+// ==========================================
+useEffect(() => {
+  const onFocus = () => loadPasswords(Date.now());
+  window.addEventListener('focus', onFocus);
+  return () => window.removeEventListener('focus', onFocus);
+}, []);
+
+// ==========================================
 // 3️⃣ Show PIN Modal When Ready
 // ==========================================
 useEffect(() => {
-  // Wait for both feature flags and payment status to load
-  if (pinverificationEnabled === null || !paymentChecked) {
-    console.log('⏳ Waiting for feature flags and payment status...');
-    return;
-  }
+  // Wait until the feature flag has been resolved (null = still loading)
+  if (pinverificationEnabled === null) return;
+  // PIN not required for this user
+  if (pinverificationEnabled !== true) return;
+  // User already verified this session
+  if (isReverified) return;
+  // Expiry modal takes priority
+  if (showExpiryModal) return;
 
-  // Don't show PIN modal if expiry modal is showing
-  if (showExpiryModal) {
-    console.log('⚠️ Expiry modal active, skipping PIN modal');
-    return;
-  }
-
-  const needsPin = shouldRequirePin();
-  
-  console.log('🔐 PIN check:', {
-    pinverificationEnabled,
-    isReverified,
-    hasPaid,
-    trialActive,
-    showExpiryModal,
-    needsPin
-  });
-
-  // Show PIN modal if needed and not already shown
-  if (needsPin && !showReverifyPinModal && !isReverified) {
-    console.log('✅ Showing PIN modal');
-    setShowReverifyPinModal(true);
-  }
-}, [
-  pinverificationEnabled, 
-  paymentChecked, 
-  hasPaid, 
-  trialActive, 
-  isReverified,
-  showExpiryModal // Add this dependency
-]);
+  setShowReverifyPinModal(true);
+}, [pinverificationEnabled, isReverified, showExpiryModal]);
 
 // ==========================================
 // 4️⃣ Update Form When Editing Password
@@ -484,6 +512,7 @@ useEffect(() => {
       password: '', // 🔐 never prefill password
       category: editingPassword.category || '',
       notes: editingPassword.notes || '',
+      isFinancial: editingPassword.isFinancial ?? false,
     });
 
     setCurrentPassword('');
@@ -501,9 +530,9 @@ useEffect(() => {
   } else {
     const query = searchQuery.toLowerCase();
     const filtered = passwords.filter((p) =>
-      p.website.toLowerCase().includes(query) ||
-      p.username.toLowerCase().includes(query) ||
-      (p.notes && p.notes.toLowerCase().includes(query))
+      toSafeString(p.website).toLowerCase().includes(query) ||
+      toSafeString(p.username).toLowerCase().includes(query) ||
+      toSafeString(p.notes).toLowerCase().includes(query)
     );
     setFilteredPasswords(filtered);
   }
@@ -513,62 +542,62 @@ useEffect(() => {
 // 6️⃣ Prevent Body Scroll When Modal Open
 // ==========================================
 useEffect(() => {
-  const modalOpen = 
-    showPassword || 
-    showEditModal || 
-    showAddForm || 
-    showReverifyPinModal || 
-    showShareModal || 
-    showCopyModal || 
-    showDeleteConfirmationModal || 
-    showExpiryModal || 
-    showPayModal || 
-    showTrialModal || 
+  const modalOpen =
+    showPassword ||
+    showEditModal ||
+    showAddForm ||
+    showReverifyPinModal ||
+    showCopyModal ||
+    showDeleteConfirmationModal ||
+    showExpiryModal ||
     showReuseWarning;
-    
+
   if (modalOpen) {
     document.body.style.overflow = 'hidden';
   } else {
     document.body.style.overflow = '';
   }
-  
-  return () => { 
-    document.body.style.overflow = ''; 
+
+  return () => {
+    document.body.style.overflow = '';
   };
 }, [
-  showPassword, 
-  showEditModal, 
-  showAddForm, 
-  showReverifyPinModal, 
-  showShareModal, 
-  showCopyModal, 
-  showDeleteConfirmationModal, 
-  showExpiryModal, 
-  showPayModal, 
-  showTrialModal, 
+  showPassword,
+  showEditModal,
+  showAddForm,
+  showReverifyPinModal,
+  showCopyModal,
+  showDeleteConfirmationModal,
+  showExpiryModal,
   showReuseWarning
 ]);
+
+
+// ==========================================
+// 8️⃣ Real-time suspicious login alerts
+// ==========================================
+useEffect(() => {
+  if (!user?.id) return;
+  // Socket.io needs an absolute URL — API_BASE_URL is a relative path for HTTP only.
+  // In dev, connect directly to the backend port (Vite proxy handles /api HTTP but
+  // socket.io handshake must reach the Express server directly).
+  // In production the socket server is co-located with the web server.
+  const SOCKET_URL = import.meta.env.DEV
+    ? 'http://localhost:5000'
+    : window.location.origin;
+  const socket = socketIO(SOCKET_URL, { transports: ['websocket', 'polling'] });
+  socket.on('connect', () => socket.emit('registerUser', String(user.id)));
+  socket.on('suspiciousLogin', (data) => setSuspiciousAlert(data));
+  socket.on('connect_error', (err) => console.warn('Socket connect error:', err.message));
+  return () => { socket.disconnect(); };
+}, [user?.id]);
 
 // ==========================================
 // Helper Functions
 // ==========================================
 const shouldRequirePin = () => {
-  // Don't require PIN if feature flag isn't loaded yet
-  if (pinverificationEnabled === null) {
-    return false;
-  }
-
-  // Only require PIN if:
-  // 1. Feature is enabled
-  // 2. User hasn't been reverified yet
-  // 3. User is either paid OR on active trial
-  const result = (
-    pinverificationEnabled === true &&
-    !isReverified &&
-    (hasPaid || trialActive)
-  );
-
-  return result;
+  if (pinverificationEnabled === null) return false;
+  return pinverificationEnabled === true && !isReverified;
 };
 
 
@@ -606,140 +635,18 @@ const toggleShowPassword = () => setShowViewingPassword((prev) => !prev);
     try {
       setIsLoading(true);
       const data = await apiService.getPasswords(cacheBuster);
-      setPasswords(data);
-
-      // Decide modal based on backend states
-      if (hasPaid || (trialActive && trialAcknowledged)) {
-        // user has access — no payment modals
-
-      } else if (!hasPaid && trialActive && !trialAcknowledged) {
-        // trial in progress but not acknowledged — trial modal flow handled elsewhere
-
-        // setShowTrialModal(true);
-      } else {
-        // unpaid and no trial — show pay modal
-        // setShowPayModal(true);
-      }
+      setPasswords(data as PasswordEntry[]);
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load passwords');
-      setShowReverifyPinModal(false);
-      // setShowPayModal(true);
     } finally {
       setIsLoading(false);
     }
   };
 
 
-  // ----------------------------
-  // Payment check
-  // ----------------------------
 
 
-
-
-
-const checkPaymentStatus = async (): Promise<string | null> => {
-  try {
-    const response = await fetchWithAuth(`${API_BASE_URL}/auth/check-payment`, {
-      method: 'POST',
-    });
-
-    if (!response.ok) throw new Error('Failed to check payment status');
-
-    const data = await response.json();
-
-    // Save backend plan and payment info
-    const backendPlan = data.plan || 'free';
-    setSelectedPlan(backendPlan);
-    localStorage.setItem('plan', backendPlan);
-    setHasPaid(data.hasPaid);
-    setTrialActive(data.isTrialActive);
-    setTrialExpired(data.isTrialExpired);
-
-    console.log('💰 Payment status:', {
-      plan: backendPlan,
-      hasPaid: data.hasPaid,
-      trialActive: data.isTrialActive,
-      trialExpired: data.isTrialExpired
-    });
-
-    // Handle trial expired (ONLY show payment modal, not PIN modal)
-    if (!data.hasPaid && data.isTrialExpired) {
-      setShowOnlyPayModal(true);
-    }
-
-    return backendPlan;
-  } catch (err) {
-    console.error('❌ Payment status error:', err);
-    return null;
-  } finally {
-    setPaymentChecked(true);
-  }
-};
-
-
-
-  const handleStartTrial = async (plan: 'free' | 'pro' | 'premium') => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) throw new Error('User not authenticated');
-
-      const response = await fetch(`${API_BASE_URL}/auth/start-trial/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ plan }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Failed to start trial');
-
-      setTrialActive(true);
-      setSelectedPlan(plan);
-      setTrialPlan(plan);
-
-      localStorage.setItem('trialActive', 'true');
-      localStorage.setItem('trialPlan', plan);
-      // localStorage.setItem('plan', plan);
-
-      setTrialMessage(`Your ${plan.toUpperCase()} trial has started! You have 7 days.`);
-      setShowTrialModal(true);
-
-    } catch (err) {
-      console.error('Error starting trial:', err);
-      setTrialMessage('Failed to start the trial. Try again.');
-    }
-  };
-
-
-  // ----------------------------
-  // Trial modal OK handler
-  // ----------------------------
-  const handleTrialModalOk = () => {
-    setTrialAcknowledged(true);
-    setShowTrialModal(false);
-    setShowReverifyPinModal(true);
-  };
-
-
-  // Activate a trial for a specific plan (free or pro). The backend will record the plan and trial period.
-  const handleTryFree = (plan: 'free') => {
-    // delegate to API call
-    handleStartTrial(plan);
-  };
-
-  // Select a paid plan and immediately start the payment flow using Razorpay.
-  const handleSelectPlanForPurchase = (plan: 'pro' | 'premium' | 'business') => {
-    // Default to the minimum price in the visible range for each plan
-    const amountMap: Record<string, number> = { pro: 199, premium: 499, business: 1499 };
-    const planAmount = amountMap[plan] || paymentFormData.amount;
-    setPaymentFormData(prev => ({ ...prev, amount: planAmount }));
-    setSelectedPlan(plan);
-    console.log("Selected plan for purchase:", plan, "Amount:", planAmount);
-    // Close the pricing overlay and start payment for the selected plan
-    setShowPayModal(false);
-    handlePayNow(planAmount);
-  };
 
   const PasswordExpiryModal = ({
     password,
@@ -794,89 +701,6 @@ const checkPaymentStatus = async (): Promise<string | null> => {
     setShowEditModal(true);
   };
 
-  // ----------------------------
-  // Handle Pay Now
-  // ----------------------------
-  const handlePayNow = async (amountOverride?: number) => {
-    try {
-      if (!(window as any).Razorpay) {
-        alert('Razorpay SDK failed to load.');
-        return;
-      }
-
-      const amountToUse = amountOverride ?? paymentFormData.amount;
-
-      const token = localStorage.getItem('token');
-      if (!token) throw new Error('User not authenticated');
-
-      const orderResponse = await fetch(`${API_BASE_URL}/auth/create-order`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          currency: 'INR',
-          receipt: `receipt_${Date.now()}`,
-          ...paymentFormData,
-          amount: amountToUse,
-        }),
-      });
-
-      const orderData = await orderResponse.json();
-      if (!orderData.success) throw new Error('Failed to create order');
-      const plan = selectedPlan; // Capture selected plan here
-      const { orderId, key } = orderData;
-
-      const options = {
-        key,
-        amount: amountToUse * 100, // amount in paise
-        currency: 'INR',
-        name: 'Seekurify',
-        description: 'Secure Payment Gateway',
-        order_id: orderId,
-        prefill: { ...paymentFormData, amount: amountToUse },
-        theme: { color: '#0f172a' },
-        // Inside options.handler
-        handler: async (response: any) => {
-          // Use 'selectedPlan' which was set when the user clicked the pricing card
-          const planToSubmit = selectedPlan;
-          try {
-            const res = await fetch(`${API_BASE_URL}/auth/payment-success`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-              body: JSON.stringify({
-                ...response, // includes razorpay_order_id, etc.
-                plan: planToSubmit // 🎯 CRITICAL: This must be 'pro', 'premium', or 'business'
-              }),
-            });
-
-            const result = await res.json();
-            if (result.success) {
-              localStorage.setItem('plan', result.plan); // Use what the server confirmed
-              window.location.href = '/dashboard';
-            }
-
-            else {
-              setError(result.message || 'Payment verification failed.');
-            }
-          } catch (err) {
-            setError('Server error while verifying payment.');
-          }
-        },
-        modal: {
-          ondismiss: () => { },
-        },
-      };
-
-      const rzp = new (window as any).Razorpay(options);
-      rzp.open();
-    } catch (err) {
-      console.error('Payment error:', err);
-      setError(err instanceof Error ? err.message : 'Payment failed');
-    }
-  };
-
 
 
 
@@ -884,14 +708,6 @@ const checkPaymentStatus = async (): Promise<string | null> => {
   // ----------------------------
   // Conditional rendering
   // ----------------------------
-  if (!paymentChecked) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <p>Checking payment status...</p>
-      </div>
-    );
-  }
-
   if (showExpiryModal && expiredPassword) {
     return (
       <PasswordExpiryModal
@@ -903,287 +719,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
   }
 
 
-  if (showOnlyPayModal) {
-    return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 relative animate-fadeIn">
-          {/* Close Button */}
-          <button
-            onClick={() => navigate(-1)}
-            className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 transition"
-          >
-            ✕
-          </button>
 
-          {/* Header */}
-          <div className="text-center">
-            <h2 className="text-3xl font-bold text-gray-900">Subscription Required</h2>
-            <p className="text-lg text-gray-600 mt-2">
-              Your trial period has expired. Upgrade now to continue using all features.
-            </p>
-          </div>
-
-          {/* Amount Card */}
-          <div className="mt-8 bg-gray-50 border rounded-xl p-5 flex justify-between items-center">
-            <div>
-              <p className="text-lg font-semibold text-gray-800">Total</p>
-              <p className="text-sm text-gray-500">Monthly Subscription</p>
-            </div>
-            <p className="text-3xl font-extrabold text-green-600">$100</p>
-          </div>
-
-          {/* Pay Button Only */}
-          <div className="flex flex-col gap-4 mt-8">
-            <button
-              onClick={() => handlePayNow}
-              className="w-full px-6 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-lg shadow-md transition"
-            >
-              Proceed to Pay
-            </button>
-          </div>
-
-          {/* Security Note */}
-          <div className="text-center mt-6 text-sm text-gray-500">
-            🔒 Secure checkout powered by our payment gateway.
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (showTrialModal) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
-        <div className="bg-white rounded-2xl shadow-lg p-6 max-w-md w-full text-center animate-fadeIn">
-          <h2 className="text-xl font-semibold mb-2">Free Trial</h2>
-          <p className="text-gray-700">{trialMessage || "Loading..."}</p>
-
-          <button
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            onClick={handleTrialModalOk}
-          >
-            OK
-          </button>
-
-        </div>
-      </div>
-    )
-  }
-
-  // Show pay modal as a full-screen overlay (take precedence over page content)
-  if (showPayModal) {
-    return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-5xl p-8 relative animate-fadeIn">
-          {/* Close Button */}
-          <button
-            onClick={() => {
-              setShowPayModal(false);
-              navigate(-1);
-            }}
-            className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 transition"
-          >
-            ✕
-          </button>
-
-          <h2 className="text-4xl font-bold text-center mb-12">Pricing Plans</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {/* Free Plan */}
-            <div className={`rounded-xl shadow p-6 flex flex-col transition-all duration-300 ${passwords.length > 3 ? 'opacity-30 bg-gray-50 pointer-events-none' : 'bg-white'}`}>
-              <h3 className="text-xl font-semibold mb-2">Free</h3>
-              <p className="text-4xl font-bold mb-2">$0<span className="text-lg font-normal">/mo</span></p>
-
-              <ul className="space-y-2 mb-6 text-gray-700">
-                <li>✔ Basic password vault</li>
-                <li>✔ Limited passwords</li>
-                <li>✔ No SIEM logs</li>
-              </ul>
-
-              <button
-                onClick={() => handleTryFree('free')}
-                disabled={passwords.length > 3}
-                className={`mt-auto w-full border py-2 rounded-lg transition ${passwords.length > 3
-                  ? 'border-gray-300 text-gray-400 bg-gray-100 cursor-not-allowed'
-                  : 'border-purple-600 text-purple-600 hover:bg-purple-50'
-                  }`}
-              >
-                {passwords.length > 3 ? 'Limit Reached' : 'Try Free'}
-              </button>
-            </div>
-
-            {/* Pro Plan (Featured) */}
-            <div className="bg-purple-600 text-white rounded-xl shadow-xl p-6 transform scale-105 relative">
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-purple-700 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                MOST POPULAR
-              </div>
-
-              <h3 className="text-xl font-semibold mb-2">Pro</h3>
-              <p className="text-4xl font-bold mb-2">$199–299<span className="text-lg font-normal">/mo</span></p>
-
-              <ul className="space-y-2 mb-6">
-                <li>✔ Unlimited passwords</li>
-                <li>✔ 2FA security</li>
-                <li>✔ Breach alerts</li>
-                <li>✔ Basic SIEM summary</li>
-              </ul>
-
-              <button onClick={() => handleSelectPlanForPurchase('pro')} className="w-full bg-purple-800 py-2 rounded-lg hover:bg-purple-900">
-                Buy Now
-              </button>
-            </div>
-
-            {/* Premium Plan */}
-            <div className="bg-white rounded-xl shadow p-6 flex flex-col">
-              <h3 className="text-xl font-semibold mb-2">Premium</h3>
-              <p className="text-4xl font-bold mb-2">$499–799<span className="text-lg font-normal">/mo</span></p>
-
-              <ul className="space-y-2 mb-6 text-gray-700">
-                <li>✔ File/URL scanning</li>
-                <li>✔ Full SIEM dashboards</li>
-                <li>✔ Anomaly alerts</li>
-                <li>✔ PIN/OTP security</li>
-                <li>✔ Device logs</li>
-              </ul>
-
-              <button onClick={() => handleSelectPlanForPurchase('premium')} className="mt-auto w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700">
-                Get Started
-              </button>
-            </div>
-
-            {/* Business Plan */}
-            <div className="bg-white rounded-xl shadow p-6 flex flex-col">
-              <h3 className="text-xl font-semibold mb-2">Business</h3>
-              <p className="text-4xl font-bold mb-2">$1499–2499<span className="text-lg font-normal">/team/mo</span></p>
-
-              <ul className="space-y-2 mb-6 text-gray-700">
-                <li>✔ Admin dashboard</li>
-                <li>✔ Team vaults</li>
-                <li>✔ Policy enforcement</li>
-                <li>✔ Audit logs</li>
-                <li>✔ Incident reports</li>
-              </ul>
-
-              <button onClick={() => navigate('/contact')} className="mt-auto w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700">
-                Contact Sales
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-
-
-  if (showPayModalWithoutFreePlan) {
-    return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl p-8 relative animate-fadeIn">
-          {/* Close Button */}
-          <button
-            onClick={() => {
-              setShowPayModal(false);
-              navigate(-1);
-            }}
-            className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 transition"
-          >
-            ✕
-          </button>
-
-          <h2 className="text-4xl font-bold text-center mb-12">Pricing Plans</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-
-            {/* Pro Plan (Featured) */}
-            <div className="bg-purple-600 text-white rounded-xl shadow-xl p-6 transform scale-105 relative">
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-purple-700 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                MOST POPULAR
-              </div>
-
-              <h3 className="text-xl font-semibold mb-2">Pro</h3>
-              <p className="text-4xl font-bold mb-2">$199–299<span className="text-lg font-normal">/mo</span></p>
-
-              <ul className="space-y-2 mb-6">
-                <li>✔ Unlimited passwords</li>
-                <li>✔ 2FA security</li>
-                <li>✔ Breach alerts</li>
-                <li>✔ Basic SIEM summary</li>
-              </ul>
-
-              <button onClick={() => handleSelectPlanForPurchase('pro')} className="w-full bg-purple-800 py-2 rounded-lg hover:bg-purple-900">
-                Buy Now
-              </button>
-            </div>
-
-            {/* Premium Plan */}
-            <div className="bg-white rounded-xl shadow p-6 flex flex-col">
-              <h3 className="text-xl font-semibold mb-2">Premium</h3>
-              <p className="text-4xl font-bold mb-2">$499–799<span className="text-lg font-normal">/mo</span></p>
-
-              <ul className="space-y-2 mb-6 text-gray-700">
-                <li>✔ File/URL scanning</li>
-                <li>✔ Full SIEM dashboards</li>
-                <li>✔ Anomaly alerts</li>
-                <li>✔ PIN/OTP security</li>
-                <li>✔ Device logs</li>
-              </ul>
-
-              <button onClick={() => handleSelectPlanForPurchase('premium')} className="mt-auto w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700">
-                Get Started
-              </button>
-            </div>
-
-            {/* Business Plan */}
-            <div className="bg-white rounded-xl shadow p-6 flex flex-col">
-              <h3 className="text-xl font-semibold mb-2">Business</h3>
-              <p className="text-4xl font-bold mb-2">$1499–2499<span className="text-lg font-normal">/team/mo</span></p>
-
-              <ul className="space-y-2 mb-6 text-gray-700">
-                <li>✔ Admin dashboard</li>
-                <li>✔ Team vaults</li>
-                <li>✔ Policy enforcement</li>
-                <li>✔ Audit logs</li>
-                <li>✔ Incident reports</li>
-              </ul>
-
-              <button onClick={() => navigate('/contact')} className="mt-auto w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700">
-                Contact Sales
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-
-
-
-
-
-
-  <Dialog open={!!error} onOpenChange={() => setError(error)}>
-    <DialogContent className="rounded-2xl p-6 bg-red-50 border border-red-200">
-      <DialogHeader>
-        <DialogTitle className="text-red-600 text-xl font-semibold">
-          Payment Failed
-        </DialogTitle>
-      </DialogHeader>
-      <p className="text-gray-700 mt-2">
-        {error}
-      </p>
-      <div className="mt-4 flex justify-end">
-        <button
-          onClick={() => setError(error)}
-          className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
-        >
-          Close
-        </button>
-      </div>
-    </DialogContent>
-  </Dialog>
 
 
 
@@ -1194,14 +730,6 @@ const checkPaymentStatus = async (): Promise<string | null> => {
 
   const handleAddPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    const currentPlan = selectedPlan || localStorage.getItem('plan') || 'free';
-    console.log('🧪 Add password check:', { currentPlan, passwordsLength: passwords.length });
-
-    if (currentPlan === 'free' && passwords.length >= 3) {
-      setShowPlanLimitModal(true);
-      return;
-    }
-
     if (checkPasswordReuse(passwordformData.password)) {
       setShowReuseWarning(true); // 👈 open modal instead of alert
       return;
@@ -1211,7 +739,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
       await apiService.addPassword(passwordformData);
 
       // setPasswords(prev => [password, ...prev]);
-      setPasswordFormData({ website: '', username: '', password: '', category: 'General', notes: '' });
+      setPasswordFormData({ website: '', username: '', password: '', category: 'General', notes: '', isFinancial: false });
       setShowAddForm(false);
       loadPasswords();
     } catch (err) {
@@ -1257,7 +785,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
       setShowEditModal(false);
       setEditingPassword(null);
 
-      setPasswordFormData({ website: '', username: '', password: '', category: '', notes: '' });
+      setPasswordFormData({ website: '', username: '', password: '', category: '', notes: '', isFinancial: false });
     } catch (err: any) {
       if (err.response?.status === 403 && err.response?.data?.error?.includes("Current password does not match")) {
         setError("Incorrect current password. Please try again.");
@@ -1315,6 +843,54 @@ const checkPaymentStatus = async (): Promise<string | null> => {
     }
   };
 
+  const handleScoreRisk = async () => {
+    setIsScoringRisk(true);
+    setRiskScoreError(null);
+    try {
+      const results = await apiService.scoreAllCredentials();
+      if (!Array.isArray(results)) return;
+
+      // Build an O(1) lookup map so the setPasswords update is O(n) not O(n²)
+      const resultMap = new Map(results.map(r => [r._id, r]));
+
+      setPasswords(prev =>
+        prev.map(p => {
+          const hit = resultMap.get(p._id);
+          if (!hit) return p;
+          return {
+            ...p,
+            riskScore:   hit.score,
+            riskLevel:   hit.level as PasswordEntry['riskLevel'],
+            riskSummary: hit.summary,
+          };
+        })
+      );
+    } catch (err: unknown) {
+      setRiskScoreError(err instanceof Error ? err.message : 'Risk scoring failed');
+    } finally {
+      setIsScoringRisk(false);
+    }
+  };
+
+
+  const handleCheckBreaches = async () => {
+    setIsCheckingBreaches(true);
+    setBreachCheckError(null);
+    try {
+      const results = await apiService.checkAllBreaches();
+      setPasswords(prev =>
+        prev.map(p => {
+          const hit = results.find(r => r._id === p._id);
+          return hit ? { ...p, isBreached: hit.isBreached, breachCount: hit.breachCount } : p;
+        })
+      );
+    } catch (err: any) {
+      setBreachCheckError(err.message || 'Breach check failed');
+    } finally {
+      setIsCheckingBreaches(false);
+    }
+  };
+
   const generatePassword = () => {
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
     const length = 16;
@@ -1345,54 +921,10 @@ const checkPaymentStatus = async (): Promise<string | null> => {
   const checkPasswordReuse = (newPassword: string) => {
     if (!newPassword || !Array.isArray(passwords)) return false;
     return passwords.some(
-      (entry) => entry.password.trim() === newPassword.trim()
+      (entry) => toSafeString(entry.password).trim() === newPassword.trim()
     );
   };
 
-  const handleSharePassword = async () => {
-    if (!selectedPassword) return;
-
-    setIsSharing(true);
-    setError('');
-    setSuccessMessage('');
-
-    try {
-      const plaintext = selectedPassword.password;
-      const secret = crypto.randomUUID(); // client-side decryption secret
-
-      // Derive key using the secret
-      const encrypted = await encryptForShare(plaintext, secret);
-
-      // Create share on backend (no per-share PIN; verification will use the creator's account PIN)
-      const res = await apiService.createPasswordShare(selectedPassword._id, {
-        encryptedData: encrypted.encryptedData,
-        iv: encrypted.iv,
-        salt: encrypted.salt, // persist salt server-side
-        expiresAt: new Date(Date.now() + shareExpiry * 60 * 1000).toISOString(),
-        metadata: {
-          website: selectedPassword.website,
-          username: selectedPassword.username,
-        },
-        // no `pin` field -> use stored account PIN for verification
-      });
-
-      const shareLink = `${window.location.origin}/share/${res.shareId}#${secret}`;
-      setShareLink(shareLink);
-
-      try {
-        await navigator.clipboard.writeText(shareLink);
-        setSuccessMessage(`Share link copied! Use your account PIN to verify.`);
-      } catch (err) {
-        console.warn('Clipboard write failed:', err);
-        setSuccessMessage(`Share link generated — use your account PIN to verify (copy manually)`);
-      }
-    } catch (err) {
-      console.error('Failed to generate share link:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create share link');
-    } finally {
-      setIsSharing(false);
-    }
-  };
 
 
 
@@ -1432,6 +964,23 @@ const checkPaymentStatus = async (): Promise<string | null> => {
         profileImage={profileImage}
       />
 
+      {suspiciousAlert && (
+        <div className="bg-red-600 text-white px-4 py-3 flex items-center justify-between gap-4 z-50 shadow-lg">
+          <div className="flex items-center gap-3 flex-wrap">
+            <ShieldAlert className="w-5 h-5 flex-shrink-0" />
+            <span className="text-sm font-semibold">{suspiciousAlert.message}</span>
+            {suspiciousAlert.ip && (
+              <span className="text-xs bg-red-800 px-2 py-0.5 rounded font-mono">IP: {suspiciousAlert.ip}</span>
+            )}
+            {suspiciousAlert.location && (
+              <span className="text-xs opacity-80">{suspiciousAlert.location}</span>
+            )}
+          </div>
+          <button onClick={() => setSuspiciousAlert(null)} className="hover:opacity-70 transition flex-shrink-0" aria-label="Dismiss">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       <title> Password Manager </title>
       <div className="flex flex-1 overflow-hidden">
@@ -1457,10 +1006,15 @@ const checkPaymentStatus = async (): Promise<string | null> => {
 
           {/* Header */}
           <div className="mt-6 mb-8">
-            <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white drop-shadow">
-              🔐 Password Manager
-            </h1>
-            <p className="text-gray-700 dark:text-gray-300 mt-1">Welcome, <span className="font-semibold">{user?.email}</span></p>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white drop-shadow">
+                  🔐 Password Manager
+                </h1>
+                <p className="text-gray-700 dark:text-gray-300 mt-1">Welcome, <span className="font-semibold">{user?.email}</span></p>
+              </div>
+
+            </div>
           </div>
 
 
@@ -1510,22 +1064,172 @@ const checkPaymentStatus = async (): Promise<string | null> => {
           </div> */}
 
 
-          <br />
+          {/* ── Prioritized Action Queue ───────────────────────────── */}
+          <div className="mt-8 bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                  <ShieldAlert className="w-5 h-5 text-red-500" />
+                  Fix These First
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                  Top credentials ranked by risk — highest impact actions first
+                </p>
+              </div>
+              {actionQueue.filter(p => p.riskLevel === 'critical' || p.riskLevel === 'high').length > 0 && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" />
+                  {actionQueue.filter(p => p.riskLevel === 'critical' || p.riskLevel === 'high').length} urgent
+                </span>
+              )}
+            </div>
 
+            {passwords.length === 0 ? (
+              <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">
+                No credentials in vault yet.
+              </p>
+            ) : actionQueue.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 py-8 text-center">
+                <BarChart3 className="w-10 h-10 text-gray-300 dark:text-gray-600" />
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Run <span className="font-semibold text-violet-600">Score Risk</span> above to see your prioritized action list.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {actionQueue.map((p, idx) => {
+                  const style = RISK_STYLES[p.riskLevel as RiskLevel] ?? RISK_STYLES.medium;
+                  const ageInDays = p.lastChanged
+                    ? Math.floor((Date.now() - new Date(p.lastChanged).getTime()) / 86_400_000)
+                    : null;
+                  const isReused = (reuseMap[p.password] ?? 0) > 1;
+                  const isWeak = p.password.length <= 10;
+
+                  const tags: { label: string; color: string; title: string }[] = [];
+                  if (p.isBreached) tags.push({ label: 'Breached', color: 'bg-red-100 text-red-700', title: 'This password was found in a known data breach — it should be changed immediately' });
+                  if (isReused) tags.push({ label: 'Reused', color: 'bg-orange-100 text-orange-700', title: 'Same password used on multiple sites — a breach on one exposes all of them' });
+                  if (isWeak) tags.push({ label: 'Weak', color: 'bg-yellow-100 text-yellow-700', title: 'Password is 10 characters or fewer — use at least 12 with mixed symbols and digits' });
+                  if (ageInDays && ageInDays > 180) tags.push({ label: `${ageInDays}d old`, color: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300', title: `Last changed ${ageInDays} days ago — passwords older than 180 days should be rotated` });
+                  if (p.isFinancial) tags.push({ label: 'Financial', color: 'bg-amber-100 text-amber-700', title: 'This site handles financial data — apply extra scrutiny to its security posture' });
+
+                  return (
+                    <div
+                      key={p._id}
+                      className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/40 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      {/* Rank + score */}
+                      <div className="flex flex-col items-center gap-1 shrink-0">
+                        <span className="text-xs font-bold text-gray-400 dark:text-gray-500">#{idx + 1}</span>
+                        <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center shadow-sm ${style.bg} ${style.text} shrink-0`}>
+                          <span className="text-sm font-bold leading-none">{p.riskScore}</span>
+                          <span className="text-[9px] font-semibold leading-tight uppercase tracking-wide opacity-90">{style.label}</span>
+                        </div>
+                      </div>
+
+                      {/* Site icon */}
+                      <div className={`w-10 h-10 ${getWebsiteColor(p.website)} rounded-lg flex items-center justify-center text-white font-bold text-sm shadow shrink-0`}>
+                        {getWebsiteIcon(p.website)}
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-gray-800 dark:text-gray-100 truncate">{p.website}</span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500 truncate">{p.username}</span>
+                        </div>
+                        {p.riskSummary && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">{p.riskSummary}</p>
+                        )}
+                        {tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {tags.map(t => (
+                              <span key={t.label} title={t.title} className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold cursor-help ${t.color}`}>
+                                {t.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Fix CTA */}
+                      <a
+                        href={getChangePasswordUrl(p.website)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white shadow transition-all hover:shadow-md"
+                      >
+                        Fix <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  );
+                })}
+
+                {passwords.filter(q => q.riskScore != null).length > 5 && (
+                  <p className="text-xs text-center text-gray-400 dark:text-gray-500 pt-1">
+                    Showing top 5 of {passwords.filter(q => q.riskScore != null).length} scored credentials
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          {/* ── End Action Queue ───────────────────────────────────── */}
+
+          <br />
 
           {/* Saved Passwords */}
           <div className="bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
               <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Your Saved Passwords</h2>
-              <Button
-                onClick={() => setShowAddForm(true)}
-                className={`px-5 py-2 rounded-xl shadow-md transition ${isPlanLimitReached
-                    ? 'bg-gray-400 cursor-not-allowed text-gray-600'
-                    : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white hover:shadow-lg'
-                  }`}
-              >
-                {isPlanLimitReached ? '💎 Upgrade to Add More' : '+ Add New'}
-              </Button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={handleCheckBreaches}
+                        disabled={isCheckingBreaches || passwords.length === 0}
+                        className="px-4 py-2 rounded-xl shadow-md transition bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        <ShieldAlert className="w-4 h-4" />
+                        {isCheckingBreaches ? 'Checking...' : 'Check Breaches'}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Check all passwords against Have I Been Pwned</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                {breachCheckError && (
+                  <span className="text-xs text-red-500">{breachCheckError}</span>
+                )}
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={handleScoreRisk}
+                        disabled={isScoringRisk || passwords.length === 0}
+                        className="px-4 py-2 rounded-xl shadow-md transition bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        <BarChart3 className="w-4 h-4" />
+                        {isScoringRisk ? 'Scoring...' : 'Score Risk'}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>AI risk score per credential (breach · age · reuse · strength)</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                {riskScoreError && (
+                  <span className="text-xs text-red-500">{riskScoreError}</span>
+                )}
+
+                <Button
+                  onClick={() => setShowAddForm(true)}
+                  className="px-5 py-2 rounded-xl shadow-md transition bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white hover:shadow-lg"
+                >
+                  + Add New
+                </Button>
+              </div>
             </div>
 
 
@@ -1582,16 +1286,38 @@ const checkPaymentStatus = async (): Promise<string | null> => {
                     <div className="flex items-center justify-between mb-5">
                       <div
                         className={`
-            w-14 h-14 
-            ${getWebsiteColor(password.website)} 
-            rounded-xl 
-            flex items-center justify-center 
-            text-white font-semibold text-xl 
+            w-14 h-14
+            ${getWebsiteColor(password.website)}
+            rounded-xl
+            flex items-center justify-center
+            text-white font-semibold text-xl
             shadow-lg
           `}
                       >
                         {getWebsiteIcon(password.website)}
                       </div>
+
+                      <div className="flex items-center gap-2">
+                        {/* Risk score badge — always visible once scored */}
+                        {password.riskScore != null && password.riskLevel && (() => {
+                          const style = RISK_STYLES[password.riskLevel as RiskLevel] ?? RISK_STYLES.medium;
+                          return (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className={`flex flex-col items-center justify-center w-12 h-12 rounded-xl shadow ${style.bg} ${style.text} cursor-default select-none`}>
+                                    <span className="text-sm font-bold leading-none">{password.riskScore}</span>
+                                    <span className="text-[9px] font-semibold leading-tight opacity-90 uppercase tracking-wide">{style.label}</span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" className="max-w-[220px] text-center">
+                                  <p className="font-semibold mb-1">Risk: {style.label} ({password.riskScore}/100)</p>
+                                  {password.riskSummary && <p className="text-xs">{password.riskSummary}</p>}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          );
+                        })()}
 
                       <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition">
                         <div className="flex gap-3">
@@ -1677,6 +1403,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
                 password: '', // Never prefill
                 category: pwdToEdit.category,
                 notes: pwdToEdit.notes,
+                isFinancial: pwdToEdit.isFinancial ?? false,
               });
               setCurrentPassword('');
               setShowEditModal(true);
@@ -1719,28 +1446,6 @@ const checkPaymentStatus = async (): Promise<string | null> => {
   </Tooltip>
 </TooltipProvider>
 
-
-                          {/* Share Button */}
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="hover:bg-blue-100 hover:text-blue-600 rounded-full transition"
-                                  onClick={() => {
-                                    setConfirmId(password._id);
-                                    setSelectedPassword(password);   // store full password object
-                                    setShowShareModal(true);          // open share modal
-                                  }}
-                                >
-                                  <Share2 className="w-4 h-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Share Password</TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-
                         </div>
 
                         <Dialog open={showCopyModal} onOpenChange={setShowCopyModal}>
@@ -1771,144 +1476,45 @@ const checkPaymentStatus = async (): Promise<string | null> => {
 
                         {/* Delete confirmation hoisted to top-level to ensure consistent stacking and to prevent background interaction. */}
                       </div>
+                      </div>{/* end flex items-center gap-2 */}
                     </div>
 
                     {/* Info */}
                     < div className="space-y-1" >
-                      <p className="text-sm opacity-80">Website</p>
-                      <p className="font-semibold truncate">{password.website}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold truncate">{password.website}</p>
+                        {password.isFinancial && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            Financial
+                          </span>
+                        )}
+                        {password.isBreached && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 cursor-default">
+                                  <ShieldAlert className="w-3 h-3" />
+                                  Breached{password.breachCount ? ` ×${password.breachCount.toLocaleString()}` : ''}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>This password appeared in {password.breachCount?.toLocaleString() ?? 'known'} data breach{(password.breachCount ?? 0) !== 1 ? 'es' : ''}. Change it immediately.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </div>
                       <p className="text-sm opacity-80">Username</p>
                       <p className="font-semibold truncate">{password.username}</p>
-                      {/* <p className="text-sm opacity-80">Password</p>
-                      <p className="font-semibold tracking-widest"></p> */}
+                      {password.category && password.category !== 'General' && (
+                        <p className="text-xs opacity-70">{password.category}</p>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
             )
             }
-
-            {showShareModal && selectedPassword && (
-              <Dialog open={showShareModal} onOpenChange={setShowShareModal}>
-                <DialogContent className="sm:max-w-md rounded-2xl shadow-lg border border-blue-200 bg-blue-50 p-6">
-                  <DialogHeader>
-                    <div className="flex flex-col items-center gap-3 text-center">
-                      {/* 🔗 Icon */}
-                      <div className="w-12 h-12 flex items-center justify-center rounded-full bg-blue-100">
-                        <span className="text-blue-600 text-2xl">🔗</span>
-                      </div>
-
-                      {/* Title */}
-                      <DialogTitle className="text-lg font-semibold text-blue-700">
-                        Share Password Securely
-                      </DialogTitle>
-
-                      {/* Subtext */}
-                      <p className="text-sm text-gray-700">
-                        Generate a time-limited, encrypted link to share this password safely.
-                      </p>
-                    </div>
-                  </DialogHeader>
-
-                  {/* Content */}
-                  <div className="space-y-4 mt-4">
-                    {error && (
-                      <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-2 rounded-md">
-                        {error}
-                      </div>
-                    )}
-                    {successMessage && (
-                      <div className="bg-green-100 border border-green-300 text-green-700 px-4 py-2 rounded-md">
-                        {successMessage}
-                      </div>
-                    )}
-                    {/* Password Info */}
-                    <div className="bg-white rounded-xl p-3 border text-sm">
-                      <p className="text-gray-500">Website</p>
-                      <p className="font-semibold truncate">{selectedPassword.website}</p>
-                    </div>
-
-                    {/* Expiry */}
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">
-                        Link expiry
-                      </label>
-                      <select
-                        value={shareExpiry}
-                        onChange={(e) => setShareExpiry(Number(e.target.value))}
-                        className="mt-1 w-full border border-gray-300 rounded-xl p-2 focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value={5}>5 minutes</option>
-                        <option value={15}>15 minutes</option>
-                        <option value={60}>1 hour</option>
-                        <option value={1440}>24 hours</option>
-                      </select>
-                    </div>
-
-                    {/* Share Link */}
-                    {shareLink && (
-                      <div className="bg-white border rounded-xl p-3 text-sm break-all">
-                        <p className="text-gray-500 mb-1">Secure share link</p>
-                        <p className="font-mono text-xs text-gray-800">{shareLink}</p>
-
-                        <div className="flex justify-end mt-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={async () => {
-                              try {
-                                if (shareLink) {
-                                  await navigator.clipboard.writeText(shareLink);
-                                  setSuccessMessage('Link copied to clipboard');
-                                }
-                              } catch (err) {
-                                console.error('Copy failed:', err);
-                                setError('Failed to copy link to clipboard');
-                              }
-                            }}
-                          >
-                            Copy link
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Security Note */}
-                    <div className="text-xs text-gray-600 bg-blue-100 rounded-xl p-3">
-                      🔒 This link can be opened only once and expires automatically.
-                      <div className="mt-2 text-xs text-gray-500">
-                        Note: This share uses your account PIN for verification — please share your account PIN securely with the recipient.
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex justify-end gap-3 pt-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setShowShareModal(false);
-                          setShareLink(null); // reset previous link
-                          setError('');
-                          setSuccessMessage('');
-                        }}
-                        className="rounded-xl"
-                      >
-                        Cancel
-                      </Button>
-
-                      <Button
-                        onClick={handleSharePassword}
-                        className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
-                        disabled={isSharing}
-                      >
-                        {isSharing ? 'Generating...' : 'Generate Link'}
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            )}
-
 
             {/* Hoisted Delete Confirmation Modal (renders once at top-level, above other modals) */}
             {showDeleteConfirmationModal && confirmId && (
@@ -1946,7 +1552,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
             )}
 
             {
-              showReverifyPinModal && pinverificationEnabled === true && !pinError && (
+              showReverifyPinModal && !pinError && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                   <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-lg flex flex-col items-center">
 
@@ -2031,7 +1637,7 @@ const checkPaymentStatus = async (): Promise<string | null> => {
 
 
             {
-              showReverifyPinModal && pinverificationEnabled === true && pinError && (
+              showReverifyPinModal && pinError && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
                   <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-2xl w-full max-w-sm border border-red-200">
 
@@ -2149,66 +1755,6 @@ const checkPaymentStatus = async (): Promise<string | null> => {
             }
 
 
-            {/* Free Plan Limit Modal */}
-            {showPlanLimitModal && (
-              <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[9999]">
-                <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-orange-200">
-                  {/* Header */}
-                  <div className="p-6 border-b border-gray-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-orange-100">
-                        <span className="text-2xl">💎</span>
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-bold text-gray-900">Free Plan Limit Reached</h3>
-                        <p className="text-sm text-orange-700 mt-1">Maximum passwords exceeded</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Body */}
-                  <div className="p-6">
-                    <p className="text-gray-700 leading-relaxed">
-                      Your free plan allows only <strong className="text-orange-600 font-semibold">3 passwords</strong>.
-                      You've already saved {totalPasswords} passwords.
-                    </p>
-
-                    <div className="mt-4 p-4 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl border border-orange-100">
-                      <h4 className="font-semibold text-orange-800 mb-2 flex items-center gap-2">
-                        🚀 Upgrade Benefits
-                      </h4>
-                      <ul className="text-sm text-orange-700 space-y-1">
-                        <li>• Unlimited password storage</li>
-                        <li>• Advanced security features</li>
-                        <li>• Priority support</li>
-                      </ul>
-                    </div>
-                  </div>
-
-                  {/* Footer */}
-                  <div className="p-6 pt-0 flex flex-col sm:flex-row gap-3 border-t border-gray-100">
-                    <button
-                      onClick={() => setShowPlanLimitModal(false)}
-                      className="flex-1 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-medium transition-all duration-200"
-                    >
-                      Close
-                    </button>
-                    <button
-                      onClick={() => {
-                        // setShowPlanLimitModal(false);
-                        setShowPayModalWithoutFreePlan(true);
-
-                      }}
-
-                      // 👈 Update with your upgrade page
-                      className="flex-1 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 text-center"
-                    >
-                      Upgrade Now
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
 
 
             {showExpiryModal && expiredPassword && (
@@ -2337,13 +1883,15 @@ const checkPaymentStatus = async (): Promise<string | null> => {
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Category
                         </label>
-                        <input
-                          type="text"
+                        <select
                           value={passwordformData.category}
-                          disabled
-                          // onChange={(e) => setPasswordFormData({ ...passwordformData, category: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                          onChange={(e) => setPasswordFormData({ ...passwordformData, category: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700"
+                        >
+                          {['General', 'Social', 'Email', 'Finance', 'Shopping', 'Developer', 'Streaming', 'Work', 'Other'].map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
                       </div>
 
                       <div>
@@ -2356,6 +1904,19 @@ const checkPaymentStatus = async (): Promise<string | null> => {
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           rows={3}
                         />
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="isFinancialEdit"
+                          checked={passwordformData.isFinancial}
+                          onChange={(e) => setPasswordFormData({ ...passwordformData, isFinancial: e.target.checked })}
+                          className="w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
+                        />
+                        <label htmlFor="isFinancialEdit" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Mark as Financial (banking, payments, investments)
+                        </label>
                       </div>
 
                       <div className="flex justify-end gap-2 pt-4">
@@ -2504,12 +2065,15 @@ const checkPaymentStatus = async (): Promise<string | null> => {
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Category
                           </label>
-                          <input
-                            type="text"
+                          <select
                             value={passwordformData.category}
                             onChange={(e) => setPasswordFormData({ ...passwordformData, category: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700"
+                          >
+                            {['General', 'Social', 'Email', 'Finance', 'Shopping', 'Developer', 'Streaming', 'Work', 'Other'].map(c => (
+                              <option key={c} value={c}>{c}</option>
+                            ))}
+                          </select>
                         </div>
 
                         <div>
@@ -2522,8 +2086,20 @@ const checkPaymentStatus = async (): Promise<string | null> => {
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             rows={3}
                           />
-
                         </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="isFinancialAdd"
+                          checked={passwordformData.isFinancial}
+                          onChange={(e) => setPasswordFormData({ ...passwordformData, isFinancial: e.target.checked })}
+                          className="w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
+                        />
+                        <label htmlFor="isFinancialAdd" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Mark as Financial (banking, payments, investments)
+                        </label>
                       </div>
 
 

@@ -1,5 +1,7 @@
 // backend/phishing.js
 import express from 'express';
+import { analyzeSpearPhishing } from '../AI/phishingDetection.ts';
+import { checkLookalikeDomain, extractUrlsFromText } from '../utils/lookalikeDomainChecker.ts';
 const phishingRouter = express.Router();
 
 const analyzeEmail = (text) => {
@@ -200,6 +202,55 @@ Detection criteria to evaluate:
             error: "AI analysis failed",
             message: error.message 
         });
+    }
+});
+
+// ══════════════════════════════════════════════════════════
+// AI SPEAR PHISHING ANALYSIS
+// POST /api/phishing/spear-analyze
+// ══════════════════════════════════════════════════════════
+
+phishingRouter.post('/phishing/spear-analyze', async (req, res) => {
+    const { emailContent, recipientName, recipientCompany, recipientRole } = req.body;
+
+    if (!emailContent || typeof emailContent !== 'string' || emailContent.trim().length < 20) {
+        return res.status(400).json({ error: 'emailContent is required (minimum 20 characters)' });
+    }
+
+    try {
+        const urls = extractUrlsFromText(emailContent);
+
+        const aiResult = await analyzeSpearPhishing({
+            emailBody: emailContent,
+            urls,
+            recipientName,
+            recipientCompany,
+            recipientRole,
+        });
+
+        // Run deterministic lookalike check and merge into spearPhishingAnalysis
+        const lookalikeDomains = urls
+            .map(url => checkLookalikeDomain(url))
+            .filter(r => r.isSuspicious)
+            .map(r => ({ domain: r.domain, closestMatch: r.closestMatch || '', technique: r.technique }));
+
+        if (aiResult.spearPhishingAnalysis) {
+            aiResult.spearPhishingAnalysis.lookalikeDomains = lookalikeDomains;
+        } else {
+            aiResult.spearPhishingAnalysis = {
+                isTargeted: false,
+                personalizationDepth: 'none',
+                aiGeneratedProbability: 0,
+                attackVector: 'unknown',
+                suspiciousAbsences: [],
+                lookalikeDomains,
+            };
+        }
+
+        return res.json(aiResult);
+    } catch (err) {
+        console.error('❌ Spear phishing analysis error:', err.message);
+        return res.status(500).json({ error: 'Spear phishing analysis failed', message: err.message });
     }
 });
 

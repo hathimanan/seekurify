@@ -31,16 +31,16 @@ if (_litellmApiKey) {
 console.log(`[phishingDetection] Provider: ${_provider}`);
 
 // ─── Internal AI caller ───────────────────────────────────────
-async function callPhishingAI(prompt: string): Promise<string> {
+async function callPhishingAI(prompt: string, maxTokens = 1024): Promise<string> {
   if (_provider === "google" && _genAI) {
     const model = _genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-    const result = await model.generateContent(prompt);
+    const result = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: maxTokens } });
     return result.response.text().trim();
   }
   if (_provider === "litellm") {
     const res = await completion({
       model: _litellmModel,
-      max_tokens: 1024,
+      max_tokens: maxTokens,
       messages: [{ role: "user", content: prompt }],
       apiKey: _litellmApiKey,
     } as any);
@@ -49,7 +49,7 @@ async function callPhishingAI(prompt: string): Promise<string> {
   // anthropic (or none — will fail fast with a clear error)
   const res = await completion({
     model: "claude-opus-4-6",
-    max_tokens: 1024,
+    max_tokens: maxTokens,
     messages: [{ role: "user", content: prompt }],
     apiKey: _anthropicApiKey,
   } as any);
@@ -90,6 +90,20 @@ export interface PhishingAnalysisResult {
   explanation: string;       // plain English for end user
   recommendations: string[]; // actionable next steps
   rawAiResponse?: string;
+  spearPhishingAnalysis?: {
+    isTargeted: boolean;
+    personalizationDepth: 'none' | 'low' | 'high';
+    aiGeneratedProbability: number;
+    attackVector: 'credential_harvest' | 'wire_transfer' | 'malware_delivery' | 'data_exfil' | 'unknown';
+    suspiciousAbsences: string[];
+    lookalikeDomains: { domain: string; closestMatch: string; technique: string }[];
+  };
+}
+
+export interface SpearPhishingInput extends PhishingAnalysisInput {
+  recipientName?: string;
+  recipientCompany?: string;
+  recipientRole?: string;
 }
 
 // ─── Prompt Builder ──────────────────────────────────────────
@@ -173,6 +187,84 @@ export async function analyzePhishingEmail(
     parsed = JSON.parse(cleanJson);
   } catch {
     throw new Error(`Failed to parse AI response as JSON: ${rawText}`);
+  }
+
+  parsed.rawAiResponse = rawText;
+  return parsed;
+}
+
+// ─── Spear Phishing Analysis ─────────────────────────────────
+
+function buildSpearPhishingPrompt(input: SpearPhishingInput): string {
+  const recipientContext = [
+    input.recipientName    ? `Recipient Name: ${input.recipientName}`    : null,
+    input.recipientCompany ? `Recipient Company: ${input.recipientCompany}` : null,
+    input.recipientRole    ? `Recipient Role: ${input.recipientRole}`    : null,
+  ].filter(Boolean).join('\n');
+
+  return `You are a cybersecurity expert specializing in detecting AI-generated spear phishing emails — targeted attacks with PERFECT grammar and DELIBERATE personalization designed to fool standard filters.
+
+Your task is to look for the OPPOSITE signals of mass phishing: suspicious ABSENCE of errors, suspiciously researched personalization, and attack-vector precision.
+
+EMAIL DATA:
+${input.senderDisplayName ? `Sender Display Name: ${input.senderDisplayName}` : ''}
+${input.senderEmail ? `Sender Email: ${input.senderEmail}` : ''}
+${input.emailSubject ? `Subject: ${input.emailSubject}` : ''}
+${input.emailBody ? `Body:\n${input.emailBody}` : ''}
+${input.urls && input.urls.length > 0 ? `URLs found:\n${input.urls.join('\n')}` : ''}
+${recipientContext ? `\nKNOWN RECIPIENT CONTEXT:\n${recipientContext}` : ''}
+
+Analyze for spear phishing signals:
+1. PERSONALIZATION DEPTH: Does the email reference specific names, roles, company details, or recent events that required research? Generic emails say "Dear Customer"; spear phish says "Hi John" and mentions your company.
+2. SUSPICIOUS ABSENCES: Note red flags that are MISSING — no grammar errors (unusual for mass phishing), no urgency pressure, no generic greeting, professional formatting. Absence of typical phishing signals in a suspicious email is itself a signal.
+3. AI-GENERATED PROBABILITY: Uniform sentence structure, no idioms, over-formal tone, consistent paragraph length — signs of LLM-generated text.
+4. ATTACK VECTOR: What does this email want? Credential harvest (click to login), wire transfer (send money), malware delivery (open attachment/link), data exfiltration (reply with info)?
+5. CONTEXT COHERENCE: Does the pretext make sense for the recipient's role? A "vendor invoice" sent to a Finance Manager is more plausible than one sent to a developer.
+
+Return ONLY this JSON (no markdown, no preamble):
+{
+  "phishingProbability": <number 0-100>,
+  "verdict": "<safe|suspicious|phishing>",
+  "confidenceLevel": "<low|medium|high>",
+  "indicators": [
+    { "type": "<category>", "description": "<finding>", "severity": "<low|medium|high|critical>" }
+  ],
+  "senderAnalysis": {
+    "displayNameMismatch": <boolean>,
+    "domainReputation": "<trusted|unknown|suspicious|malicious>",
+    "spoofingDetected": <boolean>
+  },
+  "urlAnalysis": {
+    "suspiciousUrls": ["<url>"],
+    "typosquattingDetected": <boolean>
+  },
+  "explanation": "<2-3 sentence plain English summary>",
+  "recommendations": ["<action 1>", "<action 2>"],
+  "spearPhishingAnalysis": {
+    "isTargeted": <boolean>,
+    "personalizationDepth": "<none|low|high>",
+    "aiGeneratedProbability": <number 0-100>,
+    "attackVector": "<credential_harvest|wire_transfer|malware_delivery|data_exfil|unknown>",
+    "suspiciousAbsences": ["<observation about missing red flags>"],
+    "lookalikeDomains": [{ "domain": "<spoofed>", "closestMatch": "<legit>", "technique": "<description>" }]
+  }
+}`;
+}
+
+export async function analyzeSpearPhishing(input: SpearPhishingInput): Promise<PhishingAnalysisResult> {
+  if (!input.emailBody && !input.emailSubject && !input.senderEmail) {
+    throw new Error('At least one of emailBody, emailSubject, or senderEmail is required.');
+  }
+
+  const prompt = buildSpearPhishingPrompt(input);
+  const rawText = await callPhishingAI(prompt, 1500);
+  const cleanJson = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+  let parsed: PhishingAnalysisResult;
+  try {
+    parsed = JSON.parse(cleanJson);
+  } catch {
+    throw new Error(`Failed to parse AI spear phishing response: ${rawText}`);
   }
 
   parsed.rawAiResponse = rawText;

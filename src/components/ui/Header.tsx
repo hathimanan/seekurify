@@ -49,7 +49,6 @@ const Header: React.FC<HeaderProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
 
@@ -92,12 +91,6 @@ const Header: React.FC<HeaderProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("darkMode");
-    const isDark = saved === "true";
-    setDarkMode(isDark);
-    document.documentElement.classList.toggle("dark", isDark);
-  }, []);
 
 
       const token = localStorage.getItem("token");
@@ -191,13 +184,6 @@ const Header: React.FC<HeaderProps> = ({
     await handleLogout();
   };
 
-  const toggleDarkMode = () => {
-    const next = !darkMode;
-    setDarkMode(next);
-    document.documentElement.classList.toggle("dark", next);
-    localStorage.setItem("darkMode", String(next));
-  };
-
   return (
     <header className="relative bg-slate-900 border-b border-slate-700 px-6 text-white shadow-md z-50 h-16 flex items-center">
       {/* Logo — absolutely centred */}
@@ -225,14 +211,6 @@ const Header: React.FC<HeaderProps> = ({
 
       {/* Right Section — pushed to far right with ml-auto */}
       <div className="ml-auto flex items-center space-x-4">
-          <button
-            onClick={toggleDarkMode}
-            aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-            className="px-4 py-2 rounded-lg bg-white/10 text-white text-sm font-medium shadow hover:bg-white/20 hover:scale-105 transition"
-          >
-            {darkMode ? "Light Mode" : "Dark Mode"}
-          </button>
-
           {/* Notification Icon */}
 <div className="relative" ref={notificationRef}>
       <button

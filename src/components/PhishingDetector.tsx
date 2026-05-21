@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useEffect, useRef } from 'react';
-import { ShieldAlert, ShieldCheck, Search, Loader2, AlertCircle, Brain, TrendingUp, Eye, Zap } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, Search, Loader2, AlertCircle, Brain, TrendingUp, Eye, Zap, Target, Globe, XCircle } from 'lucide-react';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import AppSidebar from "./ui/AppSidebar";
@@ -52,6 +52,23 @@ type RecipientFields = {
   cc: string;
   bcc: string;
 };
+
+interface SpearPhishingAnalysis {
+  isTargeted: boolean;
+  personalizationDepth: 'none' | 'low' | 'high';
+  aiGeneratedProbability: number;
+  attackVector: 'credential_harvest' | 'wire_transfer' | 'malware_delivery' | 'data_exfil' | 'unknown';
+  suspiciousAbsences: string[];
+  lookalikeDomains: { domain: string; closestMatch: string; technique: string }[];
+}
+
+interface SpearAnalysisResult {
+  phishingProbability: number;
+  verdict: 'safe' | 'suspicious' | 'phishing';
+  confidenceLevel: 'low' | 'medium' | 'high';
+  explanation: string;
+  spearPhishingAnalysis: SpearPhishingAnalysis;
+}
 
 interface HeaderProps {
   token: string;
@@ -121,9 +138,45 @@ async function runAIPhishingAnalysis(emailContent: string): Promise<AIPhishingAn
 }
 
 
+async function runSpearPhishingAnalysis(
+  emailContent: string,
+  recipientName?: string,
+  recipientCompany?: string,
+  recipientRole?: string,
+): Promise<SpearAnalysisResult> {
+  const response = await fetch(`${API_BASE_URL}/phishing/spear-analyze`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ emailContent, recipientName, recipientCompany, recipientRole }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Spear phishing analysis failed (${response.status})`);
+  }
+  return response.json();
+}
+
 // ─────────────────────────────────────────────
 //  HELPERS
 // ─────────────────────────────────────────────
+
+const HEADER_EXPLAIN: Record<string, Record<string, string>> = {
+  SPF: {
+    PASS: 'Sender IP is authorized by the domain',
+    FAIL: 'Sender IP not in allowed list — likely spoofed',
+    'NOT FOUND': 'No SPF record — sender is unverified',
+  },
+  DKIM: {
+    PASS: 'Email signature valid — content not tampered',
+    FAIL: 'Signature invalid — content may be altered',
+    'NOT FOUND': 'No DKIM — authenticity unconfirmed',
+  },
+  DMARC: {
+    PASS: 'Domain alignment policy enforced',
+    FAIL: 'Failed domain alignment check',
+    'NOT FOUND': 'No policy — spoofed mail allowed',
+  },
+};
 
 const severityColor = (s: 'low' | 'medium' | 'high') => {
   if (s === 'high') return 'bg-red-100 border-red-300 text-red-700';
@@ -150,12 +203,25 @@ export default function PhishingDetector() {
   const [errorMessage, setErrorMessage]     = useState('');
   const [showErrorModal, setShowErrorModal] = useState(false);
 
+  // Scan mode
+  const [scanMode, setScanMode] = useState<'rule' | 'ai' | 'spear'>('rule');
+
   // Legacy result (rule-based backend)
   const [result, setResult] = useState<PhishingResult | null>(null);
 
-  // NEW: AI result
+  // AI generic result
   const [aiResult, setAiResult] = useState<AIPhishingAnalysis | null>(null);
   const [aiError, setAiError]   = useState<string | null>(null);
+
+  // Spear phishing result
+  const [spearResult, setSpearResult]   = useState<SpearAnalysisResult | null>(null);
+  const [spearLoading, setSpearLoading] = useState(false);
+  const [spearError, setSpearError]     = useState<string | null>(null);
+
+  // Spear recipient context
+  const [spearName, setSpearName]         = useState('');
+  const [spearCompany, setSpearCompany]   = useState('');
+  const [spearRole, setSpearRole]         = useState('');
 
   // Recipient fields
   const [recipientAnalysis, setRecipientAnalysis] = useState<string | null>(null);
@@ -237,6 +303,32 @@ export default function PhishingDetector() {
     }
   };
 
+  // ── Spear phishing scan ──────────────────────
+  const handleSpearScan = async () => {
+    const text = userInput.trim();
+    if (!text || text.length < 20) {
+      triggerError('⚠️ Please paste the email content (minimum 20 characters).');
+      return;
+    }
+    setSpearResult(null);
+    setSpearError(null);
+    try {
+      setSpearLoading(true);
+      const analysis = await runSpearPhishingAnalysis(
+        text,
+        spearName.trim() || undefined,
+        spearCompany.trim() || undefined,
+        spearRole.trim() || undefined,
+      );
+      setSpearResult(analysis);
+    } catch (err) {
+      console.error('Spear phishing scan failed:', err);
+      setSpearError('Spear phishing analysis failed. Check your API connection.');
+    } finally {
+      setSpearLoading(false);
+    }
+  };
+
   // ── recipient field analysis (unchanged logic) ─
   const analyzeRecipients = () => {
     const data: RecipientFields = {
@@ -263,6 +355,7 @@ export default function PhishingDetector() {
 
   const resetAll = () => {
     setResult(null); setAiResult(null); setAiError(null);
+    setSpearResult(null); setSpearError(null);
     setUserInput(''); setRecipientAnalysis(null);
   };
 
@@ -320,31 +413,88 @@ export default function PhishingDetector() {
                 className="w-full h-52 p-4 rounded-xl border border-gray-200 bg-gray-50 text-sm font-mono focus:ring-2 focus:ring-amber-400 focus:outline-none resize-none"
               />
 
-              {/* ── Two scan buttons ── */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+              {/* ── Scan mode tabs ── */}
+              <div className="flex mt-4 rounded-xl overflow-hidden border border-gray-200">
+                {([
+                  { id: 'rule',  label: 'Rule-Based',        icon: <Search className="w-3.5 h-3.5" /> },
+                  { id: 'ai',    label: 'AI Generic',         icon: <Brain  className="w-3.5 h-3.5" /> },
+                  { id: 'spear', label: 'AI Spear Phishing',  icon: <Target className="w-3.5 h-3.5" /> },
+                ] as const).map(({ id, label, icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => setScanMode(id)}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold transition ${
+                      scanMode === id
+                        ? id === 'spear'
+                          ? 'bg-rose-600 text-white'
+                          : id === 'ai'
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-slate-800 text-white'
+                        : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                    }`}
+                  >
+                    {icon}{label}
+                  </button>
+                ))}
+              </div>
 
-                {/* Rule-based (existing) */}
+              {/* ── Spear phishing context fields ── */}
+              {scanMode === 'spear' && (
+                <div className="mt-3 p-3 bg-rose-50 border border-rose-200 rounded-xl">
+                  <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mb-2">
+                    Optional: Your identity context (helps detect suspicious personalization)
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: 'Your Name', value: spearName,    setter: setSpearName,    placeholder: 'e.g. John' },
+                      { label: 'Company',   value: spearCompany, setter: setSpearCompany, placeholder: 'e.g. Acme Corp' },
+                      { label: 'Your Role', value: spearRole,    setter: setSpearRole,    placeholder: 'e.g. Finance Manager' },
+                    ].map(({ label, value, setter, placeholder }) => (
+                      <div key={label}>
+                        <label className="text-[10px] font-semibold text-rose-500 block mb-0.5">{label}</label>
+                        <input
+                          type="text"
+                          value={value}
+                          onChange={e => setter(e.target.value)}
+                          placeholder={placeholder}
+                          className="w-full p-2 rounded-lg border border-rose-200 bg-white text-xs focus:ring-2 focus:ring-rose-300 focus:outline-none"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Single scan button ── */}
+              {scanMode === 'rule' && (
                 <button
                   onClick={handleScan}
                   disabled={loading || !userInput.trim()}
-                  className="h-12 text-sm font-bold bg-slate-800 text-white rounded-xl shadow hover:bg-slate-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full h-12 mt-3 text-sm font-bold bg-slate-800 text-white rounded-xl shadow hover:bg-slate-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {loading ? <><Loader2 className="animate-spin w-4 h-4" /> Scanning…</> : <><Search className="w-4 h-4" /> Rule-Based Scan</>}
+                  {loading ? <><Loader2 className="animate-spin w-4 h-4" /> Scanning…</> : <><Search className="w-4 h-4" /> Run Rule-Based Scan</>}
                 </button>
-
-                {/* AI-powered (NEW) */}
+              )}
+              {scanMode === 'ai' && (
                 <button
                   onClick={handleAIScan}
                   disabled={aiLoading || !userInput.trim()}
-                  className="h-12 text-sm font-bold bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl shadow hover:from-indigo-700 hover:to-violet-700 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full h-12 mt-3 text-sm font-bold bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl shadow hover:from-indigo-700 hover:to-violet-700 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  {aiLoading
-                    ? <><Loader2 className="animate-spin w-4 h-4" /> AI Analyzing…</>
-                    : <><Brain className="w-4 h-4" /> AI-Powered Analysis</>}
+                  {aiLoading ? <><Loader2 className="animate-spin w-4 h-4" /> AI Analyzing…</> : <><Brain className="w-4 h-4" /> Run AI Analysis</>}
                 </button>
-              </div>
+              )}
+              {scanMode === 'spear' && (
+                <button
+                  onClick={handleSpearScan}
+                  disabled={spearLoading || !userInput.trim()}
+                  className="w-full h-12 mt-3 text-sm font-bold bg-gradient-to-r from-rose-600 to-orange-600 text-white rounded-xl shadow hover:from-rose-700 hover:to-orange-700 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {spearLoading ? <><Loader2 className="animate-spin w-4 h-4" /> Analyzing…</> : <><Target className="w-4 h-4" /> Run Spear Phishing Scan</>}
+                </button>
+              )}
 
-              {(result || aiResult) && (
+              {(result || aiResult || spearResult) && (
                 <button onClick={resetAll} className="mt-3 text-sm font-semibold text-amber-400 hover:text-amber-300 hover:underline block">
                   Reset Scan
                 </button>
@@ -468,7 +618,7 @@ export default function PhishingDetector() {
                         <p className={`text-xs font-black mt-1 ${signal.detected ? 'text-red-600' : 'text-emerald-600'}`}>
                           {signal.detected ? 'DETECTED' : 'CLEAR'}
                         </p>
-                        <p className="text-[10px] text-gray-400 mt-0.5 truncate" title={signal.detail}>{signal.detail}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5 break-words line-clamp-2">{signal.detail}</p>
                       </div>
                     ))}
                   </div>
@@ -506,6 +656,165 @@ export default function PhishingDetector() {
 
 
             {/* ══════════════════════════════════════
+                 SPEAR PHISHING RESULT SECTION
+            ══════════════════════════════════════ */}
+            <AnimatePresence>
+              {spearError && (
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-600 text-sm"
+                >
+                  ⚠️ {spearError}
+                </motion.div>
+              )}
+
+              {spearResult && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-4"
+                >
+                  {/* Badge */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 bg-gradient-to-r from-rose-600 to-orange-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                      <Target className="w-3 h-3" /> Spear Phishing Analysis
+                    </div>
+                    <span className="text-xs text-gray-500">Confidence: {spearResult.confidenceLevel?.toUpperCase()}</span>
+                  </div>
+
+                  {/* Main verdict + probability */}
+                  {(() => {
+                    const vkey = spearResult.verdict?.toUpperCase() as keyof typeof verdictConfig;
+                    const cfg  = verdictConfig[vkey] || verdictConfig.SUSPICIOUS;
+                    const Icon = cfg.icon;
+                    return (
+                      <div className={`${cfg.bg} border-2 ${cfg.border} rounded-2xl p-6`}>
+                        <div className="flex items-center gap-4 mb-4">
+                          <Icon className={`w-10 h-10 ${cfg.text}`} />
+                          <div>
+                            <h3 className={`text-xl font-black ${cfg.text}`}>{cfg.label}</h3>
+                            <p className="text-gray-500 text-sm mt-0.5">{spearResult.explanation}</p>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs font-semibold text-gray-500">
+                            <span>Phishing Probability</span>
+                            <span>{spearResult.phishingProbability}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-3">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${spearResult.phishingProbability}%` }}
+                              transition={{ duration: 0.8, ease: 'easeOut' }}
+                              className={`h-3 rounded-full ${
+                                spearResult.phishingProbability >= 70 ? 'bg-red-500'
+                                  : spearResult.phishingProbability >= 40 ? 'bg-orange-400'
+                                  : 'bg-emerald-500'
+                              }`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Spear phishing signal cards */}
+                  {spearResult.spearPhishingAnalysis && (
+                    <>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {/* Targeting badge */}
+                        <div className={`p-3 rounded-xl border text-center ${
+                          spearResult.spearPhishingAnalysis.isTargeted ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'
+                        }`}>
+                          <Target className={`w-4 h-4 mx-auto mb-1 ${spearResult.spearPhishingAnalysis.isTargeted ? 'text-red-500' : 'text-emerald-500'}`} />
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Targeting</p>
+                          <p className={`text-xs font-black mt-1 ${spearResult.spearPhishingAnalysis.isTargeted ? 'text-red-600' : 'text-emerald-600'}`}>
+                            {spearResult.spearPhishingAnalysis.personalizationDepth === 'high' ? 'HIGHLY TARGETED'
+                              : spearResult.spearPhishingAnalysis.isTargeted ? 'TARGETED'
+                              : 'GENERIC MASS MAIL'}
+                          </p>
+                        </div>
+
+                        {/* AI writing probability */}
+                        <div className={`p-3 rounded-xl border text-center ${
+                          spearResult.spearPhishingAnalysis.aiGeneratedProbability >= 60 ? 'bg-orange-50 border-orange-200' : 'bg-slate-50 border-slate-200'
+                        }`}>
+                          <Brain className={`w-4 h-4 mx-auto mb-1 ${spearResult.spearPhishingAnalysis.aiGeneratedProbability >= 60 ? 'text-orange-500' : 'text-slate-400'}`} />
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">AI-Written</p>
+                          <p className={`text-xs font-black mt-1 ${spearResult.spearPhishingAnalysis.aiGeneratedProbability >= 60 ? 'text-orange-600' : 'text-slate-500'}`}>
+                            {spearResult.spearPhishingAnalysis.aiGeneratedProbability}%
+                          </p>
+                        </div>
+
+                        {/* Attack vector */}
+                        <div className="p-3 rounded-xl border bg-slate-50 border-slate-200 text-center">
+                          <Zap className="w-4 h-4 mx-auto mb-1 text-rose-500" />
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Attack Vector</p>
+                          <p className="text-xs font-black mt-1 text-rose-600 uppercase">
+                            {spearResult.spearPhishingAnalysis.attackVector.replace(/_/g, ' ')}
+                          </p>
+                        </div>
+
+                        {/* Lookalike domains */}
+                        <div className={`p-3 rounded-xl border text-center ${
+                          spearResult.spearPhishingAnalysis.lookalikeDomains.length > 0 ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'
+                        }`}>
+                          <Globe className={`w-4 h-4 mx-auto mb-1 ${spearResult.spearPhishingAnalysis.lookalikeDomains.length > 0 ? 'text-red-500' : 'text-emerald-500'}`} />
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Lookalike Domains</p>
+                          <p className={`text-xs font-black mt-1 ${spearResult.spearPhishingAnalysis.lookalikeDomains.length > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                            {spearResult.spearPhishingAnalysis.lookalikeDomains.length > 0
+                              ? `${spearResult.spearPhishingAnalysis.lookalikeDomains.length} FOUND`
+                              : 'NONE'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Suspicious absences */}
+                      {spearResult.spearPhishingAnalysis.suspiciousAbsences.length > 0 && (
+                        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-5">
+                          <h4 className="text-xs font-black text-orange-600 uppercase tracking-widest mb-3 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> Suspicious Absences — Missing Red Flags
+                          </h4>
+                          <ul className="space-y-1.5">
+                            {spearResult.spearPhishingAnalysis.suspiciousAbsences.map((absence, i) => (
+                              <li key={i} className="flex items-start gap-2 text-sm text-orange-800">
+                                <XCircle className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                                {absence}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Lookalike domain warnings */}
+                      {spearResult.spearPhishingAnalysis.lookalikeDomains.length > 0 && (
+                        <div className="bg-red-50 border border-red-200 rounded-2xl p-5">
+                          <h4 className="text-xs font-black text-red-600 uppercase tracking-widest mb-3 flex items-center gap-1">
+                            <Globe className="w-3 h-3" /> Lookalike Domain Warnings
+                          </h4>
+                          <div className="space-y-2">
+                            {spearResult.spearPhishingAnalysis.lookalikeDomains.map((d, i) => (
+                              <div key={i} className="flex items-center justify-between p-2 bg-white rounded-lg border border-red-100 text-sm">
+                                <div>
+                                  <span className="font-mono font-bold text-red-700">{d.domain}</span>
+                                  <span className="text-gray-400 mx-2">→</span>
+                                  <span className="text-gray-600">impersonating <span className="font-semibold">{d.closestMatch}</span></span>
+                                </div>
+                                <span className="text-xs px-2 py-0.5 bg-red-100 text-red-600 rounded font-semibold uppercase">{d.technique}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+
+            {/* ══════════════════════════════════════
                  LEGACY RULE-BASED RESULT (unchanged)
             ══════════════════════════════════════ */}
             <AnimatePresence>
@@ -521,10 +830,14 @@ export default function PhishingDetector() {
                   <div className="grid grid-cols-3 gap-4">
                     {(['SPF', 'DKIM', 'DMARC'] as const).map((h) => {
                       const key = h.toLowerCase() as 'spf' | 'dkim' | 'dmarc';
+                      const statusRaw = result.headerStats?.[key] ?? 'NOT FOUND';
+                      const statusKey = statusRaw.toUpperCase();
+                      const explain = HEADER_EXPLAIN[h]?.[statusKey] ?? '';
                       return (
                         <div key={h} className={`p-4 rounded-xl border text-center shadow-sm ${getStatusColor(result.headerStats?.[key])}`}>
                           <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">{h}</p>
-                          <p className="text-lg font-black">{result.headerStats?.[key] ?? 'N/A'}</p>
+                          <p className="text-lg font-black">{statusRaw}</p>
+                          {explain && <p className="text-[9px] mt-1 opacity-60 leading-tight">{explain}</p>}
                         </div>
                       );
                     })}
@@ -546,6 +859,7 @@ export default function PhishingDetector() {
                           />
                         </div>
                         <p className="text-xs font-semibold text-gray-500 mt-1">Risk Score: {result.score}%</p>
+                        <p className="text-[9px] text-gray-400 mt-0.5 italic">Scored on SPF/DKIM/DMARC failures, urgency language, suspicious links, and sender spoofing patterns.</p>
                       </div>
                     </div>
 

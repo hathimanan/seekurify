@@ -24,6 +24,7 @@ lastPasswordChange: Date,
 plan?: 'free' | 'premium' | 'pro',
 planAmount?: number,
 role?: string
+userType?: 'individual' | 'ai_teams' | 'security_professional' | 'enterprise';
 ownedFeatureFlags?: string[];
 
 }
@@ -60,9 +61,10 @@ expireAfterDays: { type: Number, default: 90 },  // default expiry period
 lastReminderSent: { type: Date },
 lastSuspiciousLogin: { type: Date, default: Date.now },
 lastPasswordChange: { type: Date, default: Date.now },
-plan: { type: String, default: 'free' }, // 🔍 Ensure this exists!
+plan: { type: String, default: 'free' },
 planAmount: { type: Number },
-role: { type: String, default: 'user' }, // 'user' or 'admin'
+role: { type: String, default: 'user' },
+userType: { type: String, enum: ['individual', 'ai_teams', 'security_professional', 'enterprise'], default: 'individual' },
 ownedFeatureFlags: { type: [String], default: [] }
 
 });

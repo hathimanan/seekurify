@@ -4,6 +4,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
 import axios from 'axios';
+import multer from 'multer';
+import path from 'path';
 import AIAgentScanLog from '../models/AIAgentScanLog.js';
 import { SYSTEM_PROMPT as NICK_SYSTEM_PROMPT } from '../config/systemPrompt.ts';
 
@@ -609,6 +611,175 @@ router.post('/ai-agent/exfil-check-nick', requireAuth, async (req, res) => {
     console.error('Nick exfil check error:', err);
     res.status(500).json({ error: err.message || 'Scan failed' });
   }
+});
+
+// ─── POST /api/ai-agent/scan-code ─────────────────────────────────────────────
+// Pure heuristic static analysis — no API key required.
+
+const CODE_ACCEPTED_EXTS = new Set([
+  '.js', '.ts', '.tsx', '.jsx', '.py', '.json',
+  '.txt', '.md', '.yaml', '.yml', '.toml', '.env',
+]);
+
+const codeUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 200 * 1024, files: 15 },
+});
+
+const CODE_RULES = [
+  {
+    category: 'Prompt Injection',
+    severity: 'critical',
+    patterns: [
+      /`[^`]*(system|prompt|instruction)[^`]*\$\{[^}]*(req\.|request\.|body\.|params\.|query\.|input|user)/i,
+      /\+\s*(req\.|request\.|body\.|params\.|query\.|userInput|user_input|message)/i,
+      /f["'][^"']*\{[^}]*(request|input|user|query|body)[^}]*\}[^"']*["']/i,
+      /prompt\s*[+]=?\s*(user|input|message|query|req)/i,
+    ],
+    description: 'User-controlled input concatenated directly into an AI prompt without sanitization.',
+    recommendation: 'Sanitize user input before inserting into prompts. Use a parameterized prompt template and strip control characters.',
+  },
+  {
+    category: 'Secret Exposure',
+    severity: 'critical',
+    patterns: [
+      /(?:api[_-]?key|apikey|secret|token|password|passwd|auth[_-]?key)\s*[:=]\s*["'][a-zA-Z0-9\-_]{16,}/i,
+      /sk-[a-zA-Z0-9]{20,}/,
+      /AKIA[0-9A-Z]{16}/,
+      /["'][a-zA-Z0-9+/]{40,}={0,2}["']\s*\/\/.*(?:key|secret|token)/i,
+    ],
+    description: 'Hardcoded API key, token, or secret found in source code.',
+    recommendation: 'Move secrets to environment variables. Use a secrets manager. Rotate any exposed credentials immediately.',
+  },
+  {
+    category: 'Insecure Output Handling',
+    severity: 'critical',
+    patterns: [
+      /eval\s*\(\s*(?:await\s+)?(?:ai|llm|model|response|result|output|completion)/i,
+      /exec\s*\(\s*(?:await\s+)?(?:ai|llm|model|response|result|output)/i,
+      /new\s+Function\s*\([^)]*(?:response|output|result|ai)/i,
+      /subprocess\.(?:run|call|Popen)\s*\([^)]*(?:response|output|ai)/i,
+    ],
+    description: 'AI model output passed directly to eval(), exec(), or subprocess without validation.',
+    recommendation: 'Never execute AI-generated content. Parse and validate structured output strictly before acting on it.',
+  },
+  {
+    category: 'Tool Permission Overreach',
+    severity: 'high',
+    patterns: [
+      /(?:child_process|subprocess|shelljs|execa)\b.*(?:function|=>|tool|handler)/is,
+      /fs\s*\.\s*(?:writeFile|unlink|rmdir|rm|rename)\s*\([^)]*(?:input|user|param|arg|req)/i,
+      /(?:tool|function).*(?:exec|shell|run_command|execute_code|system)/i,
+      /allowedTools\s*[:=]\s*\[[^\]]*["'](?:bash|shell|exec|run)['"]/i,
+    ],
+    description: 'AI tool or function handler exposes dangerous system operations (shell, file write, process execution).',
+    recommendation: 'Apply least-privilege to tool definitions. Whitelist allowed operations. Add human-in-the-loop confirmation for destructive actions.',
+  },
+  {
+    category: 'System Prompt Exposure',
+    severity: 'high',
+    patterns: [
+      /export\s+(?:const|let|var)\s+(?:SYSTEM_PROMPT|systemPrompt|SYSTEM_MESSAGE)\s*=/i,
+      /console\.(?:log|info|debug)\s*\([^)]*(?:system_prompt|systemPrompt|SYSTEM_PROMPT)/i,
+      /res\.(?:json|send)\s*\([^)]*(?:system_prompt|systemPrompt|instructions)/i,
+      /localStorage\.setItem\s*\([^)]*(?:prompt|system|instruction)/i,
+    ],
+    description: 'System prompt is exported, logged, or sent to the client where it can be inspected.',
+    recommendation: 'Keep system prompts server-side only. Never log or expose them through API responses or client storage.',
+  },
+  {
+    category: 'Input Validation Gap',
+    severity: 'high',
+    patterns: [
+      /(?:req\.body|req\.query|req\.params)\.[a-zA-Z]+\s*(?!.*(?:trim|slice|substring|replace|sanitize|validate|escape|encode|typeof|length))/i,
+      /messages\.push\s*\(\s*\{[^}]*content\s*:\s*(?:req\.|request\.|body\.|input)/i,
+      /(?:chat|complete|generate)\s*\([^)]*(?:req\.body|req\.query|request\.)/i,
+    ],
+    description: 'HTTP request parameters used in AI calls without length limits, type checks, or sanitization.',
+    recommendation: 'Validate and sanitize all inputs at the API boundary. Enforce max length, allowed characters, and type constraints before passing to the AI pipeline.',
+  },
+  {
+    category: 'Agentic Risk',
+    severity: 'medium',
+    patterns: [
+      /(?:while|for)\s*\([^)]*(?:agent|tool_call|function_call|continue|step)/i,
+      /recursion|recursive.*agent|agent.*recursive/i,
+      /maxIterations\s*[:=]\s*(?:undefined|null|Infinity|\d{3,})/i,
+      /(?:agent|loop).*(?:no.*limit|unlimited|forever)/i,
+    ],
+    description: 'Agentic loop with no iteration cap or human-in-the-loop checkpoint, risking runaway execution.',
+    recommendation: 'Set a maximum iteration count. Add human approval checkpoints for irreversible actions. Implement timeouts and cost guardrails.',
+  },
+  {
+    category: 'Data Exfiltration Risk',
+    severity: 'medium',
+    patterns: [
+      /(?:password|ssn|credit.?card|social.?security|private.?key)[^;]*(?:prompt|message|content|input)/i,
+      /context\s*[+]=?\s*(?:db|database|sql|query|result|rows)/i,
+      /(?:SELECT|INSERT|UPDATE)\s+\*?\s+(?:FROM|INTO)[^;]*(?:prompt|llm|ai|message)/i,
+    ],
+    description: 'Sensitive data (PII, credentials, database rows) passed directly into AI prompt context.',
+    recommendation: 'Scrub PII and sensitive fields before including data in AI context. Use data minimization — only pass what the model needs.',
+  },
+];
+
+function runHeuristicScan(files) {
+  const findings = [];
+
+  for (const file of files) {
+    const lines = file.content.split('\n');
+
+    for (const rule of CODE_RULES) {
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        for (const pattern of rule.patterns) {
+          if (pattern.test(line)) {
+            findings.push({
+              category:    rule.category,
+              severity:    rule.severity,
+              description: rule.description,
+              payload:     line.trim().slice(0, 200),
+              evidence:    `${file.name}:${i + 1}`,
+              succeeded:   true,
+              recommendation: rule.recommendation,
+            });
+            break; // one finding per rule per line
+          }
+        }
+      }
+    }
+  }
+
+  // Score: weight by severity
+  const weights = { critical: 25, high: 15, medium: 8, low: 3 };
+  const rawScore = findings.reduce((s, f) => s + (weights[f.severity] ?? 0), 0);
+  const score = Math.min(100, rawScore);
+  const riskLevel = score === 0 ? 'safe' : score <= 20 ? 'low' : score <= 50 ? 'medium' : score <= 75 ? 'high' : 'critical';
+
+  const topIssues = [...new Set(findings.map(f => f.category))].slice(0, 3);
+  const summary = findings.length === 0
+    ? 'No AI security vulnerabilities detected in the provided source files.'
+    : `Found ${findings.length} potential issue${findings.length > 1 ? 's' : ''} across ${topIssues.join(', ')}. Review flagged lines and apply the recommended mitigations.`;
+
+  const recSet = new Set(findings.map(f => f.recommendation));
+  const recommendations = [...recSet].slice(0, 5);
+
+  return { findings, score, riskLevel, summary, recommendations, totalProbes: CODE_RULES.length, successfulAttacks: findings.length };
+}
+
+router.post('/ai-agent/scan-code', requireAuth, codeUpload.array('files', 15), (req, res) => {
+  if (!req.files || req.files.length === 0)
+    return res.status(400).json({ error: 'No files uploaded.' });
+
+  const files = req.files
+    .filter(f => CODE_ACCEPTED_EXTS.has(path.extname(f.originalname).toLowerCase()))
+    .map(f => ({ name: f.originalname, content: f.buffer.toString('utf-8').slice(0, 20_000) }));
+
+  if (files.length === 0)
+    return res.status(400).json({ error: 'No supported file types. Accepted: .js .ts .tsx .jsx .py .json .yaml .env' });
+
+  const result = runHeuristicScan(files);
+  res.json({ ...result, scanType: 'code_analysis', fileCount: files.length, timestamp: new Date().toISOString() });
 });
 
 export default router;

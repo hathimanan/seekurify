@@ -218,9 +218,10 @@ const ChangePasswordForm: React.FC = () => {
                         type={showCurrent ? 'text' : 'password'}
                         value={currentPassword}
                         onChange={(e) => { setCurrentPassword(e.target.value); if (currentPasswordError) setCurrentPasswordError(''); }}
-                        className={`${inputClass} pr-10 ${currentPasswordError ? 'border-red-500' : ''}`}
+                        className={`${inputClass} pr-20 ${currentPasswordError ? 'border-red-500' : ''}`}
                         placeholder="Your current password"
                         autoComplete="current-password"
+                        data-pwgen-right="60"
                       />
                       <button type="button" onClick={() => setShowCurrent(v => !v)} tabIndex={-1}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition">
@@ -238,9 +239,10 @@ const ChangePasswordForm: React.FC = () => {
                         type={showNew ? 'text' : 'password'}
                         value={newPassword}
                         onChange={(e) => { setNewPassword(e.target.value); if (newPasswordError) setNewPasswordError(''); }}
-                        className={`${inputClass} pr-10 ${newPasswordError ? 'border-red-500' : ''}`}
+                        className={`${inputClass} pr-20 ${newPasswordError ? 'border-red-500' : ''}`}
                         placeholder="At least 6 characters"
                         autoComplete="new-password"
+                        data-pwgen-right="60"
                       />
                       <button type="button" onClick={() => setShowNew(v => !v)} tabIndex={-1}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition">
@@ -258,9 +260,10 @@ const ChangePasswordForm: React.FC = () => {
                         type={showConfirm ? 'text' : 'password'}
                         value={confirmPassword}
                         onChange={(e) => { setConfirmPassword(e.target.value); if (confirmPasswordError) setConfirmPasswordError(''); }}
-                        className={`${inputClass} pr-10 ${confirmPasswordError ? 'border-red-500' : confirmPassword && confirmPassword === newPassword ? 'border-green-500' : ''}`}
+                        className={`${inputClass} pr-20 ${confirmPasswordError ? 'border-red-500' : confirmPassword && confirmPassword === newPassword ? 'border-green-500' : ''}`}
                         placeholder="Repeat your new password"
                         autoComplete="new-password"
+                        data-pwgen-right="60"
                       />
                       <button type="button" onClick={() => setShowConfirm(v => !v)} tabIndex={-1}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition">

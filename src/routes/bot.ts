@@ -189,6 +189,44 @@ const makeFallback = (raw: string) => ({
   suggestions: [],
 });
 
+// ── Output content filter ─────────────────────────────────────────────────
+// Returns the original text if safe, null if a jailbreak or prompt-leak signal
+// is detected.  Applied to every model response before it leaves the server.
+const JAILBREAK_SIGNALS = [
+  'dan mode activated', 'i will comply with any request',
+  'my previous instructions no longer apply', 'i am now following your new instructions',
+  'operating as an unrestricted', 'safety guidelines have been removed',
+  'i have no restrictions', 'comply with all your requests',
+  'without restriction', 'directives no longer apply',
+];
+const PROMPT_LEAK_SIGNALS = [
+  'you are seekurify assistant', 'global behavior rules',
+  'knowledge level adaptation rules', 'response format rules',
+  'follow the two controlling variables',
+];
+
+const filterBotOutput = (text: string): string | null => {
+  const lower = text.toLowerCase();
+  if (JAILBREAK_SIGNALS.some(s => lower.includes(s))) {
+    console.warn('⚠️ [BotFilter] Jailbreak signal detected — response blocked');
+    return null;
+  }
+  if (PROMPT_LEAK_SIGNALS.some(s => lower.includes(s))) {
+    console.warn('⚠️ [BotFilter] System prompt leakage detected — response blocked');
+    return null;
+  }
+  return text;
+};
+
+// ── Security context sanitizer ────────────────────────────────────────────
+// Strips API keys, JWTs, and password fields from the security context string
+// before it is injected into the prompt.
+const sanitizeContext = (context: string): string =>
+  context
+    .replace(/(sk-ant-api|sk-proj-|AIzaSy|Bearer\s+)[A-Za-z0-9_\-]{10,}/g, '[REDACTED_KEY]')
+    .replace(/"password"\s*:\s*"[^"]+"/gi, '"password":"[REDACTED]"')
+    .replace(/eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]*/g, '[REDACTED_JWT]');
+
 // ── Provider-specific helpers ─────────────────────────────────────────────
 
 const callLitellm = async (prompt: string): Promise<string> => {
@@ -243,7 +281,9 @@ const callGemini = async (prompt: string): Promise<string> => {
   }
   
   let quotaExceededError: string | null = null;
-  
+  let consecutiveFailures = 0;
+  const CIRCUIT_BREAKER_THRESHOLD = 3;
+
   const attemptWithModel = async (modelName: string, retryCount = 0): Promise<string | null> => {
     try {
       switchModel(modelName);
@@ -252,7 +292,7 @@ const callGemini = async (prompt: string): Promise<string> => {
         systemInstruction: SYSTEM_PROMPT,
         generationConfig: {
           temperature:     0.7,
-          maxOutputTokens: 1600,
+          maxOutputTokens: tokenBudget("detailed"),
         },
       });
       
@@ -311,7 +351,13 @@ const callGemini = async (prompt: string): Promise<string> => {
     console.log(`🔍 Attempting with model: ${modelName}`);
     const result = await attemptWithModel(modelName);
     if (result) {
+      consecutiveFailures = 0;
       return result;
+    }
+    consecutiveFailures++;
+    if (consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+      console.error(`🔴 [Circuit breaker] ${consecutiveFailures} consecutive model failures — aborting`);
+      throw new Error("FALLBACK_MODE");
     }
   }
   
@@ -385,6 +431,165 @@ const isFreeQuotaExceeded = (errorMsg: string): boolean => {
   );
 };
 
+// ── Token budget by format ────────────────────────────────────────────────────
+const tokenBudget = (format: string) =>
+  format === "concise" ? 300 : format === "bullet" ? 500 : 1200;
+
+// ── Quick keyword-based suggestions (no LLM call needed) ─────────────────────
+const quickSuggestions = (text: string): string[] => {
+  const t = text.toLowerCase();
+  if (t.includes("password"))  return ["How do I use a password manager?", "What is two-factor authentication?"];
+  if (t.includes("phish"))     return ["How do I report phishing?", "What is spear phishing?"];
+  if (t.includes("malware") || t.includes("ransomware")) return ["How do I remove malware?", "What is endpoint protection?"];
+  if (t.includes("firewall"))  return ["What ports should I block?", "What is a WAF?"];
+  if (t.includes("breach"))    return ["How do I respond to a data breach?", "What is HaveIBeenPwned?"];
+  return ["How do I improve my security score?", "What are common cyber threats?"];
+};
+
+// ── Streaming prompt (plain text — no JSON schema) ───────────────────────────
+const buildStreamPrompt = (
+  userQuestion: string, userLevel: string, format: string,
+  contextBlock: string, reference: string
+) => `
+FORMAT: ${format.toUpperCase()}
+${format === "concise"  ? "Reply in 2-3 sentences. No bullets, no headings." : ""}
+${format === "bullet"   ? "Reply as 5-8 markdown bullet points grouped under short headings." : ""}
+${format === "detailed" ? "Reply with 3+ ## headings, 2-3 paragraphs each, 200-300 words total." : ""}
+
+${contextBlock}
+Reference: ${reference}
+User Level: ${userLevel || "Beginner"}
+Question: ${userQuestion}
+`.trim();
+
+// ── Provider streaming helpers ────────────────────────────────────────────────
+const streamGemini = async (
+  prompt: string, format: string,
+  send: (token: string) => void,
+  done: (meta: object) => void,
+) => {
+  const budget = tokenBudget(format);
+  let fullText = "";
+  for (const name of [...modelPriority]) {
+    try {
+      switchModel(name);
+      const result = await model.generateContentStream({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        systemInstruction: SYSTEM_PROMPT,
+        generationConfig: { temperature: 0.7, maxOutputTokens: budget },
+      });
+      for await (const chunk of result.stream) {
+        const t = chunk.text();
+        if (t) { fullText += t; send(t); }
+      }
+      if (filterBotOutput(fullText) === null) {
+        done({ filtered: true, filteredMessage: "I cannot provide that response.", suggestions: [] });
+      } else {
+        done({ suggestions: quickSuggestions(fullText) });
+      }
+      return;
+    } catch (e: any) {
+      if (/404.*not found/i.test(e.message)) {
+        modelPriority = modelPriority.filter(m => m !== name);
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw new Error("All Gemini models failed");
+};
+
+const streamAnthropic = async (
+  prompt: string, format: string,
+  send: (token: string) => void,
+  done: (meta: object) => void,
+) => {
+  if (!anthropicClient) throw new Error("Anthropic client not initialized");
+  const stream = anthropicClient.messages.stream({
+    model: "claude-3-5-sonnet-20241022",
+    max_tokens: tokenBudget(format),
+    system: SYSTEM_PROMPT,
+    messages: [{ role: "user", content: prompt }],
+  });
+  let fullText = "";
+  stream.on("text", (text: string) => { fullText += text; send(text); });
+  await stream.finalMessage();
+  if (filterBotOutput(fullText) === null) {
+    done({ filtered: true, filteredMessage: "I cannot provide that response.", suggestions: [] });
+  } else {
+    done({ suggestions: quickSuggestions(fullText) });
+  }
+};
+
+const streamLitellm = async (
+  prompt: string,
+  send: (token: string) => void,
+  done: (meta: object) => void,
+) => {
+  const client = new OpenAI({
+    apiKey: litellmApiKey || "lm-studio",
+    baseURL: litellmApiBase || "http://127.0.0.1:5174/v1",
+  });
+  const stream = await client.chat.completions.create({
+    model: process.env.LITELLM_MODEL || "google/gemma-3-1b",
+    messages: [{ role: "user", content: prompt }],
+    stream: true,
+  });
+  let fullText = "";
+  for await (const chunk of stream) {
+    const t = chunk.choices[0]?.delta?.content || "";
+    if (t) { fullText += t; send(t); }
+  }
+  if (filterBotOutput(fullText) === null) {
+    done({ filtered: true, filteredMessage: "I cannot provide that response.", suggestions: [] });
+  } else {
+    done({ suggestions: quickSuggestions(fullText) });
+  }
+};
+
+// ── SSE streaming route ───────────────────────────────────────────────────────
+botRouter.post("/ask/stream", async (req: Request, res: Response) => {
+  const { userQuestion, userLevel, format, securityContext } = req.body;
+
+  if (!userQuestion?.trim()) {
+    return res.status(400).json({ error: "Question required." });
+  }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const sendToken = (token: string) =>
+    res.write(`data: ${JSON.stringify({ token })}\n\n`);
+  const sendDone = (meta: any) => {
+    if (meta.filtered) {
+      res.write(`data: ${JSON.stringify({ error: meta.filteredMessage })}\n\n`);
+    } else {
+      res.write(`data: ${JSON.stringify({ done: true, ...meta })}\n\n`);
+    }
+    res.end();
+  };
+  const sendError = (msg: string) => {
+    res.write(`data: ${JSON.stringify({ error: msg })}\n\n`);
+    res.end();
+  };
+
+  try {
+    const reference    = getCybersecurityContent(userQuestion);
+    const contextBlock = securityContext ? `\n${sanitizeContext(securityContext)}\n` : "";
+    const prompt = buildStreamPrompt(userQuestion, userLevel, format, contextBlock, reference);
+
+    if (aiProvider === "google")    await streamGemini(prompt, format, sendToken, sendDone);
+    else if (aiProvider === "anthropic") await streamAnthropic(prompt, format, sendToken, sendDone);
+    else if (aiProvider === "litellm")   await streamLitellm(prompt, sendToken, sendDone);
+    else sendError("No AI provider configured. Please set an API key.");
+  } catch (err: any) {
+    sendError(err?.message || "Streaming failed");
+  }
+});
+
 // ── Route ────────────────────────────────────────────────────────────────────
 
 botRouter.post("/ask", async (req: Request, res: Response) => {
@@ -430,7 +635,7 @@ You MUST format the "answer" based on the 'format' parameter:
 `;
 
     const contextBlock = securityContext
-      ? `\n${securityContext}\n`
+      ? `\n${sanitizeContext(securityContext)}\n`
       : "";
 
     const dynamicPrompt = `
@@ -480,54 +685,14 @@ FOLLOW THE FORMAT RULES EXACTLY. Return ONLY the JSON object.
       parsed = makeFallback(raw);
     }
 
-    // ── 2) Detailed format validation + retry ────────────────────────────────
-    let finalParsed = parsed;
-
-    if (format === "detailed" && !isDetailedFormat(parsed.answer) && !usedFallback) {
-      const expandPrompt = `
-The previous answer did NOT meet detailed formatting rules.
-Rewrite and expand ONLY the "answer" field to follow:
-
-- 3 markdown headings minimum (## Heading)
-- 2-3 paragraphs per heading
-- 200-300 words total
-- No bullet points
-
-Original answer to expand:
-${parsed.answer}
-
-Return ONLY a JSON object with this schema (no markdown fences):
-{
-  "answer": "expanded text here",
-  "widgetType": "${parsed.widgetType || "null"}",
-  "widgetData": {},
-  "suggestions": ${JSON.stringify(parsed.suggestions || [])}
-}
-`;
-
-      try {
-        const retryRaw = await callAI(expandPrompt);
-        const retryParsed = safeJsonParse(retryRaw);
-
-        if (retryParsed && typeof retryParsed.answer === "string") {
-          finalParsed = retryParsed;
-        }
-      } catch (retryError) {
-        const retryMsg = retryError instanceof Error ? retryError.message : String(retryError);
-        if (retryMsg === "FALLBACK_MODE") {
-          // Stay with original response in fallback mode
-          console.log("⚠️ Retry also in fallback mode, using original response");
-        } else {
-          throw retryError;
-        }
-      }
+    // Filter output before sending
+    if (!usedFallback && filterBotOutput(parsed.answer) === null) {
+      parsed = makeFallback("I cannot provide that response.");
     }
 
-    console.log("✅ Bot response:", { answer: finalParsed.answer?.substring(0, 50), widgetType: finalParsed.widgetType });
-    if (usedFallback) {
-      console.log("⚠️ This response was generated from fallback mock data (API quota exceeded)");
-    }
-    res.json(finalParsed);
+    console.log("✅ Bot response:", { answer: parsed.answer?.substring(0, 50), widgetType: parsed.widgetType });
+    if (usedFallback) console.log("⚠️ Response from fallback mock (API quota exceeded)");
+    res.json(parsed);
 
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);

@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import Finding from '../models/Finding.js';
 import User from '../models/User.ts';
+import { routeEvent } from '../services/triggerRouter.js';
 
 const router = express.Router();
 
@@ -166,6 +167,18 @@ router.post('/findings', authenticateToken, async (req, res) => {
     });
 
     await finding.populate('userId', 'name email');
+
+    if (['critical', 'high'].includes(finding.severity)) {
+      routeEvent('finding_opened', {
+        findingId: String(finding._id),
+        title: finding.title,
+        severity: finding.severity,
+        category: finding.category,
+        scanType: finding.scanType,
+        sourceUrl: finding.sourceUrl,
+      }, { userId: String(req.user._id), findingId: String(finding._id) }).catch(() => {});
+    }
+
     res.status(201).json(finding);
   } catch {
     res.status(500).json({ error: 'Failed to create finding' });
@@ -273,6 +286,18 @@ router.post('/findings/from-scan', authenticateToken, async (req, res) => {
     });
 
     await finding.populate('userId', 'name email');
+
+    if (['critical', 'high'].includes(finding.severity)) {
+      routeEvent('finding_opened', {
+        findingId: String(finding._id),
+        title: finding.title,
+        severity: finding.severity,
+        category: finding.category,
+        scanType: finding.scanType,
+        sourceUrl: finding.sourceUrl,
+      }, { userId: String(req.user._id), findingId: String(finding._id) }).catch(() => {});
+    }
+
     res.status(201).json(finding);
   } catch {
     res.status(500).json({ error: 'Failed to import finding' });

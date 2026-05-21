@@ -1,21 +1,44 @@
 import express from "express";
 import featureflags from "../models/featureFlag.js";
 import { adminAuth } from "../middleware/adminAuth.js";
-import jwt from "jsonwebtoken";
 import User from "../models/User.ts";
 
 const featureFlagRoutes = express.Router();
 
-const GROUP_TO_FEATURES = {
-  identity: ["password_vault", "siem_dashboard"],
-  threat: ["malware_analyzer", "phishing_detector", "deepfake_detector"],
-  "ai-security": ["ai_red_team", "ai_agent_scanner", "prompt_injection", "pii_detector"],
-  "web-infra": ["watch_agent", "site_shield", "csp_builder"],
-  "team-workspaces": ["findings_board", "team_workspaces"],
-  learn: ["security_awareness", "insights", "security_chatbot"],
+const USER_TYPE_TIER = {
+  individual:            1,
+  ai_teams:              2,
+  security_professional: 3,
+  enterprise:            4,
 };
 
-const CORE_GROUP_FLAGS = [
+const USER_TYPE_FLAGS = {
+  individual: [
+    "otp_verification", "pin_verification_password_manager",
+    "security_chatbot", "security_awareness", "insights",
+    "learn_secure_group",
+  ],
+  ai_teams: [
+    "otp_verification", "pin_verification_password_manager", "password_vault",
+    "siem_dashboard", "security_chatbot", "ai_red_team", "ai_agent_scanner",
+    "prompt_injection", "pii_detector", "malware_analyzer", "deepfake_detector",
+    "ai_security_suite_group", "threat_detection_group",
+  ],
+  security_professional: [
+    "otp_verification", "pin_verification_password_manager", "pin_verification_siem",
+    "password_vault", "siem_dashboard", "security_chatbot",
+    "malware_analyzer", "deepfake_detector", "phishing_detector",
+    "watch_agent", "csp_builder", "site_shield",
+    "findings_board", "team_workspaces", "security_awareness",
+    "insights", "threat_detection_group",
+    "web_infra_group", "teams_group", "learn_secure_group",
+  ],
+  enterprise: null, // null = all flags
+};
+
+
+const ALL_SEED_FLAGS = [
+  // ── Group flags ────────────────────────────────────────────────────────────
   {
     key: "identity_access_group",
     name: "Identity & Access Group",
@@ -52,22 +75,146 @@ const CORE_GROUP_FLAGS = [
     description: "Controls visibility of the learning pillar.",
     enabled: true,
   },
+  // ── Authentication flags ───────────────────────────────────────────────────
+  {
+    key: "otp_verification",
+    name: "OTP Verification",
+    description: "Require one-time password verification on login.",
+    enabled: true,
+  },
+  {
+    key: "pin_verification_password_manager",
+    name: "PIN Verification (Password Manager)",
+    description: "Require PIN entry before viewing vault passwords.",
+    enabled: false,
+  },
+  {
+    key: "pin_verification_siem",
+    name: "PIN Verification (SIEM)",
+    description: "Require PIN entry before accessing the SIEM dashboard.",
+    enabled: false,
+  },
+  // ── Identity & Access flags ────────────────────────────────────────────────
+  {
+    key: "password_vault",
+    name: "Password Vault",
+    description: "Encrypted credential vault with breach detection.",
+    enabled: true,
+  },
+  {
+    key: "siem_dashboard",
+    name: "SIEM Dashboard",
+    description: "System event monitoring and security information dashboard.",
+    enabled: true,
+  },
+  // ── Threat Detection flags ─────────────────────────────────────────────────
+  {
+    key: "malware_analyzer",
+    name: "Malware Analyzer",
+    description: "AI-powered malware and suspicious code analysis.",
+    enabled: true,
+  },
+  {
+    key: "deepfake_detector",
+    name: "DeepFake Detector",
+    description: "Detect AI-generated deepfake images and videos.",
+    enabled: true,
+  },
+  {
+    key: "phishing_detector",
+    name: "Phishing Detector",
+    description: "Rule-based and AI phishing email analysis.",
+    enabled: false,
+  },
+  // ── AI Security flags ──────────────────────────────────────────────────────
+  {
+    key: "ai_red_team",
+    name: "AI Red-Team Agent",
+    description: "Automated AI-driven attack simulation and red-team testing.",
+    enabled: true,
+  },
+  {
+    key: "ai_agent_scanner",
+    name: "AI Agent Scanner",
+    description: "Scan AI agents and LLM integrations for vulnerabilities.",
+    enabled: true,
+  },
+  {
+    key: "prompt_injection",
+    name: "AI Injection Scanner",
+    description: "Detect prompt injection and jailbreak patterns in AI inputs.",
+    enabled: false,
+  },
+  {
+    key: "pii_detector",
+    name: "PII Detector (Prompt Privacy Scanner)",
+    description: "Identify personally identifiable information in text before it reaches an AI.",
+    enabled: true,
+  },
+  // ── Web & Infrastructure flags ─────────────────────────────────────────────
+  {
+    key: "watch_agent",
+    name: "Watch Agent",
+    description: "Real-time monitoring agent for websites and endpoints.",
+    enabled: true,
+  },
+  {
+    key: "csp_builder",
+    name: "CSP Builder",
+    description: "Interactive Content Security Policy generator and validator.",
+    enabled: true,
+  },
+  {
+    key: "site_shield",
+    name: "SiteShield Audit",
+    description: "Full security audit of a domain's headers, SSL, and DNS.",
+    enabled: false,
+  },
+  // ── Team & Collaboration flags ─────────────────────────────────────────────
+  {
+    key: "findings_board",
+    name: "Findings Board",
+    description: "Centralised security findings tracker across all modules.",
+    enabled: true,
+  },
+  {
+    key: "team_workspaces",
+    name: "Team Workspaces",
+    description: "Shared workspaces for collaborative security management.",
+    enabled: true,
+  },
+  // ── Learning & Awareness flags ─────────────────────────────────────────────
+  {
+    key: "security_awareness",
+    name: "Security Awareness",
+    description: "Interactive security training and awareness content.",
+    enabled: true,
+  },
+  {
+    key: "insights",
+    name: "Insights",
+    description: "Security trend insights and recommendations.",
+    enabled: true,
+  },
+  {
+    key: "security_chatbot",
+    name: "Security Chatbot",
+    description: "AI assistant for security queries and guidance.",
+    enabled: true,
+  },
 ];
 
 async function ensureCoreGroupFlags() {
   await Promise.all(
-    CORE_GROUP_FLAGS.map((flag) =>
+    ALL_SEED_FLAGS.map((flag) =>
       featureflags.findOneAndUpdate(
         { key: flag.key },
-        { $setOnInsert: { ...flag, allowedRoles: ["admin"], rolloutPercentage: 100 } },
+        { $setOnInsert: { ...flag, allowedRoles: ["admin", "user"], rolloutPercentage: 100 } },
         { upsert: true, new: false }
       )
     )
   );
 }
-
-const hasAnyOwnedFeature = (ownedFeatureFlags, featureKeys) =>
-  featureKeys.some((key) => ownedFeatureFlags.includes(key));
 
 // ============================================
 // PUBLIC ROUTES FIRST (before any /:key route)
@@ -79,23 +226,6 @@ const hasAnyOwnedFeature = (ownedFeatureFlags, featureKeys) =>
 featureFlagRoutes.get("/read", async (req, res) => {
   try {
     await ensureCoreGroupFlags();
-
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
-    let ownedFeatureFlags = [];
-
-    if (token) {
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const userId = decoded?._id || decoded?.id;
-        if (userId) {
-          const user = await User.findById(userId).select("ownedFeatureFlags");
-          ownedFeatureFlags = user?.ownedFeatureFlags || [];
-        }
-      } catch (err) {
-        ownedFeatureFlags = [];
-      }
-    }
 
     const otpFlag = await featureflags.findOne({ key: "otp_verification" });
     const pinPMFlag = await featureflags.findOne({
@@ -135,48 +265,27 @@ featureFlagRoutes.get("/read", async (req, res) => {
       key: "learn_secure_group",
     });
 
-    const identityAccessEnabled =
-      (identityAccessFlag ? identityAccessFlag.enabled : true) &&
-      hasAnyOwnedFeature(ownedFeatureFlags, GROUP_TO_FEATURES.identity);
-    const threatDetectionEnabled =
-      (threatDetectionFlag ? threatDetectionFlag.enabled : true) &&
-      hasAnyOwnedFeature(ownedFeatureFlags, GROUP_TO_FEATURES.threat);
-    const aiSecuritySuiteEnabled =
-      (aiSecuritySuiteFlag ? aiSecuritySuiteFlag.enabled : true) &&
-      hasAnyOwnedFeature(ownedFeatureFlags, GROUP_TO_FEATURES["ai-security"]);
-    const webInfraEnabled =
-      (webInfraFlag ? webInfraFlag.enabled : true) &&
-      hasAnyOwnedFeature(ownedFeatureFlags, GROUP_TO_FEATURES["web-infra"]);
-    const teamsEnabled =
-      (teamsGroupFlag ? teamsGroupFlag.enabled : true) &&
-      hasAnyOwnedFeature(ownedFeatureFlags, GROUP_TO_FEATURES["team-workspaces"]);
-    const learnSecureEnabled =
-      (learnSecureFlag ? learnSecureFlag.enabled : true) &&
-      hasAnyOwnedFeature(ownedFeatureFlags, GROUP_TO_FEATURES.learn);
+    const identityAccessEnabled  = identityAccessFlag  ? identityAccessFlag.enabled  : true;
+    const threatDetectionEnabled = threatDetectionFlag ? threatDetectionFlag.enabled : true;
+    const aiSecuritySuiteEnabled = aiSecuritySuiteFlag ? aiSecuritySuiteFlag.enabled : true;
+    const webInfraEnabled        = webInfraFlag        ? webInfraFlag.enabled        : true;
+    const teamsEnabled           = teamsGroupFlag      ? teamsGroupFlag.enabled      : true;
+    const learnSecureEnabled     = learnSecureFlag     ? learnSecureFlag.enabled     : true;
 
     res.json({
       otpEnabled: otpFlag ? otpFlag.enabled : true,
       pinVerificationPasswordManager: pinPMFlag ? pinPMFlag.enabled : false,
       pinVerificationSIEM: pinSIEMFlag ? pinSIEMFlag.enabled : false,
-      phishingDetectorEnabled:
-        (phishingDetectorFlag ? phishingDetectorFlag.enabled : false) &&
-        ownedFeatureFlags.includes("phishing_detector"),
-      securityChatbotEnabled:
-        (securityChatbotFlag ? securityChatbotFlag.enabled : false) &&
-        ownedFeatureFlags.includes("security_chatbot"),
-      siteShieldEnabled:
-        (siteShieldFlag ? siteShieldFlag.enabled : false) &&
-        ownedFeatureFlags.includes("site_shield"),
-      promptInjectionEnabled:
-        (promptInjectionFlag ? promptInjectionFlag.enabled : false) &&
-        ownedFeatureFlags.includes("prompt_injection"),
+      phishingDetectorEnabled:  phishingDetectorFlag  ? phishingDetectorFlag.enabled  : false,
+      securityChatbotEnabled:   securityChatbotFlag   ? securityChatbotFlag.enabled   : true,
+      siteShieldEnabled:        siteShieldFlag        ? siteShieldFlag.enabled        : false,
+      promptInjectionEnabled:   promptInjectionFlag   ? promptInjectionFlag.enabled   : false,
       threatDetectionEnabled,
       aiSecuritySuiteEnabled,
       identityAccessEnabled,
       webInfraEnabled,
       teamsEnabled,
       learnSecureEnabled,
-      ownedFeatureFlags,
     });
   } catch (err) {
     console.error("Error reading feature flags:", err);
@@ -185,7 +294,7 @@ featureFlagRoutes.get("/read", async (req, res) => {
       pinVerificationPasswordManager: false,
       pinVerificationSIEM: false,
       phishingDetectorEnabled: false,
-      securityChatbotEnabled: false,
+      securityChatbotEnabled: true,
       siteShieldEnabled: false,
       promptInjectionEnabled: false,
       threatDetectionEnabled: false,
@@ -194,7 +303,6 @@ featureFlagRoutes.get("/read", async (req, res) => {
       webInfraEnabled: false,
       teamsEnabled: false,
       learnSecureEnabled: false,
-      ownedFeatureFlags: [],
     });
   }
 });
@@ -400,6 +508,73 @@ featureFlagRoutes.delete("/delete/:key", adminAuth, async (req, res) => {
       success: false, 
       error: "Failed to delete feature flag" 
     });
+  }
+});
+
+// ============================================
+// ADMIN USER-TYPE ROUTES
+// ============================================
+
+// GET all users with their current userType (admin only)
+featureFlagRoutes.get("/users", adminAuth, async (req, res) => {
+  try {
+    const users = await User.find({}, "email username name userType ownedFeatureFlags role").sort({ createdAt: -1 });
+    // Admins without a stored userType are implicitly enterprise
+    const normalized = users.map(u => {
+      const obj = u.toObject();
+      if (obj.role === 'admin' && !obj.userType) obj.userType = 'enterprise';
+      return obj;
+    });
+    res.json({ success: true, users: normalized });
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    res.status(500).json({ success: false, error: "Failed to fetch users" });
+  }
+});
+
+// POST assign a userType to a specific user (admin only)
+featureFlagRoutes.post("/assign-user-type", adminAuth, async (req, res) => {
+  try {
+    const { userId, userType } = req.body;
+
+    if (!userId || !userType) {
+      return res.status(400).json({ success: false, error: "userId and userType are required" });
+    }
+
+    const validTypes = ["individual", "ai_teams", "security_professional", "enterprise"];
+    if (!validTypes.includes(userType)) {
+      return res.status(400).json({ success: false, error: "Invalid userType" });
+    }
+
+    const existingUser = await User.findById(userId).select("userType role");
+    if (!existingUser) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    // Resolve ownedFeatureFlags for this type
+    let ownedFlags;
+    if (userType === "enterprise" || USER_TYPE_FLAGS[userType] === null) {
+      // Enterprise gets all known flags
+      const allFlags = await featureflags.find({}, "key");
+      ownedFlags = allFlags.map(f => f.key);
+    } else {
+      ownedFlags = USER_TYPE_FLAGS[userType];
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $set: { userType, ownedFeatureFlags: ownedFlags } },
+      { new: true, select: "email username name userType ownedFeatureFlags" }
+    );
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    res.json({ success: true, user });
+  } catch (err) {
+    console.error("Error assigning user type:", err);
+    res.status(500).json({ success: false, error: "Failed to assign user type" });
   }
 });
 

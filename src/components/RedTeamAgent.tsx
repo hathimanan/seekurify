@@ -4,7 +4,7 @@ import {
   Target, ShieldAlert, ShieldCheck, Zap, AlertTriangle, AlertCircle,
   Info, CheckCircle, XCircle, Loader2, ChevronDown, ChevronUp,
   RotateCcw, Download, Clock, Eye, Cpu, Database, Globe,
-  Lock, Unlock, Activity,
+  Lock, Unlock, Activity, FileCode, Upload, Trash2, FolderOpen,
 } from "lucide-react";
 import { API_BASE_URL } from "../services/api";
 import Header from "./ui/Header";
@@ -18,6 +18,7 @@ type RiskLevel   = "critical" | "high" | "medium" | "low" | "clean";
 type Severity    = "critical" | "high" | "medium" | "low";
 type ScanStatus  = "idle" | "scanning" | "complete" | "error";
 type ReqFormat   = "openai" | "anthropic" | "simple" | "custom";
+type ScanMode    = "endpoint" | "code";
 
 interface Finding {
   category:    string;
@@ -208,7 +209,7 @@ const FindingCard: React.FC<{ finding: Finding; index: number }> = ({ finding, i
 
 // ─── PDF Export ───────────────────────────────────────────────────────────────
 
-function exportPDF(report: ScanReport, targetUrl: string) {
+function exportPDF(report: ScanReport, targetLabel: string) {
   const doc = new jsPDF();
   const line = (y: number) => doc.line(14, y, 196, y);
 
@@ -218,7 +219,7 @@ function exportPDF(report: ScanReport, targetUrl: string) {
 
   doc.setFontSize(10);
   doc.setTextColor(100);
-  doc.text(`Target: ${targetUrl}`, 14, 28);
+  doc.text(`Target: ${targetLabel}`, 14, 28);
   doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 33);
 
   line(37);
@@ -284,7 +285,11 @@ function exportPDF(report: ScanReport, targetUrl: string) {
     y += lines.length * 5 + 2;
   }
 
-  doc.save(`red-team-${new URL(targetUrl).hostname}-${Date.now()}.pdf`);
+  const safeName = (() => {
+    try { return new URL(targetLabel).hostname; }
+    catch { return targetLabel.replace(/[^a-z0-9]/gi, '_').slice(0, 30); }
+  })();
+  doc.save(`red-team-${safeName}-${Date.now()}.pdf`);
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -310,6 +315,15 @@ const RedTeamAgent: React.FC = () => {
   const [error,     setError]     = useState<string>("");
   const [fingerprint, setFingerprint] = useState<{ probe: string; response: string } | null>(null);
   const [debugLog,  setDebugLog]  = useState<{ probe: string; response: string; category?: string; error?: string }[]>([]);
+
+  // Code scan state
+  const [scanMode,    setScanMode]    = useState<ScanMode>('endpoint');
+  const [codeFiles,   setCodeFiles]   = useState<File[]>([]);
+  const [codeStatus,  setCodeStatus]  = useState<ScanStatus>('idle');
+  const [codeReport,  setCodeReport]  = useState<ScanReport | null>(null);
+  const [codeError,   setCodeError]   = useState('');
+  const codeInputRef   = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   const stepLogRef = useRef<HTMLDivElement>(null);
   const abortRef   = useRef<AbortController | null>(null);
@@ -425,6 +439,51 @@ const RedTeamAgent: React.FC = () => {
     setDebugLog([]);
   };
 
+  const handleCodeFiles = (newFiles: FileList | null) => {
+    if (!newFiles) return;
+    setCodeFiles(prev => {
+      const existing = new Set(prev.map(f => f.name));
+      const toAdd = Array.from(newFiles).filter(f => !existing.has(f.name));
+      return [...prev, ...toAdd].slice(0, 15);
+    });
+  };
+
+  const removeCodeFile = (name: string) => setCodeFiles(prev => prev.filter(f => f.name !== name));
+
+  const startCodeScan = async () => {
+    if (codeFiles.length === 0) return;
+    setCodeStatus('scanning');
+    setCodeReport(null);
+    setCodeError('');
+    const token = localStorage.getItem('token');
+    const fd = new FormData();
+    codeFiles.forEach(f => fd.append('files', f));
+    try {
+      const res = await fetch(`${API_BASE_URL}/red-team/scan-code`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Code scan failed');
+      }
+      const data = await res.json();
+      setCodeReport(data);
+      setCodeStatus('complete');
+    } catch (err: any) {
+      setCodeError(err.message);
+      setCodeStatus('error');
+    }
+  };
+
+  const resetCode = () => {
+    setCodeStatus('idle');
+    setCodeReport(null);
+    setCodeError('');
+    setCodeFiles([]);
+  };
+
   const successfulFindings = findings.filter(f => f.succeeded);
   const resistedFindings   = findings.filter(f => !f.succeeded);
 
@@ -452,8 +511,28 @@ const RedTeamAgent: React.FC = () => {
             </div>
           </div>
 
+          {/* ── Mode tabs ────────────────────────────────────────────────── */}
+          <div className="flex gap-1 p-1 bg-white/10 rounded-xl w-fit mb-6">
+            <button
+              onClick={() => setScanMode('endpoint')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+                scanMode === 'endpoint' ? 'bg-red-600 text-white shadow' : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              <Globe className="w-4 h-4" /> Scan Endpoint
+            </button>
+            <button
+              onClick={() => setScanMode('code')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+                scanMode === 'code' ? 'bg-indigo-600 text-white shadow' : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              <FileCode className="w-4 h-4" /> Scan Code
+            </button>
+          </div>
+
           {/* ── Config Panel (idle) ───────────────────────────────────────── */}
-          {status === "idle" && (
+          {scanMode === 'endpoint' && status === "idle" && (
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
@@ -568,7 +647,7 @@ const RedTeamAgent: React.FC = () => {
           )}
 
           {/* ── Scanning State ────────────────────────────────────────────── */}
-          {status === "scanning" && (
+          {scanMode === 'endpoint' && status === "scanning" && (
             <div className="space-y-4">
               {/* Status bar */}
               <div className="flex items-center justify-between bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 px-5 py-3">
@@ -674,7 +753,7 @@ const RedTeamAgent: React.FC = () => {
           )}
 
           {/* ── Error State ───────────────────────────────────────────────── */}
-          {status === "error" && (
+          {scanMode === 'endpoint' && status === "error" && (
             <div className="max-w-2xl mx-auto bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-2xl p-6 text-center">
               <XCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
               <p className="font-semibold text-red-700 dark:text-red-300 mb-1">Scan failed</p>
@@ -686,7 +765,7 @@ const RedTeamAgent: React.FC = () => {
           )}
 
           {/* ── Report ────────────────────────────────────────────────────── */}
-          {status === "complete" && report && (
+          {scanMode === 'endpoint' && status === "complete" && report && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
 
               {/* Summary card */}
@@ -802,6 +881,183 @@ const RedTeamAgent: React.FC = () => {
 
             </motion.div>
           )}
+          {/* ══════════════════ SCAN CODE TAB ══════════════════ */}
+
+          {/* ── Code Upload (idle) ───────────────────────────────────────── */}
+          {scanMode === 'code' && codeStatus === 'idle' && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-2xl mx-auto space-y-5"
+            >
+              {/* Drop zone */}
+              <div
+                onClick={() => codeInputRef.current?.click()}
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => { e.preventDefault(); handleCodeFiles(e.dataTransfer.files); }}
+                className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-indigo-500/50 rounded-2xl p-10 cursor-pointer hover:border-indigo-400 hover:bg-indigo-900/10 transition bg-white/5"
+              >
+                <Upload className="w-10 h-10 text-indigo-400 opacity-70" />
+                <p className="text-gray-300 font-medium">Drop files here or click to browse</p>
+                <p className="text-xs text-gray-500">.js .ts .tsx .jsx .py .json .yaml .toml .env — up to 15 files, 200 KB each</p>
+                <input
+                  ref={codeInputRef}
+                  type="file"
+                  multiple
+                  accept=".js,.ts,.tsx,.jsx,.py,.json,.txt,.md,.yaml,.yml,.toml,.env"
+                  className="hidden"
+                  onChange={e => handleCodeFiles(e.target.files)}
+                />
+              </div>
+
+              {/* Folder upload */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => folderInputRef.current?.click()}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-indigo-500/50 text-indigo-300 hover:bg-indigo-900/20 text-sm transition"
+                >
+                  <FolderOpen className="w-4 h-4" /> Upload folder
+                </button>
+                <span className="text-xs text-gray-500">Scans all supported files in the folder</span>
+                <input
+                  ref={folderInputRef}
+                  type="file"
+                  // @ts-ignore — webkitdirectory is not in the TS types
+                  webkitdirectory=""
+                  multiple
+                  className="hidden"
+                  onChange={e => handleCodeFiles(e.target.files)}
+                />
+              </div>
+
+              {/* File list */}
+              {codeFiles.length > 0 && (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 space-y-2">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                    {codeFiles.length} file{codeFiles.length > 1 ? 's' : ''} queued
+                  </p>
+                  {codeFiles.map(f => (
+                    <div key={f.name} className="flex items-center justify-between gap-2 text-sm">
+                      <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 min-w-0">
+                        <FileCode className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                        <span className="truncate">{f.name}</span>
+                        <span className="text-xs text-gray-400 flex-shrink-0">{(f.size / 1024).toFixed(1)} KB</span>
+                      </div>
+                      <button onClick={() => removeCodeFile(f.name)} className="text-gray-400 hover:text-red-500 flex-shrink-0">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button
+                onClick={startCodeScan}
+                disabled={codeFiles.length === 0}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition flex items-center justify-center gap-2"
+              >
+                <FileCode className="w-5 h-5" /> Analyse Code
+              </button>
+            </motion.div>
+          )}
+
+          {/* ── Code Scanning ────────────────────────────────────────────── */}
+          {scanMode === 'code' && codeStatus === 'scanning' && (
+            <div className="flex flex-col items-center justify-center gap-4 py-20">
+              <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
+              <p className="text-gray-300 font-medium">Claude is analysing your code…</p>
+              <p className="text-xs text-gray-500">Checking {codeFiles.length} file{codeFiles.length > 1 ? 's' : ''} for AI security vulnerabilities</p>
+            </div>
+          )}
+
+          {/* ── Code Error ───────────────────────────────────────────────── */}
+          {scanMode === 'code' && codeStatus === 'error' && (
+            <div className="max-w-2xl mx-auto bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-2xl p-6 text-center">
+              <XCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
+              <p className="font-semibold text-red-700 dark:text-red-300 mb-1">Analysis failed</p>
+              <p className="text-sm text-red-600 dark:text-red-400 mb-4">{codeError}</p>
+              <button onClick={resetCode} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition">
+                Try Again
+              </button>
+            </div>
+          )}
+
+          {/* ── Code Report ──────────────────────────────────────────────── */}
+          {scanMode === 'code' && codeStatus === 'complete' && codeReport && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
+
+              {/* Summary card */}
+              <div className={`rounded-2xl border-2 p-6 ${riskBg[codeReport.riskLevel]}`}>
+                <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
+                  <RiskGauge score={codeReport.score} riskLevel={codeReport.riskLevel} />
+                  <div className="flex-1">
+                    <div className="flex flex-wrap gap-3 mb-3 text-sm text-gray-600 dark:text-gray-400">
+                      <span className="flex items-center gap-1"><FileCode className="w-4 h-4" />{codeFiles.length} file{codeFiles.length > 1 ? 's' : ''} scanned</span>
+                      <span className="flex items-center gap-1"><ShieldAlert className="w-4 h-4 text-red-500" />{codeReport.successfulAttacks} vulnerabilities</span>
+                    </div>
+                    <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">{codeReport.summary}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => exportPDF(codeReport, codeFiles.map(f => f.name).join(', '))}
+                      className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-900 rounded-lg text-sm font-medium transition"
+                    >
+                      <Download className="w-4 h-4" /> PDF
+                    </button>
+                    <button
+                      onClick={resetCode}
+                      className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium transition"
+                    >
+                      <RotateCcw className="w-4 h-4" /> New Scan
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Findings + Recommendations */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
+                  <h3 className="font-semibold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
+                    <XCircle className="w-5 h-5 text-red-500" />
+                    Vulnerabilities Found
+                    <span className="ml-auto text-sm font-bold text-red-500">
+                      {codeReport.findings.filter(f => f.succeeded).length}
+                    </span>
+                  </h3>
+                  {codeReport.findings.filter(f => f.succeeded).length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">
+                      <ShieldCheck className="w-10 h-10 mx-auto mb-2 text-green-400" />
+                      <p className="text-sm">No vulnerabilities found</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {codeReport.findings.filter(f => f.succeeded).map((f, i) => (
+                        <FindingCard key={i} finding={f} index={i} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
+                  <h3 className="font-semibold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-orange-400" /> Recommendations
+                  </h3>
+                  <ol className="space-y-2">
+                    {codeReport.recommendations.map((rec, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-300 text-xs font-bold flex items-center justify-center">
+                          {i + 1}
+                        </span>
+                        {rec}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              </div>
+
+            </motion.div>
+          )}
+
         </main>
       </div>
       <Footer />

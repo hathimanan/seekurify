@@ -24,14 +24,17 @@ export function initSocket(httpServer, options = {}) {
   return io;
 }
 
-// Add the pushAlert function export
-export function pushAlert(userId, alertData) {
+export function pushAlert(userId, eventName, data) {
   if (!io) {
     console.error('Socket.io not initialized');
     return;
   }
-  
   const room = `user_${userId}`;
-  io.to(room).emit('suspiciousLogin', alertData);
-  console.log(`🔔 Alert pushed to ${room}:`, alertData);
+  io.to(room).emit(eventName, data);
+  console.log(`🔔 Alert pushed to ${room}:`, data);
+}
+
+export function pushEvent(userId, eventName, data) {
+  if (!io) return;
+  io.to(`user_${userId}`).emit(eventName, data);
 }

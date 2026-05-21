@@ -4,8 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import SecurityChatbotIcon from "./ChatbotIcon";
 import defaultProfileIcon from "../../assets/default-profile.png";
-import { MediaKey, mediaLibrary, MediaItem } from "../chatbot/richMediaLibrary";
-import { Brain, ShieldAlert, TrendingUp, AlertTriangle, CheckCircle, Loader2, Sparkles } from "lucide-react";
+import { MediaKey, mediaLibrary } from "../chatbot/richMediaLibrary";
+import { Brain, AlertTriangle, Loader2, Sparkles } from "lucide-react";
 import { API_BASE_URL } from "../../services/api";
 
 // ─────────────────────────────────────────────
@@ -23,6 +23,22 @@ type Media = {
   headers?: ReadonlyArray<string>;
   rows?: ReadonlyArray<ReadonlyArray<string>>;
 };
+
+interface ChatSession {
+  id: string;
+  startedAt: string;
+  messages: {
+    question: string;
+    answer: string;
+    suggestions: string[];
+    widgetType: "linkScanner" | "quiz" | "stepByStep" | null;
+    widgetData: any;
+    feedback: "up" | "down" | null;
+    media?: Media;
+    format?: "concise" | "detailed" | "bullet";
+    isAI?: boolean;
+  }[];
+}
 
 /** User's live security context pulled from Seekurify data */
 interface UserSecurityContext {
@@ -102,14 +118,17 @@ Always prioritize the most urgent issues. Be warm, clear, and non-technical.`;
 //  CONTEXT-AWARE AI QUESTION
 // ─────────────────────────────────────────────
 
-async function askContextAwareAI(
+/** Streams answer tokens from /ask/stream via SSE, calling onToken for each chunk.
+ *  Resolves with the metadata sent in the final `done` event. */
+async function streamAnswer(
   userQuestion: string,
   format: "concise" | "detailed" | "bullet",
-  securityContext?: UserSecurityContext | null
-): Promise<string> {
+  securityContext: UserSecurityContext | null | undefined,
+  onToken: (token: string) => void,
+): Promise<{ suggestions: string[] }> {
   const contextPrompt = securityContext ? buildContextPrompt(securityContext) : undefined;
 
-  const response = await fetch(`${API_BASE_URL}/ask`, {
+  const response = await fetch(`${API_BASE_URL}/ask/stream`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -118,14 +137,33 @@ async function askContextAwareAI(
     body: JSON.stringify({ userQuestion, userLevel: "Beginner", format, securityContext: contextPrompt }),
   });
 
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(`Chatbot API error ${response.status}: ${JSON.stringify(err)}`);
+  if (!response.ok || !response.body) {
+    throw new Error(`Chatbot API error ${response.status}`);
   }
 
-  const data = await response.json();
-  // backend always returns a JSON object with an "answer" field
-  return data.answer || "";
+  const reader  = response.body.getReader();
+  const decoder = new TextDecoder();
+  let   buffer  = "";
+  let   meta: { suggestions: string[] } = { suggestions: [] };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      try {
+        const payload = JSON.parse(line.slice(6));
+        if (payload.error) throw new Error(payload.error);
+        if (payload.token) onToken(payload.token);
+        if (payload.done)  meta = { suggestions: payload.suggestions ?? [] };
+      } catch { /* malformed SSE line — skip */ }
+    }
+  }
+  return meta;
 }
  
 
@@ -212,8 +250,8 @@ const BotChat: React.FC<BotProps> = ({ profileImage }) => {
   const [securityContext, setSecurityContext] = useState<UserSecurityContext | null>(null);
   const [contextLoading, setContextLoading]  = useState(false);
 
-  const [positiveCount, setPositiveCount] = useState<Record<string, number>>({});
-  const [negativeCount, setNegativeCount] = useState<Record<string, number>>({});
+  const [_positiveCount, setPositiveCount] = useState<Record<string, number>>({});
+  const [_negativeCount, setNegativeCount] = useState<Record<string, number>>({});
   const [thankYouMap, setThankYouMap]     = useState<Record<string, boolean>>({});
   const [feedback, setFeedbackMap]        = useState<{ [key: string]: "up" | "down" | null }>({});
 
@@ -222,7 +260,12 @@ const BotChat: React.FC<BotProps> = ({ profileImage }) => {
     return stored ? JSON.parse(stored) : [];
   });
   const [showSaved, setShowSaved]   = useState(false);
-  const [widgetType]                = useState<null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>(() => {
+    const stored = localStorage.getItem("chatSessions");
+    return stored ? JSON.parse(stored) : [];
+  });
+  const [expandedSession, setExpandedSession] = useState<string | null>(null);
   const [url, setUrl]               = useState("");
   const [status, setStatus]         = useState<string | null>(null);
 
@@ -243,12 +286,10 @@ const BotChat: React.FC<BotProps> = ({ profileImage }) => {
   // LLM message history for multi-turn context
   const llmHistory = useRef<{ role: "user" | "assistant"; content: string }[]>([]);
 
-  const [darkMode, setDarkMode] = useState<boolean>(() => {
+  const [darkMode, _setDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem("darkMode");
     return saved ? JSON.parse(saved) : false;
   });
-  const [isTyping, setIsTyping]       = useState(false);
-  const [displayedText, setDisplayedText] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
   const isInitialLoad = useRef(true);
 
@@ -261,7 +302,8 @@ const BotChat: React.FC<BotProps> = ({ profileImage }) => {
     // Mark initial load done after first render cycle
     requestAnimationFrame(() => { isInitialLoad.current = false; });
   }, []);
-  useEffect(() => { localStorage.setItem("chatHistory", JSON.stringify(chatHistory)); }, [chatHistory]);
+  useEffect(() => { localStorage.setItem("chatHistory",  JSON.stringify(chatHistory));  }, [chatHistory]);
+  useEffect(() => { localStorage.setItem("chatSessions", JSON.stringify(chatSessions)); }, [chatSessions]);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatHistory, loading]);
   useEffect(() => { localStorage.setItem("darkMode", JSON.stringify(darkMode)); }, [darkMode]);
 
@@ -284,23 +326,6 @@ const BotChat: React.FC<BotProps> = ({ profileImage }) => {
       .finally(() => setContextLoading(false));
   }, [useAI]);
 
-  // Typing animation — only on newly added messages, not on restore from localStorage
-  useEffect(() => {
-    if (isInitialLoad.current) return;
-    if (chatHistory.length === 0) return;
-    const lastMsg = chatHistory[chatHistory.length - 1];
-    if (!lastMsg?.answer) return;
-    setIsTyping(true);
-    const fullText = lastMsg.answer;
-    setDisplayedText("");
-    let index = 0;
-    const interval = setInterval(() => {
-      setDisplayedText((prev) => prev + fullText.charAt(index));
-      index++;
-      if (index >= fullText.length) { clearInterval(interval); setIsTyping(false); }
-    }, 10);
-    return () => clearInterval(interval);
-  }, [chatHistory.length]);
 
   /** Convert single \n to markdown hard breaks; preserve existing \n\n paragraph gaps */
   const normalizeMarkdown = (text: string): string =>
@@ -321,86 +346,74 @@ const BotChat: React.FC<BotProps> = ({ profileImage }) => {
   const askBot = async (customQuestion?: string) => {
     const finalQuestion = (customQuestion || question).trim();
     if (!finalQuestion) return;
+
+    setQuestion("");
     setLoading(true);
 
-    try {
-      let botAnswer = "";
-      let suggestions: string[] = [];
-      let wType = null;
-      let wData = {};
+    // Add placeholder message immediately — user sees the bubble right away
+    setChatHistory(prev => [...prev, {
+      question: finalQuestion, answer: "", suggestions: [],
+      widgetType: null, widgetData: {}, feedback: null,
+      format: responseFormat, isAI: useAI,
+    }]);
 
+    try {
       if (useAI) {
-        // ─── Context-Aware AI path — now handled by the same `/ask` endpoint ───
-        botAnswer = await askContextAwareAI(
-          finalQuestion,
-          responseFormat,
-          securityContext
+        let fullAnswer = "";
+
+        const { suggestions } = await streamAnswer(
+          finalQuestion, responseFormat, securityContext,
+          (token) => {
+            fullAnswer += token;
+            setChatHistory(prev => {
+              const next = [...prev];
+              next[next.length - 1] = { ...next[next.length - 1], answer: fullAnswer };
+              return next;
+            });
+          }
         );
-        // Update multi-turn history (future server integration may consume this)
+
+        const media = getRichMedia(fullAnswer);
+        setChatHistory(prev => {
+          const next = [...prev];
+          next[next.length - 1] = { ...next[next.length - 1], suggestions, media: media || undefined };
+          return next;
+        });
         llmHistory.current = [
           ...llmHistory.current,
           { role: "user", content: finalQuestion },
-          { role: "assistant", content: botAnswer },
+          { role: "assistant", content: fullAnswer },
         ];
-        // Generate 2 follow-up suggestions based on the answer (quick heuristic)
-        suggestions = generateSuggestions(finalQuestion, botAnswer);
       } else {
-        // Legacy branch remains for compatibility but effectively duplicates the
-        // behaviour above. We keep it only so that `useAI` toggle is still
-        // meaningful in case the new LLM pipeline is disabled.
         const res = await axios.post(`${API_BASE_URL}/ask`, {
-          userQuestion: finalQuestion,
-          userLevel: "Beginner",
-          format: responseFormat,
+          userQuestion: finalQuestion, userLevel: "Beginner", format: responseFormat,
         });
-        botAnswer   = res.data.answer;
-        suggestions = res.data.suggestions || [];
-        wType       = res.data.widgetType   || null;
-        wData       = res.data.widgetData   || {};
+        const media = getRichMedia(res.data.answer || "");
+        setChatHistory(prev => {
+          const next = [...prev];
+          next[next.length - 1] = {
+            ...next[next.length - 1],
+            answer: res.data.answer || "",
+            suggestions: res.data.suggestions || [],
+            widgetType: res.data.widgetType || null,
+            widgetData: res.data.widgetData || {},
+            media: media || undefined,
+          };
+          return next;
+        });
       }
-
-      const media = getRichMedia(botAnswer);
-      setChatHistory((prev) => [
-        ...prev,
-        {
-          question: finalQuestion,
-          answer: botAnswer,
-          suggestions,
-          widgetType: wType,
-          widgetData: wData,
-          feedback: null,
-          media: media || undefined,
-          format: responseFormat,
-          isAI: useAI,
-        },
-      ]);
-      setQuestion("");
     } catch (error: any) {
       console.error("Error asking bot:", error);
-      
-      // Check if error response has fallback mock data
-      let fallbackAnswer = "Sorry, something went wrong. Please try again.";
-      let fallbackSuggestions: string[] = [];
-      
-      if (error?.response?.data?.response) {
-        const mockResponse = error.response.data.response;
-        fallbackAnswer = mockResponse.answer || fallbackAnswer;
-        fallbackSuggestions = mockResponse.suggestions || [];
-        console.log("📋 Using fallback mock response from server");
-      }
-      
-      setChatHistory((prev) => [
-        ...prev,
-        {
-          question: finalQuestion,
-          answer: fallbackAnswer,
-          suggestions: fallbackSuggestions,
-          widgetType: null,
-          widgetData: {},
-          feedback: null,
-          isAI: useAI,
-        },
-      ]);
+      const fallback = error?.response?.data?.response;
+      setChatHistory(prev => {
+        const next = [...prev];
+        next[next.length - 1] = {
+          ...next[next.length - 1],
+          answer: fallback?.answer || "Sorry, something went wrong. Please try again.",
+          suggestions: fallback?.suggestions || [],
+        };
+        return next;
+      });
     } finally {
       setLoading(false);
     }
@@ -445,6 +458,19 @@ const BotChat: React.FC<BotProps> = ({ profileImage }) => {
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); askBot(); }
+  };
+
+  const startNewChat = () => {
+    if (chatHistory.length === 0) return;
+    const session: ChatSession = {
+      id: Date.now().toString(),
+      startedAt: new Date().toISOString(),
+      messages: chatHistory,
+    };
+    setChatSessions(prev => [session, ...prev]);
+    setChatHistory([]);
+    llmHistory.current = [];
+    setShowHistory(false);
   };
 
   // ── Widgets (unchanged) ──────────────────────
@@ -512,9 +538,28 @@ const BotChat: React.FC<BotProps> = ({ profileImage }) => {
           {useAI ? "AI Mode: ON" : "AI Mode: OFF"}
         </button>
 
-        <button onClick={() => setShowSaved(!showSaved)} className={`px-3 py-1 text-xs font-medium rounded transition ${darkMode ? "bg-gray-700 hover:bg-blue-700 text-gray-100" : "bg-gray-200 hover:bg-blue-200 text-gray-800"}`}>
-          {showSaved ? "📁 Hide Saved" : "⭐ Saved"}
-        </button>
+        <div className="flex items-center gap-1.5 ml-auto">
+          <button
+            onClick={() => { setShowHistory(!showHistory); setShowSaved(false); }}
+            className={`px-3 py-1 text-xs font-medium rounded transition ${showHistory ? (darkMode ? "bg-indigo-700 text-white" : "bg-indigo-100 text-indigo-700") : (darkMode ? "bg-gray-700 hover:bg-gray-600 text-gray-100" : "bg-gray-200 hover:bg-gray-300 text-gray-800")}`}
+          >
+            🕒 History{chatSessions.length > 0 && <span className="ml-1 bg-indigo-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{chatSessions.length}</span>}
+          </button>
+          <button
+            onClick={() => { setShowSaved(!showSaved); setShowHistory(false); }}
+            className={`px-3 py-1 text-xs font-medium rounded transition ${darkMode ? "bg-gray-700 hover:bg-blue-700 text-gray-100" : "bg-gray-200 hover:bg-blue-200 text-gray-800"}`}
+          >
+            {showSaved ? "📁 Hide Saved" : "⭐ Saved"}
+          </button>
+          <button
+            onClick={startNewChat}
+            disabled={chatHistory.length === 0}
+            title="Save current chat and start fresh"
+            className={`px-3 py-1 text-xs font-medium rounded transition ${chatHistory.length === 0 ? "opacity-40 cursor-not-allowed " : ""}${darkMode ? "bg-gray-700 hover:bg-emerald-700 text-gray-100" : "bg-gray-200 hover:bg-emerald-200 text-gray-800"}`}
+          >
+            + New Chat
+          </button>
+        </div>
       </div>
 
       {/* ── Security context panel (AI mode only) ── */}
@@ -550,6 +595,70 @@ const BotChat: React.FC<BotProps> = ({ profileImage }) => {
               ))}
             </ul>
           ) : <p className="text-xs italic text-gray-400">No saved responses yet.</p>}
+        </div>
+      )}
+
+      {/* ── Chat history panel ── */}
+      {showHistory && (
+        <div className={`border-b max-h-[320px] overflow-y-auto ${darkMode ? "border-gray-700 bg-gray-900" : "border-gray-200 bg-gray-50"}`}>
+          <div className={`sticky top-0 flex items-center justify-between px-3 py-2 border-b ${darkMode ? "bg-gray-900 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+            <span className="font-semibold text-sm">🕒 Chat History ({chatSessions.length})</span>
+            {chatSessions.length > 0 && (
+              <button
+                onClick={() => { setChatSessions([]); setExpandedSession(null); }}
+                className="text-[10px] text-red-400 hover:text-red-300 transition"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+          {chatSessions.length === 0 ? (
+            <p className="text-xs italic text-gray-400 px-3 py-4">No saved conversations yet. Click <strong>+ New Chat</strong> to save the current one.</p>
+          ) : (
+            <ul className="divide-y divide-gray-700/30">
+              {chatSessions.map(session => {
+                const isOpen = expandedSession === session.id;
+                const preview = session.messages[0]?.question ?? "Empty chat";
+                const date    = new Date(session.startedAt);
+                const label   = date.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " · " + date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+                return (
+                  <li key={session.id}>
+                    {/* Session header row */}
+                    <button
+                      onClick={() => setExpandedSession(isOpen ? null : session.id)}
+                      className={`w-full flex items-start justify-between gap-2 px-3 py-2.5 text-left transition ${darkMode ? "hover:bg-gray-800" : "hover:bg-gray-100"}`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-indigo-400 mb-0.5">{label}</p>
+                        <p className={`text-xs truncate ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{preview}</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5">{session.messages.length} message{session.messages.length !== 1 ? "s" : ""}</p>
+                      </div>
+                      <span className="text-gray-400 text-sm flex-shrink-0">{isOpen ? "▲" : "▼"}</span>
+                    </button>
+
+                    {/* Expanded session thread */}
+                    {isOpen && (
+                      <div className={`px-3 pb-3 space-y-2 ${darkMode ? "bg-gray-800/50" : "bg-white"}`}>
+                        {session.messages.map((msg, mi) => (
+                          <div key={mi} className="space-y-1">
+                            <div className={`text-xs px-2 py-1.5 rounded-lg ${darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-700"}`}>
+                              <span className="font-semibold text-gray-400 mr-1.5">You:</span>{msg.question}
+                            </div>
+                            <div className={`text-xs px-2 py-1.5 rounded-lg ${darkMode ? "bg-blue-900/50 text-blue-100" : "bg-blue-50 text-gray-700"}`}>
+                              <span className="font-semibold text-indigo-400 mr-1.5">Nick:</span>
+                              <ReactMarkdown components={{ p: ({ children }) => <span>{children} </span> }}>
+                                {msg.answer.length > 200 ? msg.answer.slice(0, 200) + "…" : msg.answer}
+                              </ReactMarkdown>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
       )}
 
@@ -621,8 +730,10 @@ const BotChat: React.FC<BotProps> = ({ profileImage }) => {
                   <div className="w-9 h-9 overflow-hidden rounded-full shrink-0"><SecurityChatbotIcon /></div>
                   <div className={`relative p-3 rounded-lg text-sm ${darkMode ? "bg-blue-900 text-blue-100" : "bg-blue-50 border border-blue-100"}`}>
                     <div className="pr-7">
-                      {index === chatHistory.length - 1 && isTyping ? (
-                        <p className="whitespace-pre-wrap">{displayedText}<span className="animate-pulse ml-1">▮</span></p>
+                      {index === chatHistory.length - 1 && loading && !item.answer ? (
+                        <span className="flex items-center gap-1 text-xs text-gray-400">
+                          <Loader2 className="w-3 h-3 animate-spin" /> Thinking…
+                        </span>
                       ) : (
                         <>
                           <ReactMarkdown components={{
@@ -655,6 +766,10 @@ const BotChat: React.FC<BotProps> = ({ profileImage }) => {
                             </table>
                           )}
                         </>
+                      )}
+                      {/* Blinking cursor while streaming */}
+                      {index === chatHistory.length - 1 && loading && item.answer && (
+                        <span className="inline-block w-[2px] h-[14px] bg-current align-middle ml-0.5 animate-pulse" />
                       )}
                     </div>
 

@@ -10,7 +10,7 @@ import { DETECTORS, Severity } from "./detectors";
 import {
   Shield, AlertTriangle, CheckCircle, Copy, RotateCcw, Zap,
   ScanSearch, Eye, EyeOff, ChevronDown, ChevronUp,
-  BarChart2, Clock, Loader2, Trash2, XCircle,
+  BarChart2, Clock, Loader2, Trash2, XCircle, Scale,
 } from "lucide-react";
 import Header from "../ui/Header";
 import Footer from "../ui/Footer";
@@ -27,10 +27,20 @@ interface PIIFinding {
   id: string; label: string; category: string;
   severity: PIISeverity; description: string;
   count: number; examples: string[];
+  regulations?: string[];
+}
+interface ComplianceSummary {
+  triggeredLaws: string[];
+  dpdpTier: 'none' | 'general' | 'sensitive';
+  euAiActRisk: 'minimal' | 'limited' | 'high';
+  requiredActions: string[];
+  governmentDataDetected: boolean;
+  sensitiveCategoryDetected: boolean;
 }
 interface PIIScanResult {
   score: number; riskLevel: PIIRisk;
   findings: PIIFinding[]; categoryBreakdown: Record<string, number>; scannedLength: number;
+  complianceSummary?: ComplianceSummary;
 }
 interface PIIHistoryEntry {
   _id: string; label: string; score: number; riskLevel: PIIRisk;
@@ -53,8 +63,12 @@ const piiSevBadge: Record<PIISeverity, string> = {
   medium: "bg-yellow-100 text-yellow-700", low: "bg-blue-100 text-blue-700",
 };
 const catColor: Record<string, string> = {
-  Personal: "bg-purple-100 text-purple-700", Financial: "bg-rose-100 text-rose-700",
-  Credential: "bg-red-100 text-red-700", Network: "bg-cyan-100 text-cyan-700",
+  Personal:   "bg-purple-100 text-purple-700",
+  Financial:  "bg-rose-100 text-rose-700",
+  Credential: "bg-red-100 text-red-700",
+  Network:    "bg-cyan-100 text-cyan-700",
+  Government: "bg-amber-100 text-amber-800",
+  Sensitive:  "bg-fuchsia-100 text-fuchsia-700",
 };
 
 const authToken = () => localStorage.getItem("token") || "";
@@ -182,6 +196,85 @@ const PIIFindingCard: React.FC<{ finding: PIIFinding }> = ({ finding }) => {
                       </motion.div>
                     )}
                   </AnimatePresence>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+// ─── Compliance Panel ─────────────────────────────────────────────────────────
+
+const LAW_META: Record<string, { label: string; color: string }> = {
+  DPDP:      { label: 'India DPDP Act 2023', color: 'bg-orange-100 text-orange-800 border-orange-300' },
+  GDPR:      { label: 'EU GDPR',             color: 'bg-blue-100 text-blue-800 border-blue-300' },
+  EU_AI_ACT: { label: 'EU AI Act',           color: 'bg-violet-100 text-violet-800 border-violet-300' },
+  HIPAA:     { label: 'HIPAA',               color: 'bg-green-100 text-green-800 border-green-300' },
+};
+
+const EU_AI_RISK_STYLE: Record<string, string> = {
+  minimal: 'bg-green-900/30 text-green-400 border-green-700',
+  limited: 'bg-yellow-900/30 text-yellow-300 border-yellow-700',
+  high:    'bg-red-900/30 text-red-400 border-red-700',
+};
+
+const DPDP_TIER_STYLE: Record<string, string> = {
+  none:      '',
+  general:   'bg-orange-900/20 text-orange-300 border-orange-700',
+  sensitive: 'bg-red-900/30 text-red-400 border-red-700',
+};
+
+const CompliancePanel: React.FC<{ summary: ComplianceSummary }> = ({ summary }) => {
+  const [open, setOpen] = useState(false);
+  if (summary.triggeredLaws.length === 0) return null;
+  return (
+    <div className="bg-slate-800/80 rounded-2xl shadow border border-amber-600/40 p-5 space-y-4">
+      <button className="w-full flex items-center justify-between gap-2" onClick={() => setOpen(o => !o)}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Scale className="w-5 h-5 text-amber-400 flex-shrink-0" />
+          <h3 className="font-semibold text-gray-100 text-sm">Regulatory Compliance Impact</h3>
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${EU_AI_RISK_STYLE[summary.euAiActRisk]}`}>
+            EU AI Act: {summary.euAiActRisk.toUpperCase()}
+          </span>
+          {summary.dpdpTier !== 'none' && (
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${DPDP_TIER_STYLE[summary.dpdpTier]}`}>
+              DPDP: {summary.dpdpTier === 'sensitive' ? 'Sensitive Category' : 'General Data'}
+            </span>
+          )}
+        </div>
+        {open ? <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+      </button>
+
+      <div className="flex flex-wrap gap-2">
+        {summary.triggeredLaws.map(law => {
+          const meta = LAW_META[law] || { label: law, color: 'bg-gray-100 text-gray-700 border-gray-300' };
+          return (
+            <span key={law} className={`text-xs font-semibold px-3 py-1 rounded-full border ${meta.color}`}>{meta.label}</span>
+          );
+        })}
+      </div>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden"
+          >
+            <div className="space-y-2 pt-1">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Required Actions</p>
+              {summary.requiredActions.map((action, i) => (
+                <div key={i} className="flex items-start gap-2.5 rounded-lg border border-amber-700/30 bg-amber-900/10 px-3.5 py-2.5 text-xs text-gray-300">
+                  <span className="text-amber-400 mt-0.5 flex-shrink-0">⚖</span>
+                  {action}
+                </div>
+              ))}
+              {summary.governmentDataDetected && (
+                <div className="flex items-start gap-2.5 rounded-lg border border-red-700/40 bg-red-900/20 px-3.5 py-2.5 text-xs text-red-300">
+                  <span className="mt-0.5 flex-shrink-0">🔒</span>
+                  Government-classified or sensitive government data detected — ensure this AI system is not outputting restricted information to unauthorised users.
                 </div>
               )}
             </div>
@@ -421,7 +514,7 @@ const PromptScanner: React.FC = () => {
                     <div className="relative">
                       <textarea
                         value={auditText} onChange={e => setAuditText(e.target.value)} rows={9}
-                        placeholder={`Paste an AI response or log snippet here...\n\nThis scanner detects:\n• Personal: emails, phone numbers, SSNs, passport numbers\n• Financial: credit cards, IBANs, bank accounts\n• Credentials: API keys, AWS keys, GitHub tokens, JWTs, passwords\n• Network: private IPs, internal URLs, connection strings`}
+                        placeholder={`Paste an AI response or government document snippet here...\n\nDetects & maps to regulation:\n• Personal: emails, phone numbers, SSNs, Aadhar, PAN, passports  →  DPDP · GDPR\n• Financial: credit cards, IBANs, bank accounts  →  DPDP · GDPR\n• Government: classified markers, Voter ID, Driving Licence  →  DPDP · EU AI Act\n• Sensitive: biometric, genetic, health, caste, religious, political data  →  DPDP · GDPR · EU AI Act\n• Credentials: API keys, AWS keys, JWTs, passwords  →  EU AI Act\n• Network: private IPs, internal URLs  →  EU AI Act`}
                         className="w-full px-4 py-3 border border-slate-600 bg-slate-900 text-gray-100 placeholder-gray-500 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
                       />
                       <span className="absolute bottom-3 right-3 text-xs text-gray-500">{auditText.length.toLocaleString()} / 50,000</span>
@@ -487,6 +580,11 @@ const PromptScanner: React.FC = () => {
                             )}
                           </div>
                         </div>
+
+                        {/* Compliance Panel */}
+                        {auditResult.complianceSummary && (
+                          <CompliancePanel summary={auditResult.complianceSummary} />
+                        )}
 
                         {/* Findings */}
                         {auditResult.findings.length > 0 && (

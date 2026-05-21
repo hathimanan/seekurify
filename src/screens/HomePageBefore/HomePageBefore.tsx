@@ -124,6 +124,7 @@ export const HomePageBefore: FC = () => {
             <div className="hidden md:flex items-center gap-8 text-sm text-slate-300">
               <button onClick={() => navigate("/features")} className="hover:text-white transition-colors">Platform</button>
               <button onClick={() => navigate("/insights")} className="hover:text-white transition-colors">Insights</button>
+              <button onClick={() => navigate("/user-guide")} className="hover:text-white transition-colors">User Guide</button>
               <button onClick={() => navigate("/contact-public")} className="hover:text-white transition-colors">Contact</button>
             </div>
 

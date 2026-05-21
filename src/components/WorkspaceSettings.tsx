@@ -205,13 +205,15 @@ const WorkspaceSettings: React.FC = () => {
   const allMembers: { id: string; name: string; email: string; role: string; isOwner: boolean }[] = workspace
     ? [
         { id: workspace.owner._id, name: workspace.owner.name, email: workspace.owner.email, role: 'owner', isOwner: true },
-        ...workspace.members.map(m => ({
-          id: m.userId._id,
-          name: m.userId.name,
-          email: m.userId.email,
-          role: m.role,
-          isOwner: false,
-        })),
+        ...workspace.members
+          .filter(m => m.userId != null)
+          .map(m => ({
+            id: m.userId._id,
+            name: m.userId.name,
+            email: m.userId.email,
+            role: m.role,
+            isOwner: false,
+          })),
       ]
     : [];
 
@@ -237,9 +239,15 @@ const WorkspaceSettings: React.FC = () => {
           </div>
 
           {isLoading ? (
-            <div className="text-gray-500 text-center mt-16">Loading…</div>
+            <div className="flex flex-col items-center justify-center mt-16 gap-3">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400" />
+              <p className="text-gray-400 text-sm">Loading workspace settings…</p>
+            </div>
           ) : error ? (
-            <div className="text-red-400 text-center mt-16">{error}</div>
+            <div className="mt-16 text-center space-y-3">
+              <p className="text-red-400">{error}</p>
+              <button onClick={fetchAll} className="text-sm text-amber-400 hover:text-amber-300 underline">Retry</button>
+            </div>
           ) : (
             <div className="space-y-6">
 

@@ -40,7 +40,7 @@ const findingSchema = new mongoose.Schema({
   // Source scan reference (populated when converting a scan result)
   scanType: {
     type: String,
-    enum: ['redteam', 'injection', 'siteaudit', 'pii', 'aiagent', 'manual'],
+    enum: ['redteam', 'injection', 'siteaudit', 'pii', 'aiagent', 'manual', 'waf'],
     default: 'manual',
   },
   sourceScanId: { type: mongoose.Schema.Types.ObjectId, default: null },  // ID of the scan log

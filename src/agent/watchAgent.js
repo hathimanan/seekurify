@@ -11,6 +11,7 @@ import { promisify } from 'util';
 import WatchlistItem from '../models/WatchlistItem.js';
 import WatchAlert    from '../models/WatchAlert.js';
 import { sendWatchAlertsEmail } from '../emailService.js';
+import { routeEvent } from '../services/triggerRouter.js';
 
 const resolveTxt = promisify(dns.resolveTxt);
 
@@ -213,6 +214,16 @@ async function runWatchAgent(userId, userEmail = null) {
       if (alertData) {
         await saveAlert(userId, item.url, result.hostname, alertData);
         alertsCreated++;
+        routeEvent('site_degraded', {
+          url: item.url,
+          hostname: result.hostname,
+          newScore: alertData.newScore,
+          prevScore: alertData.prevScore,
+          scoreDelta: alertData.prevScore != null ? alertData.newScore - alertData.prevScore : 0,
+          severity: alertData.severity,
+          summary: alertData.summary,
+          newFindings: alertData.newFindings,
+        }, { userId: String(userId) }).catch(() => {});
       }
     } catch (err) {
       console.error(`[WatchAgent] Error scanning ${item.url}:`, err.message);

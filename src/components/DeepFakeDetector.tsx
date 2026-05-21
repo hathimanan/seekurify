@@ -36,11 +36,31 @@ type Verdict = "DEEPFAKE" | "AUTHENTIC" | "UNCERTAIN" | null;
 
 interface BreakdownItem { label: string; score: number; }
 
+interface VideoMeta {
+  avgConfidence: number;
+  flaggedRate: number;
+  maxConsecutiveRun: number;
+  maxFakeScore?: number;
+  totalFrames: number;
+  fakeFrames: number;
+  uncertainFrames: number;
+  triggeredSignals: string[];
+  isFakeByAvg: boolean;
+  isFakeByRate: boolean;
+  isFakeByConsecutive: boolean;
+  confidenceStd?: number;
+  isFakeByVariance?: boolean;
+  isFakeByMaxScore?: boolean;
+  hfAvailable?: boolean;
+  analyzedFrames?: number;
+}
+
 interface ScanResult {
   verdict: "DEEPFAKE" | "AUTHENTIC" | "UNCERTAIN";
   confidence: number;   // 0-100, chance of being fake
   topLabel: string;
   breakdown: BreakdownItem[];
+  videoMeta?: VideoMeta;
 }
 
 interface FrameResult {
@@ -232,40 +252,95 @@ const FrameTimeline: React.FC<{ frames: FrameResult[] }> = ({ frames }) => {
   const [hovered, setHovered] = useState<number | null>(null);
   if (frames.length === 0) return null;
 
+  // Find longest consecutive DEEPFAKE run for highlighting
+  let maxRun = 0, maxStart = -1, maxEnd = -1;
+  let curRun = 0, curStart = -1;
+  for (let i = 0; i < frames.length; i++) {
+    if (frames[i].result?.verdict === "DEEPFAKE") {
+      if (curRun === 0) curStart = i;
+      curRun++;
+      if (curRun > maxRun) { maxRun = curRun; maxStart = curStart; maxEnd = i; }
+    } else {
+      curRun = 0;
+    }
+  }
+  const hasLongRun = maxRun >= 3 && maxStart !== -1;
+
+  const frameColor = (f: FrameResult): string => {
+    if (!f.result || f.error) return f.error ? "#6b7280" : "#374151";
+    const conf = f.result.confidence ?? 50;
+    const opacity = 0.4 + (conf / 100) * 0.6;
+    if (f.result.verdict === "DEEPFAKE")  return `rgba(239,68,68,${opacity})`;
+    if (f.result.verdict === "UNCERTAIN") return `rgba(245,158,11,${opacity})`;
+    return `rgba(34,197,94,${opacity})`;
+  };
+
+  const thumbBorder = (f: FrameResult, i: number): string => {
+    const inRun = hasLongRun && i >= maxStart && i <= maxEnd;
+    if (!f.result && !f.error) return "border-gray-600 opacity-50";
+    if (f.error) return "border-gray-500";
+    if (f.result?.verdict === "DEEPFAKE")  return inRun ? "border-red-400 shadow shadow-red-500/40" : "border-red-500";
+    if (f.result?.verdict === "UNCERTAIN") return "border-amber-500";
+    return "border-green-500";
+  };
+
   return (
     <div className="mt-6">
-      <p className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2">
-        <Clock className="w-4 h-4" /> Frame-by-frame analysis
-      </p>
-      {/* Colour bar */}
-      <div className="flex rounded-xl overflow-hidden h-4 mb-4">
-        {frames.map((f, i) => {
-          const fake = f.result?.verdict === "DEEPFAKE";
-          const conf = f.result?.confidence ?? 50;
-          const opacity = 0.4 + (conf / 100) * 0.6;
-          return (
-            <motion.div
-              key={i}
-              className="flex-1 cursor-pointer"
-              style={{
-                background: f.error ? "#6b7280"
-                  : fake ? `rgba(239,68,68,${opacity})`
-                  : `rgba(34,197,94,${opacity})`,
-              }}
-              initial={{ scaleY: 0 }} animate={{ scaleY: 1 }}
-              transition={{ delay: i * 0.05 }}
-              onMouseEnter={() => setHovered(i)}
-              onMouseLeave={() => setHovered(null)}
-            />
-          );
-        })}
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm font-semibold text-gray-400 flex items-center gap-2">
+          <Clock className="w-4 h-4" /> Frame-by-frame analysis
+          <span className="text-gray-600 font-normal">({frames.length} frames)</span>
+        </p>
+        {hasLongRun && (
+          <span className="text-xs bg-red-900/30 border border-red-500/40 text-red-400 px-2 py-0.5 rounded-full font-medium animate-pulse">
+            ⚠ {maxRun} consecutive frames flagged
+          </span>
+        )}
       </div>
 
+      {/* Legend */}
+      <div className="flex items-center gap-4 mb-3 text-xs text-gray-500">
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />Deepfake</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" />Uncertain</span>
+        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />Authentic</span>
+      </div>
+
+      {/* Colour bar */}
+      <div className="flex rounded-xl overflow-hidden h-4 mb-1">
+        {frames.map((f, i) => (
+          <motion.div
+            key={i}
+            className="flex-1 cursor-pointer"
+            style={{ background: frameColor(f) }}
+            initial={{ scaleY: 0 }} animate={{ scaleY: 1 }}
+            transition={{ delay: i * 0.04 }}
+            onMouseEnter={() => setHovered(i)}
+            onMouseLeave={() => setHovered(null)}
+          />
+        ))}
+      </div>
+
+      {/* Consecutive run underline */}
+      {hasLongRun && (
+        <div className="relative h-1.5 mb-3">
+          <div className="absolute h-full bg-gray-800 rounded-full inset-0" />
+          <motion.div
+            className="absolute h-full bg-red-500/70 rounded-full"
+            initial={{ width: 0 }}
+            animate={{
+              left:  `${(maxStart / frames.length) * 100}%`,
+              width: `${((maxEnd - maxStart + 1) / frames.length) * 100}%`,
+            }}
+            transition={{ delay: 0.3, duration: 0.4 }}
+          />
+        </div>
+      )}
+
       {/* Thumbnails */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
+      <div className="flex gap-2 overflow-x-auto pb-2 mt-3">
         {frames.map((f, i) => {
-          const fake = f.result?.verdict === "DEEPFAKE";
           const pending = !f.result && !f.error;
+          const inRun = hasLongRun && i >= maxStart && i <= maxEnd;
           return (
             <div
               key={i}
@@ -273,12 +348,10 @@ const FrameTimeline: React.FC<{ frames: FrameResult[] }> = ({ frames }) => {
               onMouseEnter={() => setHovered(i)}
               onMouseLeave={() => setHovered(null)}
             >
-              <div className={`w-20 h-14 rounded-lg overflow-hidden border-2 transition-all ${
-                pending        ? "border-gray-600 opacity-50"
-                : f.error      ? "border-gray-500"
-                : fake         ? "border-red-500"
-                : "border-green-500"
-              }`}>
+              {inRun && (
+                <div className="absolute -inset-0.5 rounded-lg bg-red-500/20 border border-red-500/50 pointer-events-none z-10" />
+              )}
+              <div className={`w-20 h-14 rounded-lg overflow-hidden border-2 transition-all ${thumbBorder(f, i)}`}>
                 {f.thumbnail ? (
                   <img src={f.thumbnail} alt={`frame-${i}`} className="w-full h-full object-cover" />
                 ) : (
@@ -286,27 +359,31 @@ const FrameTimeline: React.FC<{ frames: FrameResult[] }> = ({ frames }) => {
                     {pending ? <Loader2 className="w-4 h-4 animate-spin text-gray-500" /> : <X className="w-4 h-4 text-gray-500" />}
                   </div>
                 )}
-                {!pending && (
+                {!pending && f.result && (
                   <div className={`absolute inset-0 rounded-lg flex items-end justify-center pb-1 text-xs font-bold ${
-                    fake ? "text-red-300" : "text-green-300"
+                    f.result.verdict === "DEEPFAKE"  ? "text-red-300"   :
+                    f.result.verdict === "UNCERTAIN" ? "text-amber-300" : "text-green-300"
                   }`}>
-                    <span className="bg-black/60 px-1 rounded">{f.result?.confidence ?? "?"}%</span>
+                    <span className="bg-black/70 px-1 rounded">{f.result.confidence}%</span>
                   </div>
                 )}
               </div>
               <p className="text-center text-xs text-gray-500 mt-0.5">{f.timeLabel}</p>
 
-              {/* Hover tooltip */}
               <AnimatePresence>
                 {hovered === i && f.result && (
                   <motion.div
                     initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
-                    className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20 bg-gray-900 border border-gray-700 rounded-xl p-2 w-32 shadow-xl text-center"
+                    className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20 bg-gray-900 border border-gray-700 rounded-xl p-2 w-36 shadow-xl text-center"
                   >
-                    <p className={`text-xs font-bold ${fake ? "text-red-400" : "text-green-400"}`}>
+                    <p className={`text-xs font-bold ${
+                      f.result.verdict === "DEEPFAKE"  ? "text-red-400"   :
+                      f.result.verdict === "UNCERTAIN" ? "text-amber-400" : "text-green-400"
+                    }`}>
                       {f.result.verdict}
                     </p>
                     <p className="text-xs text-gray-400">{f.result.confidence}% fake prob.</p>
+                    {inRun && <p className="text-xs text-orange-400 mt-0.5">Part of consecutive run</p>}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -315,23 +392,143 @@ const FrameTimeline: React.FC<{ frames: FrameResult[] }> = ({ frames }) => {
         })}
       </div>
 
-      {/* Aggregate bar chart */}
+      {/* Bar chart */}
       <div className="mt-4 flex items-end gap-1 h-16">
         {frames.map((f, i) => {
           const conf = f.result?.confidence ?? 0;
-          const fake = f.result?.verdict === "DEEPFAKE";
+          const inRun = hasLongRun && i >= maxStart && i <= maxEnd;
+          const bg =
+            !f.result          ? "bg-gray-700/40" :
+            f.result.verdict === "DEEPFAKE"  ? (inRun ? "bg-red-400/90" : "bg-red-500/70") :
+            f.result.verdict === "UNCERTAIN" ? "bg-amber-500/70" :
+            "bg-green-500/70";
           return (
             <motion.div
               key={i}
-              className={`flex-1 rounded-t ${fake ? "bg-red-500/70" : "bg-green-500/70"} ${!f.result ? "bg-gray-700/40" : ""}`}
+              className={`flex-1 rounded-t ${bg}`}
               initial={{ height: 0 }} animate={{ height: `${Math.max(conf, 4)}%` }}
-              transition={{ delay: i * 0.06, duration: 0.5 }}
+              transition={{ delay: i * 0.05, duration: 0.5 }}
               title={`Frame ${i + 1}: ${conf}%`}
             />
           );
         })}
       </div>
       <p className="text-xs text-gray-600 text-center mt-1">Fake probability per frame</p>
+    </div>
+  );
+};
+
+// ─── Video Insight Panel ──────────────────────────────────────────────────────
+
+const VideoInsightPanel: React.FC<{ meta: VideoMeta }> = ({ meta }) => {
+  const signals = [
+    {
+      label: "Avg Confidence",
+      value: `${meta.avgConfidence}%`,
+      threshold: "threshold ≥ 38%",
+      triggered: meta.isFakeByAvg,
+      desc: `Mean fake probability across ${meta.analyzedFrames ?? meta.totalFrames} frames`,
+    },
+    {
+      label: "Frame Flag Rate",
+      value: `${meta.flaggedRate}%`,
+      threshold: "threshold ≥ 20%",
+      triggered: meta.isFakeByRate,
+      desc: `${meta.fakeFrames} of ${meta.analyzedFrames ?? meta.totalFrames} frames DEEPFAKE`,
+    },
+    {
+      label: "Max Consecutive",
+      value: `${meta.maxConsecutiveRun} frames`,
+      threshold: "threshold ≥ 5",
+      triggered: meta.isFakeByConsecutive,
+      desc: "Longest streak of flagged frames in sequence",
+    },
+    ...(meta.confidenceStd !== undefined ? [{
+      label: "Conf. Oscillation",
+      value: `±${meta.confidenceStd}pts`,
+      threshold: "threshold > 12pts",
+      triggered: meta.isFakeByVariance ?? false,
+      desc: "Confidence std dev — face-swaps oscillate as swap quality varies with head pose & lighting",
+    }] : []),
+    ...(meta.maxFakeScore !== undefined ? [{
+      label: "Peak Frame",
+      value: `${meta.maxFakeScore}%`,
+      threshold: "threshold ≥ 60%",
+      triggered: meta.isFakeByMaxScore ?? false,
+      desc: "Single highest-scoring frame — one heavily manipulated frame is enough to flag",
+    }] : []),
+  ];
+
+  const cols = signals.length >= 5 ? "grid-cols-5" : signals.length === 4 ? "grid-cols-4" : "grid-cols-3";
+  const hfUnavailable = meta.hfAvailable === false;
+
+  return (
+    <div className="mt-2 bg-gray-800/40 rounded-xl border border-gray-700 p-4">
+
+      {/* HF unavailability banner */}
+      {hfUnavailable && (
+        <div className="flex items-start gap-2 bg-amber-900/20 border border-amber-600/40 rounded-lg p-3 mb-3">
+          <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-semibold text-amber-300">Neural model unavailable — result is unreliable</p>
+            <p className="text-xs text-amber-500/80 mt-0.5">
+              Face-swap deepfakes require the HF neural model. Add <code className="bg-gray-800 px-1 rounded">HF_API_TOKEN</code> to your <code className="bg-gray-800 px-1 rounded">.env</code>, then retry. Free tokens at huggingface.co/settings/tokens.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-semibold text-gray-400 flex items-center gap-1.5">
+          <BarChart3 className="w-3.5 h-3.5" /> Video Detection Signals
+          {meta.analyzedFrames !== undefined && meta.analyzedFrames < meta.totalFrames && (
+            <span className="text-gray-600 font-normal">({meta.analyzedFrames}/{meta.totalFrames} frames analyzed)</span>
+          )}
+        </p>
+        {!hfUnavailable && <span className="text-xs text-gray-600">ANY signal triggered → DEEPFAKE</span>}
+      </div>
+
+      {!hfUnavailable && (
+        <div className={`grid ${cols} gap-2`}>
+          {signals.map(sig => (
+            <div
+              key={sig.label}
+              className={`rounded-lg p-3 border transition-all ${
+                sig.triggered
+                  ? "border-red-500/50 bg-red-900/15"
+                  : "border-gray-700/80 bg-gray-900/40"
+              }`}
+            >
+              <p className="text-xs text-gray-500 mb-1">{sig.label}</p>
+              <p className={`text-base font-bold leading-none mb-1 ${sig.triggered ? "text-red-400" : "text-gray-200"}`}>
+                {sig.value}
+              </p>
+              <p className="text-xs text-gray-600">{sig.threshold}</p>
+              <p className="text-xs text-gray-600 mt-1 leading-tight">{sig.desc}</p>
+              {sig.triggered && (
+                <span className="inline-block mt-1.5 text-xs font-semibold text-red-400 bg-red-900/30 px-1.5 py-0.5 rounded">
+                  TRIGGERED
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!hfUnavailable && meta.triggeredSignals.length > 0 && (
+        <p className="text-xs text-gray-600 mt-2 border-t border-gray-700/50 pt-2">
+          <span className="text-red-400 font-medium">Triggered: </span>
+          {meta.triggeredSignals.join(" · ")}
+        </p>
+      )}
+      {!hfUnavailable && meta.triggeredSignals.length === 0 && (
+        <p className="text-xs text-green-500/70 mt-2 flex items-center gap-1">
+          <ShieldCheck className="w-3.5 h-3.5" /> No signals exceeded detection thresholds
+        </p>
+      )}
+      <p className="text-xs text-gray-700 mt-2">
+        Each frame: 4 neural views (full frame + centre/left/right face crops, 224×224) — weighted-max ensemble. Thresholds calibrated for YouTube H.264 compression (FF++, MesoNet, DeepFake-TIMIT).
+      </p>
     </div>
   );
 };
@@ -409,9 +606,8 @@ const DeepFakeDetector: React.FC = () => {
     return data as ScanResult;
   };
 
-  // ── Extract video frames & analyse ───────────────────────────────────────────
+  // ── Extract video frames & batch-analyse via /deepfake/video ─────────────────
   const analyzeVideo = async (videoFile: File) => {
-    const FRAME_COUNT = 10;
     const video  = document.createElement("video");
     const canvas = document.createElement("canvas");
     const ctx    = canvas.getContext("2d")!;
@@ -427,24 +623,29 @@ const DeepFakeDetector: React.FC = () => {
     canvas.height = Math.min(video.videoHeight, 360);
     const duration = video.duration;
 
-    // Initialise skeleton frames for progressive UI
-    const skeleton: FrameResult[] = Array.from({ length: FRAME_COUNT }, (_, i) => ({
-      index:     i,
-      timeLabel: formatTime((i / (FRAME_COUNT - 1)) * duration),
-      thumbnail: "",
-      result:    null,
-    }));
-    setFrames(skeleton);
+    const FRAME_COUNT =
+      duration < 30  ? 10 :
+      duration < 180 ? 16 :
+      duration < 600 ? 24 : 30;
 
-    const allResults: ScanResult[] = [];
+    // Show skeleton immediately so the timeline appears as extraction starts
+    setFrames(Array.from({ length: FRAME_COUNT }, (_, i) => ({
+      index: i,
+      timeLabel: formatTime((i / Math.max(FRAME_COUNT - 1, 1)) * duration),
+      thumbnail: "",
+      result: null,
+    })));
+
+    // ── Phase 1: Extract frames (0–50% progress) ─────────────────────────────
+    const frameBlobs: Blob[]   = [];
+    const thumbs:     string[] = [];
+    const timesLabel: string[] = [];
 
     for (let i = 0; i < FRAME_COUNT; i++) {
-      const t = (i / (FRAME_COUNT - 1)) * duration;
+      const t = (i / Math.max(FRAME_COUNT - 1, 1)) * duration;
+      setStatus(`Extracting frame ${i + 1} / ${FRAME_COUNT}…`);
+      setProgress(Math.round((i / FRAME_COUNT) * 50));
 
-      setStatus(`Analysing frame ${i + 1} / ${FRAME_COUNT}…`);
-      setProgress(Math.round((i / FRAME_COUNT) * 100));
-
-      // Seek
       await new Promise<void>(resolve => {
         video.currentTime = t;
         video.onseeked = () => resolve();
@@ -452,50 +653,84 @@ const DeepFakeDetector: React.FC = () => {
 
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const thumbnail = canvas.toDataURL("image/jpeg", 0.75);
-
       const blob = await new Promise<Blob>(resolve =>
-        canvas.toBlob(b => resolve(b!), "image/jpeg", 0.8)
+        canvas.toBlob(b => resolve(b!), "image/jpeg", 0.85)
       );
 
-      let frameResult: ScanResult | null = null;
-      let frameError: string | undefined;
+      frameBlobs.push(blob);
+      thumbs.push(thumbnail);
+      timesLabel.push(formatTime(t));
 
-      try {
-        frameResult = await analyzeImageBlob(blob);
-        allResults.push(frameResult);
-      } catch (e: any) {
-        frameError = e.message;
-      }
-
+      // Show thumbnail immediately — result arrives in Phase 2
       setFrames(prev => prev.map((f, idx) =>
-        idx === i ? { ...f, thumbnail, result: frameResult, error: frameError } : f
+        idx === i ? { ...f, thumbnail } : f
       ));
     }
 
     URL.revokeObjectURL(video.src);
+
+    // ── Phase 2: Batch neural analysis (50–100% progress) ───────────────────
+    setStatus(`Sending ${FRAME_COUNT} frames to neural model — first run may warm up for 30–50 s…`);
+    setProgress(55);
+
+    const fd = new FormData();
+    frameBlobs.forEach((b, i) => fd.append("frames", b, `frame-${i}.jpg`));
+
+    const res = await fetch(`${API_BASE_URL}/deepfake/video`, {
+      method:  "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body:    fd,
+    });
+
+    setProgress(90);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Video analysis failed.");
     setProgress(100);
 
-    if (allResults.length === 0) throw new Error("All frames failed to analyse.");
+    // Map backend frame results → FrameResult[] (keeps FrameTimeline working)
+    const mapped: FrameResult[] = (data.frames ?? []).map((f: any) => ({
+      index:     f.index,
+      timeLabel: timesLabel[f.index] ?? "",
+      thumbnail: thumbs[f.index]    ?? "",
+      result: f.error ? null : {
+        verdict:    f.verdict,
+        confidence: f.confidence,
+        topLabel:   `Full: ${f.views?.full ?? "?"}% · Face: ${f.views?.face ?? "?"}%`,
+        breakdown:  [
+          ...(f.views?.full != null ? [{ label: "Full frame (224×224)", score: f.views.full }] : []),
+          ...(f.views?.face != null ? [{ label: "Face crop (224×224)",  score: f.views.face }] : []),
+        ],
+      },
+      error: f.error,
+    }));
+    setFrames(mapped);
 
-    // Aggregate: max fake confidence + majority vote
-    const fakeResults      = allResults.filter(r => r.verdict === "DEEPFAKE");
-    const uncertainResults = allResults.filter(r => r.verdict === "UNCERTAIN");
-    const maxFake          = Math.max(...allResults.map(r => r.confidence));
-    const fakeRatio        = fakeResults.length / allResults.length;
-    const verdict: "DEEPFAKE" | "AUTHENTIC" | "UNCERTAIN" =
-      fakeRatio > 0.5 ? "DEEPFAKE" :
-      (fakeResults.length + uncertainResults.length) / allResults.length > 0.4 ? "UNCERTAIN" :
-      "AUTHENTIC";
+    const t_ = data.temporal ?? {};
+    const videoMeta: VideoMeta = {
+      avgConfidence:       t_.avgConfidence        ?? 0,
+      flaggedRate:         t_.flaggedRate           ?? 0,
+      maxConsecutiveRun:   t_.maxConsecutiveRun     ?? 0,
+      maxFakeScore:        t_.maxFakeScore,
+      totalFrames:         t_.totalFrames           ?? mapped.length,
+      analyzedFrames:      t_.analyzedFrames,
+      fakeFrames:          t_.fakeFrames            ?? 0,
+      uncertainFrames:     t_.uncertainFrames       ?? 0,
+      isFakeByAvg:         t_.isFakeByAvg           ?? false,
+      isFakeByRate:        t_.isFakeByRate          ?? false,
+      isFakeByConsecutive: t_.isFakeByConsecutive   ?? false,
+      triggeredSignals:    t_.triggeredSignals       ?? [],
+      confidenceStd:       t_.confidenceStd,
+      isFakeByVariance:    t_.isFakeByVariance,
+      isFakeByMaxScore:    t_.isFakeByMaxScore,
+      hfAvailable:         t_.hfAvailable           ?? true,
+    };
 
     return {
-      verdict,
-      confidence:  maxFake,
-      topLabel:    `${fakeResults.length}/${allResults.length} frames flagged`,
-      breakdown:   [
-        { label: "Frames flagged as fake",   score: Math.round((fakeResults.length / allResults.length) * 100) },
-        { label: "Max fake probability",     score: maxFake },
-        { label: "Avg fake probability",     score: Math.round(allResults.reduce((s, r) => s + r.confidence, 0) / allResults.length) },
-      ],
+      verdict:    data.verdict,
+      confidence: data.confidence,
+      topLabel:   data.topLabel,
+      breakdown:  data.breakdown ?? [],
+      videoMeta,
     };
   };
 
@@ -817,6 +1052,11 @@ const DeepFakeDetector: React.FC = () => {
                         ? " Moderate confidence — some uncertainty; consider additional verification."
                         : " Low confidence — model is uncertain. This result may be unreliable."}
                     </div>
+
+                    {/* Video 3-signal insight panel */}
+                    {mode === "video" && result.videoMeta && (
+                      <VideoInsightPanel meta={result.videoMeta} />
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -844,7 +1084,7 @@ const DeepFakeDetector: React.FC = () => {
               {
                 icon: <Film className="w-5 h-5 text-purple-400" />,
                 title: "Video Analysis",
-                desc: "Extracts up to 10 frames in-browser via Canvas API, runs full forensic analysis on each independently, and aggregates results into a per-frame timeline.",
+                desc: "Extracts 10–30 frames and runs 4 neural views per frame: full frame + 3 face-crop positions (centre/left/right) at 224×224, ensemble via weighted-max. Aggregates via 4-signal temporal hybrid: avg confidence ≥38%, flag rate ≥20%, consecutive run ≥5, and confidence oscillation >12pts std.",
               },
               {
                 icon: <Mic className="w-5 h-5 text-cyan-400" />,

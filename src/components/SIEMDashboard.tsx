@@ -19,13 +19,6 @@ interface EventData {
   value: number;
   intervalend?: string;
 }
-interface PaymentEntry {
-  name: string;
-  email: string;
-  contact: string;
-  amount: number;
-}
-
 interface passwordHealth {
   date: string;
   category: string;
@@ -59,26 +52,8 @@ const SystemEventsPage: React.FC = () => {
   const [infoMessage, setInfoMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [tryFree, setTryFree] = useState<string | null>(null);
-  const [selectPlanForPurchase, setSelectPlanForPurchase] = useState<string | null>(null);
-  
-
   // ---------- Modal State ----------
   const [currentModal, setCurrentModal] = useState<ModalState>("none");
-
-  const [paymentFormData, setPaymentFormData] = useState<PaymentEntry>({
-    name: '',
-    email: '',
-    contact: '',
-    amount: 100, // default amount
-  });
-  // ---------- Payment / Trial ----------
-  const [trialActive, setTrialActive] = useState(false);
-  const [trialExpired, setTrialExpired] = useState(false);
-  const [hasPaid, setHasPaid] = useState(false);
-  const [trialDaysLeft, setTrialDaysLeft] = useState(0);
-  const [trialMessage, setTrialMessage] = useState("");
-  const [paymentChecked, setPaymentChecked] = useState(false);
 
   // ---------- Dashboard Data ----------
   const [loginEvents, setLoginEvents] = useState<EventData[]>([]);
@@ -87,17 +62,8 @@ const SystemEventsPage: React.FC = () => {
   const [passwordHealth, setPasswordHealth] = useState<passwordHealth[]>([]);
   const [profileImage, setProfileImage] = useState("");
   const [error, setError] = useState("");
-  const [showPayModal, setShowPayModal] = useState(false);
-  const [showOnlyPayModal, setShowOnlyPayModal] = useState(false);
-  const [showTrialModal, setShowTrialModal] = useState(false);
-  const [showReverifyPinModal, setShowReverifyPinModal] = useState(false);
-  const [isReverified, setIsReverified] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo[]>([]);
-const [trialPlan, setTrialPlan] = useState<'free' | 'pro' | 'premium' | null>(null);
-const [trialAcknowledged, setTrialAcknowledged] = useState(false);
-const [selectedPlan, setSelectedPlan] = useState<'pro' | 'premium' | 'business' | null>(null);
-
 const [pinVerificationSIEMEnabled, setPinVerificationSIEMEnabled] = useState<boolean | null>(null);
  const [phishingDetectorEnabled, setPhishingDetectorEnabled] = useState<boolean>(false);
   const [featuresLoaded, setFeaturesLoaded] = useState(false);
@@ -111,7 +77,7 @@ const [pinVerificationSIEMEnabled, setPinVerificationSIEMEnabled] = useState<boo
   }
   interface LLMStats {
     total: number;
-    byType: Record<string, number>;
+    byType: { injection: number; exfil: number; rag: number; pii: number; finding: number; incident: number; [k: string]: number };
     byRisk: Record<string, number>;
     trend: { date: string; count: number }[];
     topThreatType: string | null;
@@ -162,11 +128,12 @@ useEffect(() => {
       const data = await res.json();
       
       console.log('✅ SIEM Feature flags loaded:', data);
-      setPinVerificationSIEMEnabled(data.pinVerificationSIEM === true);
-      
+      // Default to requiring PIN unless the flag is explicitly set to false
+      setPinVerificationSIEMEnabled(data.pinVerificationSIEM !== false);
+
     } catch (err) {
       console.error("❌ Failed to load SIEM feature flags:", err);
-      setPinVerificationSIEMEnabled(false); // Safe default
+      setPinVerificationSIEMEnabled(true); // Require PIN on flag-fetch failure
     }
   };
 
@@ -188,12 +155,8 @@ useEffect(() => {
       const token = localStorage.getItem("token");
       console.log('Token for devices fetch:', token);
 
-      const [resProfile, resPayment, resEvents, resDevices] = await Promise.all([
+      const [resProfile, resEvents, resDevices] = await Promise.all([
         fetch(`${API_BASE_URL}/profile`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        fetch(`${API_BASE_URL}/auth/check-payment`, {
-          method: "POST",
           headers: { Authorization: `Bearer ${token}` }
         }),
         fetch(`${API_BASE_URL}/siem-dashboard`, {
@@ -220,31 +183,25 @@ useEffect(() => {
         setDeviceInfo(deviceData.devices || []);
       }
 
-      const profileData = await resProfile.json();
-      const paymentData = await resPayment.json();
-      const eventsData = await resEvents.json();
-
-      if (profileData?.profileImage) {
-        setProfileImage(profileData.profileImage);
+      if (resProfile.ok) {
+        const profileData = await resProfile.json();
+        if (profileData?.profileImage) setProfileImage(profileData.profileImage);
       }
 
-      setTrialActive(paymentData.isTrialActive);
-      setTrialExpired(paymentData.isTrialExpired);
-      setHasPaid(paymentData.hasPaid);
-
-      setLoginEvents(eventsData.loginEvents || []);
-      setPasswordChanges(eventsData.passwordChanges || []);
-      setInvalidLogins(eventsData.invalidLogins || []);
-      console.log('Password health data received from API:', eventsData.passwordHealth);
-      setPasswordHealth(eventsData.passwordHealth || []);
+      if (resEvents.ok) {
+        const eventsData = await resEvents.json();
+        setLoginEvents(eventsData.loginEvents || []);
+        setPasswordChanges(eventsData.passwordChanges || []);
+        setInvalidLogins(eventsData.invalidLogins || []);
+        setPasswordHealth(eventsData.passwordHealth || []);
+      } else {
+        setError("Failed to load SIEM events. Please refresh.");
+      }
 
       // ---------- Determine Modal (with Feature Flag) ----------
       console.log('🔐 SIEM Modal Decision:', {
-        hasPaid: paymentData.hasPaid,
-        isTrialActive: paymentData.isTrialActive,
-        isTrialExpired: paymentData.isTrialExpired,
-        pinVerified: pinVerified,
-        pinVerificationSIEMEnabled, // Now guaranteed to be loaded
+        pinVerified,
+        pinVerificationSIEMEnabled,
       });
 
       // ✅ Check if PIN verification is enabled for SIEM
@@ -253,32 +210,19 @@ useEffect(() => {
         
         if (pinError) {
           setCurrentModal("reVerifyPin");
-        } else if (paymentData.hasPaid) {
-          setCurrentModal("verifyPin");
-        } else if (paymentData.isTrialActive) {
-          setCurrentModal("verifyPin");
-        } else if (paymentData.isTrialExpired) {
-          setCurrentModal("onlyPay");
         } else {
-          setCurrentModal("pay");
+          setCurrentModal("verifyPin"); // PIN required regardless of payment status
         }
       } else {
         console.log('✅ PIN verification DISABLED for SIEM, skipping PIN modal');
         setPinVerified(true); // Auto-verify
         
-        // Still check payment status
-        if (paymentData.isTrialExpired && !paymentData.hasPaid) {
-          setCurrentModal("onlyPay");
-        } else if (!paymentData.hasPaid && !paymentData.isTrialActive) {
-          setCurrentModal("pay");
-        } else {
-          setCurrentModal("none"); // Full access
-        }
+        setCurrentModal("none"); // Full access — no paywall on SIEM
       }
 
     } catch (err) {
       console.error(err);
-      setCurrentModal("pay");
+      setCurrentModal("none"); // Don't block access on fetch errors
       setError("Failed to fetch dashboard data");
     }
   };
@@ -307,35 +251,6 @@ useEffect(() => {
     .catch(err => setLlmError(err.message))
     .finally(() => setLlmLoading(false));
 }, [pinVerified]);
-
-// Add this helper function after your state declarations
-const shouldRequirePinForSIEM = () => {
-  if (pinVerificationSIEMEnabled === null) {
-    console.log('⏳ SIEM feature flag not loaded yet');
-    return false;
-  }
-
-  const result = (
-    pinVerificationSIEMEnabled === true &&
-    !pinVerified &&
-    (hasPaid || trialActive)
-  );
-
-  console.log('🔐 SIEM PIN check:', {
-    pinVerificationSIEMEnabled,
-    pinVerified,
-    hasPaid,
-    trialActive,
-    result
-  });
-
-  return result;
-};
-
-   const handleTryFree = (plan: 'free' | 'pro' = 'free') => {
-    // delegate to API call
-    handleStartTrial(plan);
-  };
 
   // ---------- PIN Verification ----------
   const handlePinSubmit = async (e: React.FormEvent) => {
@@ -366,209 +281,6 @@ const shouldRequirePinForSIEM = () => {
     } catch (err) {
       console.error(err);
       setPinError("Server error. Try again.");
-    }
-  };
-
-  // ---------- Payment Handlers ----------
- const handleStartTrial = async (plan: 'free' | 'pro' | 'premium' = 'free') => {
-     try {
-       const token = localStorage.getItem('token');
-       if (!token) throw new Error('User not authenticated');
- 
-       const response = await fetch(`${API_BASE_URL}/auth/start-trial/`, {
-         method: 'POST',
-         headers: {
-           'Content-Type': 'application/json',
-           Authorization: `Bearer ${token}`,
-         },
-         body: JSON.stringify({ plan }),
-       });
- 
-       const data = await response.json();
-       if (!response.ok) throw new Error(data.message || 'Failed to start trial');
- 
-       // Persist trial state and plan
-       setTrialActive(true);
-       localStorage.setItem('trialActive', 'true');
-       localStorage.setItem('trialPlan', plan);
-       setTrialPlan(plan);
- 
-       const planLabel = plan === 'free' ? 'Free' : plan === 'pro' ? 'Pro' : 'Premium';
-       setTrialMessage(`Your ${planLabel} trial has started! You have 7 days to explore.`);
-       if (!trialAcknowledged) {
-         setShowTrialModal(true);
-       }
-       setShowOnlyPayModal(false);
-       setShowReverifyPinModal(false);
-       setTrialAcknowledged(false); // user has not clicked OK yet
- 
-     } catch (error) {
-       console.error('Error starting trial:', error);
- 
-       setTrialMessage('Failed to start the trial. Please try again.');
-       // setShowTrialModal(true);
-     }
-   }; 
-
-     const handleSelectPlanForPurchase = (plan: 'pro' | 'premium' | 'business') => {
-    // Default to the minimum price in the visible range for each plan
-    const amountMap: Record<string, number> = { pro: 199, premium: 499, business: 1499 };
-    const planAmount = amountMap[plan] || paymentFormData.amount;
-    setPaymentFormData(prev => ({ ...prev, amount: planAmount }));
-    setSelectedPlan(plan);
-
-    // Close the pricing overlay and start payment for the selected plan
-    setShowPayModal(false);
-    handlePayNow(planAmount);
-  }; 
-
-  const checkPaymentStatus = async (): Promise<void> => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) throw new Error('User not authenticated');
-
-      const response = await fetch(`${API_BASE_URL}/auth/check-payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      });
-
-      if (!response.ok) throw new Error('Failed to check payment status');
-      const data = await response.json();
-
-      // Update states from backend
-      setHasPaid(data.hasPaid);
-      setTrialActive(data.isTrialActive);
-      setTrialExpired(data.isTrialExpired);
-
-      // Reset all modals first
-      setShowOnlyPayModal(false);
-      setShowTrialModal(false);
-      setShowReverifyPinModal(false);
-
-      // --- Modal Flow ---
-      // 1. New user (not started trial, not paid)
-      if (!data.hasPaid && !data.isTrialActive && !data.isTrialExpired) {
-        setShowPayModal(true); // Pay modal with trial button
-        return;
-      }
-
-      // 2. In trial (trial started but unpaid)
-      if (!data.hasPaid && data.isTrialActive && !data.isTrialExpired) {
-        if (!isReverified) {
-          setShowReverifyPinModal(true); // After acknowledgment, show PIN modal if not reverified
-        }
-        return;
-      }
-
-      // 3. Trial expired, unpaid
-      if (!data.hasPaid && !data.isTrialActive && data.isTrialExpired) {
-        setShowOnlyPayModal(true); // Pay modal, no trial button
-        return;
-      }
-
-      // 4. Trial expired, paid OR 5. Paid but no trial (rare but valid)
-      if (data.hasPaid) {
-        if (!isReverified) {
-          setShowReverifyPinModal(true); // Paid users must reverify PIN if not done
-        }
-        // else: full access, no modal
-        return;
-      }
-      setShowPayModal(true);
-    } catch (err) {
-      console.error('Error checking payment status:', err);
-      setHasPaid(false);
-      setShowOnlyPayModal(false);
-      setShowTrialModal(false);
-      setShowReverifyPinModal(false);
-    } finally {
-      setPaymentChecked(true);
-    }
-  };
-
-
-
-  const handlePayNow = async (amountOverride?: number, planOverride?: 'pro' | 'premium' | 'business') => {
-    try {
-      if (!(window as any).Razorpay) {
-        alert('Razorpay SDK failed to load.');
-        return;
-      }
-
-      const amountToUse = amountOverride ?? paymentFormData.amount;
-      const planToSubmit = planOverride ?? selectedPlan ?? 'pro';
-
-      const token = localStorage.getItem('token');
-      if (!token) throw new Error('User not authenticated');
-
-      const orderResponse = await fetch(`${API_BASE_URL}/auth/create-order`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          currency: 'INR',
-          receipt: `receipt_${Date.now()}`,
-          ...paymentFormData,
-          amount: amountToUse,
-        }),
-      });
-
-      const orderData = await orderResponse.json();
-      if (!orderData.success) throw new Error('Failed to create order');
-
-      const { orderId, key } = orderData;
-
-      const options = {
-        key,
-        amount: amountToUse * 100, // amount in paise
-        currency: 'INR',
-        name: 'Seekurify',
-        description: 'Secure Payment Gateway',
-        order_id: orderId,
-        prefill: { ...paymentFormData, amount: amountToUse },
-        theme: { color: '#0f172a' },
-        handler: async (response: any) => {
-          try {
-            const res = await fetch(`${API_BASE_URL}/auth/payment-success`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                ...response,
-                plan: planToSubmit,
-              }),
-            });
-
-            const result = await res.json();
-            if (result.success) {
-              setHasPaid(true);
-              // Persist plan info locally for immediate UX; server is authoritative
-              localStorage.setItem('plan', planToSubmit);
-              localStorage.setItem('hasPaid', 'true');
-              checkPaymentStatus();
-              window.location.href = '/siem-dashboard'; // ✅ full reload
-            } else {
-              setError(result.message || 'Payment verification failed.');
-            }
-          } catch (err) {
-            setError('Server error while verifying payment.');
-            console.error(err);
-          }
-        },
-        modal: {
-          ondismiss: () => {},
-        },
-      };
-
-      const rzp = new (window as any).Razorpay(options);
-      rzp.open();
-    } catch (err) {
-      console.error('Payment error:', err);
-      setError(err instanceof Error ? err.message : 'Payment failed');
     }
   };
 
@@ -674,120 +386,6 @@ if (!pinVerified && currentModal === "reVerifyPin" && pinVerificationSIEMEnabled
   );
 
   }
-if (currentModal === "pay") {
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-5xl p-8 relative animate-fadeIn">
-        {/* Close Button */}
-        <button
-          onClick={() => {
-            navigate(-1)
-          }}
-          className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 transition"
-        >
-          ✕
-        </button>
-
-        <h2 className="text-4xl font-bold text-center mb-12">Pricing Plans</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-
-          {/* Free Plan */}
-          <div className="bg-white rounded-xl shadow p-6 flex flex-col">
-            <h3 className="text-xl font-semibold mb-2">Free</h3>
-            <p className="text-4xl font-bold mb-2">$0<span className="text-lg font-normal">/mo</span></p>
-
-            <ul className="space-y-2 mb-6 text-gray-700">
-              <li>✔ Basic password vault</li>
-              <li>✔ Limited passwords</li>
-              <li>✔ No SIEM logs</li>
-            </ul>
-
-            <button onClick={() => handleTryFree?.('free')} className="mt-auto w-full border border-purple-600 text-purple-600 py-2 rounded-lg hover:bg-purple-50">
-              Try Free
-            </button> 
-          </div>
-
-          {/* Pro Plan (Featured) */}
-          <div className="bg-purple-600 text-white rounded-xl shadow-xl p-6 transform scale-105 relative">
-            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-purple-700 text-white px-4 py-1 rounded-full text-sm font-semibold">
-              MOST POPULAR
-            </div>
-
-            <h3 className="text-xl font-semibold mb-2">Pro</h3>
-            <p className="text-4xl font-bold mb-2">$199–299<span className="text-lg font-normal">/mo</span></p>
-
-            <ul className="space-y-2 mb-6">
-              <li>✔ Unlimited passwords</li>
-              <li>✔ 2FA security</li>
-              <li>✔ Breach alerts</li>
-              <li>✔ Basic SIEM summary</li>
-            </ul>
-
-            <button onClick={() => handleTryFree?.('pro')} className="w-full bg-white text-purple-700 py-2 rounded-lg mb-2 font-semibold hover:bg-gray-100">
-              Try Free
-            </button> 
-
-            <button onClick={() => handleSelectPlanForPurchase?.('pro')} className="w-full bg-purple-800 py-2 rounded-lg hover:bg-purple-900">
-              Buy Now
-            </button> 
-          </div>
-
-          {/* Premium Plan */}
-          <div className="bg-white rounded-xl shadow p-6 flex flex-col">
-            <h3 className="text-xl font-semibold mb-2">Premium</h3>
-            <p className="text-4xl font-bold mb-2">$499–799<span className="text-lg font-normal">/mo</span></p>
-
-            <ul className="space-y-2 mb-6 text-gray-700">
-              <li>✔ File/URL scanning</li>
-              <li>✔ Full SIEM dashboards</li>
-              <li>✔ Anomaly alerts</li>
-              <li>✔ PIN/OTP security</li>
-              <li>✔ Device logs</li>
-            </ul>
-
-            <button onClick={() => handleSelectPlanForPurchase?.('premium')} className="mt-auto w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700">
-              Get Started
-            </button> 
-          </div>
-
-          {/* Business Plan */}
-          <div className="bg-white rounded-xl shadow p-6 flex flex-col">
-            <h3 className="text-xl font-semibold mb-2">Business</h3>
-            <p className="text-4xl font-bold mb-2">$1499–2499<span className="text-lg font-normal">/team/mo</span></p>
-
-            <ul className="space-y-2 mb-6 text-gray-700">
-              <li>✔ Admin dashboard</li>
-              <li>✔ Team vaults</li>
-              <li>✔ Policy enforcement</li>
-              <li>✔ Audit logs</li>
-              <li>✔ Incident reports</li>
-            </ul>
-
-            <button onClick={() => navigate('/contact')} className="mt-auto w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700">
-              Contact Sales
-            </button>
-          </div>
-
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-  if (currentModal === "onlyPay") {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-black/50">
-        <div className="bg-white p-6 rounded-xl w-full max-w-md text-center">
-          <h2 className="text-2xl font-bold mb-2">Subscription Expired</h2>
-          <p className="mb-4">Your trial has expired. Please pay to continue.</p>
-          <Button onClick={() => handleSelectPlanForPurchase('pro')} className="bg-green-600 hover:bg-green-700 w-full">Pay $100</Button>
-        </div>
-      </div>
-    );
-  }
-
   // ---------- Dashboard ----------
   return (
     <div className="bg-gradient-to-br from-gray-900 via-black to-gray-800 min-h-screen flex flex-col text-white">
@@ -879,12 +477,14 @@ if (currentModal === "pay") {
               {llmStats && !llmLoading && (
                 <>
                   {/* Stats row */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                     {[
-                      { label: "Total Events",    value: llmStats.total,                    color: "text-cyan-300" },
-                      { label: "Critical / High", value: (llmStats.byRisk.critical ?? 0) + (llmStats.byRisk.high ?? 0), color: "text-red-400" },
-                      { label: "Injection Scans", value: llmStats.byType.injection ?? 0,   color: "text-yellow-300" },
-                      { label: "PII Detections",  value: llmStats.byType.pii ?? 0,          color: "text-purple-300" },
+                      { label: "Total Events",    value: llmStats.total,                                                   color: "text-cyan-300" },
+                      { label: "Critical / High", value: (llmStats.byRisk.critical ?? 0) + (llmStats.byRisk.high ?? 0),   color: "text-red-400" },
+                      { label: "Injection Scans", value: llmStats.byType.injection ?? 0,                                  color: "text-yellow-300" },
+                      { label: "PII Detections",  value: llmStats.byType.pii ?? 0,                                        color: "text-purple-300" },
+                      { label: "Findings",        value: llmStats.byType.finding ?? 0,                                    color: "text-orange-300" },
+                      { label: "Incidents",       value: llmStats.byType.incident ?? 0,                                   color: "text-rose-400" },
                     ].map(({ label, value, color }) => (
                       <div key={label} className="bg-gray-700 rounded-xl p-4 text-center">
                         <div className={`text-3xl font-extrabold ${color}`}>{value}</div>
@@ -942,10 +542,12 @@ if (currentModal === "pay") {
                 <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                   {llmEvents.slice(0, 20).map(ev => {
                     const IconMap: Record<string, React.ReactNode> = {
-                      zap:      <Zap       className="w-4 h-4 flex-shrink-0 text-yellow-400" />,
-                      bot:      <Bot       className="w-4 h-4 flex-shrink-0 text-cyan-400" />,
-                      database: <Database  className="w-4 h-4 flex-shrink-0 text-purple-400" />,
-                      scan:     <ScanSearch className="w-4 h-4 flex-shrink-0 text-pink-400" />,
+                      zap:           <Zap        className="w-4 h-4 flex-shrink-0 text-yellow-400" />,
+                      bot:           <Bot        className="w-4 h-4 flex-shrink-0 text-cyan-400" />,
+                      database:      <Database   className="w-4 h-4 flex-shrink-0 text-purple-400" />,
+                      scan:          <ScanSearch className="w-4 h-4 flex-shrink-0 text-pink-400" />,
+                      'file-search': <FileSearch className="w-4 h-4 flex-shrink-0 text-orange-400" />,
+                      'shield-alert':<ShieldAlert className="w-4 h-4 flex-shrink-0 text-rose-400" />,
                     };
                     const riskCls: Record<string, string> = {
                       critical: "text-red-400 border-red-600/40 bg-red-900/20",

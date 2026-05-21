@@ -3,7 +3,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   FileSearch, KeyRound, BarChart3, ShieldCheck, Phone,
-  Shield, Eye, ShieldAlert, Globe, ScanEye, Bot, Zap, Target, CreditCard, Users,
+  Shield, Eye, ShieldAlert, Globe, ScanEye, Bot, Zap, Target, Users, FileText, Activity, Radio, ShieldOff,
+  BookOpen, Code2,
 } from "lucide-react";
 import { API_BASE_URL } from "../../services/api";
 
@@ -16,7 +17,6 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ sidebarExpanded, setSidebarExpa
   const navigate  = useNavigate();
   const location  = useLocation();
 
-  const [phishingEnabled, setPhishingEnabled]       = useState(false);
   const [siteShieldEnabled, setSiteShieldEnabled]   = useState(false);
   const [injectionEnabled, setInjectionEnabled]     = useState(false);
   const [threatDetectionEnabled, setThreatDetectionEnabled] = useState(false);
@@ -33,7 +33,6 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ sidebarExpanded, setSidebarExpa
     })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(d => {
-        setPhishingEnabled(d.phishingDetectorEnabled === true);
         setSiteShieldEnabled(d.siteShieldEnabled === true);
         setInjectionEnabled(d.promptInjectionEnabled === true);
         setThreatDetectionEnabled(d.threatDetectionEnabled !== false);
@@ -54,8 +53,11 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ sidebarExpanded, setSidebarExpa
       id: "identity", label: "Identity & Access",
       groupIcon: <KeyRound className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-sky-400", groupFlag: identityAccessEnabled,
       items: [
-        { label: "Password Manager",        path: "/dashboard",      icon: <KeyRound   className="w-5 h-5 flex-shrink-0" /> },
-        { label: "System Events Dashboard", path: "/siem-dashboard", icon: <BarChart3  className="w-5 h-5 flex-shrink-0" /> },
+        { label: "Password Manager",        path: "/dashboard",        icon: <KeyRound  className="w-5 h-5 flex-shrink-0" /> },
+        { label: "System Events Dashboard", path: "/siem-dashboard",   icon: <BarChart3 className="w-5 h-5 flex-shrink-0" /> },
+        { label: "Identity Risk",           path: "/identity-risk",    icon: <Activity  className="w-5 h-5 flex-shrink-0" /> },
+        { label: "Blast Radius Analyzer",   path: "/blast-radius",     icon: <Radio     className="w-5 h-5 flex-shrink-0" /> },
+        { label: "Breach Control",          path: "/breach-control",   icon: <ShieldOff className="w-5 h-5 flex-shrink-0" /> },
       ],
     },
     {
@@ -64,7 +66,6 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ sidebarExpanded, setSidebarExpa
       items: [
         { label: "Analyze Malware",   path: "/malware-analysis",  icon: <FileSearch  className="w-5 h-5 flex-shrink-0" /> },
         { label: "DeepFake Detector", path: "/deepfake-detector", icon: <ScanEye     className="w-5 h-5 flex-shrink-0" /> },
-        ...(phishingEnabled ? [{ label: "Phishing Detector", path: "/detect-attacker", icon: <ShieldAlert className="w-5 h-5 flex-shrink-0" /> }] : []),
       ],
     },
     {
@@ -80,8 +81,9 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ sidebarExpanded, setSidebarExpa
       id: "web-infra", label: "Web & Infrastructure",
       groupIcon: <Globe className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-teal-400", groupFlag: webInfraEnabled,
       items: [
-        { label: "Watch Agent", path: "/watch-agent", icon: <Eye         className="w-5 h-5 flex-shrink-0" /> },
-        { label: "CSP Builder", path: "/csp-builder", icon: <ShieldCheck className="w-5 h-5 flex-shrink-0" /> },
+        { label: "AI Firewall (WAF)", path: "/firewall",   icon: <Shield     className="w-5 h-5 flex-shrink-0" /> },
+        { label: "Watch Agent",       path: "/watch-agent", icon: <Eye        className="w-5 h-5 flex-shrink-0" /> },
+        { label: "CSP Builder",       path: "/csp-builder", icon: <ShieldCheck className="w-5 h-5 flex-shrink-0" /> },
         ...(siteShieldEnabled ? [{ label: "SiteShield Audit", path: "/site-shield", icon: <Globe className="w-5 h-5 flex-shrink-0" /> }] : []),
       ],
     },
@@ -97,14 +99,23 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ sidebarExpanded, setSidebarExpa
       groupIcon: <Users className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-amber-400", groupFlag: teamsEnabled,
       items: [
         { label: "Findings", path: "/findings", icon: <ShieldAlert className="w-5 h-5 flex-shrink-0" /> },
+        { label: "SOAR", path: "/soar", icon: <Zap className="w-5 h-5 flex-shrink-0" /> },
         { label: "Workspaces", path: "/workspaces", icon: <Users className="w-5 h-5 flex-shrink-0" /> },
+      ],
+    },
+    {
+      id: "resources", label: "Resources",
+      groupIcon: <BookOpen className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-indigo-400",
+      items: [
+        { label: "User Guide", path: "/user-guide", icon: <BookOpen className="w-5 h-5 flex-shrink-0" /> },
+        { label: "API Docs",   path: "/api-docs",   icon: <Code2    className="w-5 h-5 flex-shrink-0" /> },
       ],
     },
     {
       id: "misc", label: "More",
       groupIcon: <Phone className="w-3.5 h-3.5 flex-shrink-0" />, accentColor: "text-gray-400",
       items: [
-        { label: "Pricing",                path: "/pricing",        icon: <CreditCard className="w-5 h-5 flex-shrink-0" /> },
+        { label: "Log Report",             path: "/log-report",     icon: <FileText   className="w-5 h-5 flex-shrink-0" /> },
         { label: "Prompt Privacy Scanner", path: "/prompt-scanner", icon: <Shield className="w-5 h-5 flex-shrink-0" /> },
         { label: "Contact Us",             path: "/contact",        icon: <Phone  className="w-5 h-5 flex-shrink-0" /> },
       ],

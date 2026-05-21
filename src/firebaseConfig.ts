@@ -1,9 +1,10 @@
 // src/firebaseConfig.ts
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-
+import env from "dotenv";
+env.config();
 const firebaseConfig = {
-    apiKey: "AIzaSyA2jfdtLnO7Xw9N2X1ryQWpCxkaot466BM",
+    apiKey: process.env.FIREBASE_API_KEY,
   authDomain: "securify-d8e21.firebaseapp.com",
   projectId: "securify-d8e21",
   storageBucket: "securify-d8e21.firebasestorage.app",

@@ -15,8 +15,6 @@ interface VerifyPinResponse {
   token?: string;
   error?: string;
   shouldForcePasswordChange?: boolean;
-  isFirstLogin?: boolean;
-  ownedFeatureFlags?: string[];
 }
 
 export const PINForm: React.FC<PINFormProps> = ({ email, onBack }) => {
@@ -86,8 +84,7 @@ export const PINForm: React.FC<PINFormProps> = ({ email, onBack }) => {
         return;
       }
 
-      const hasOwnedFeatures = (data.ownedFeatureFlags?.length ?? 0) > 0;
-      navigate(data.isFirstLogin || !hasOwnedFeatures ? '/pricing' : '/homepageAfterLogin', { replace: true });
+      navigate('/homepageAfterLogin', { replace: true });
     } catch (err: any) {
       setError(err.message || 'Failed to verify PIN. Please try again.');
     } finally {

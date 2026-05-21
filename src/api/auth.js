@@ -34,12 +34,51 @@ import bcrypt from 'bcrypt';
 import PasswordChangeEvent from '../models/PasswordChangeEvent.model.js';
 import Password from '../models/Password.js';
 import { getPasswordStrength } from '../models/User.ts';
+
+const DEFAULT_USER_TYPE = 'individual';
+const DEFAULT_OWNED_FLAGS = [
+  "otp_verification", "pin_verification_password_manager",
+  "security_chatbot", "security_awareness", "insights",
+  "learn_secure_group",
+];
+
+const USER_TYPE_TIER = { individual: 1, ai_teams: 2, security_professional: 3, enterprise: 4 };
+
+const FEATURE_GROUP_TO_USER_TYPE = {
+  identity:          'individual',
+  threat:            'ai_teams',
+  'ai-security':     'ai_teams',
+  'web-infra':       'security_professional',
+  'team-workspaces': 'security_professional',
+  learn:             'individual',
+  bundle:            'enterprise',
+};
+
+const PLAN_TO_USER_TYPE = {
+  free:     'individual',
+  pro:      'individual',
+  premium:  'ai_teams',
+  business: 'enterprise',
+};
+
+// Returns the highest-tier userType among what the user already has,
+// the feature group they just purchased, and the plan they're on.
+// UserType only ever goes up — never downgraded.
+function resolveUserType(currentType, featureGroup, plan) {
+  const tier = t => USER_TYPE_TIER[t] || 1;
+  const current   = currentType || 'individual';
+  const fromGroup = FEATURE_GROUP_TO_USER_TYPE[featureGroup] || 'individual';
+  const fromPlan  = PLAN_TO_USER_TYPE[plan] || 'individual';
+  return [current, fromGroup, fromPlan].reduce((best, c) => tier(c) > tier(best) ? c : best);
+}
 import Razorpay from "razorpay";
 import Trial from "../models/Trial.js";
 import requestIp from 'request-ip';
 import axios from 'axios';            // ← you reference axios but never imported
 import { pushAlert } from '../realtime/socketHub.js';
+import { routeEvent } from '../services/triggerRouter.js';
 import { UAParser } from 'ua-parser-js'; // Add this import at the top
+import { analyzeLoginAnomaly } from '../services/loginAnomalyDetector.js';
 import Notification from '../models/Notification.model.js';
 
 import passwordShare from "../models/passwordShare.js";
@@ -136,7 +175,7 @@ async function sendSuspiciousLoginEmail(ip, email) {
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5,
+  max: 70,
   statusCode: 429,
   standardHeaders: true,
   legacyHeaders: false,
@@ -282,6 +321,12 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
           count: recentFails
         });
         sendSuspiciousLoginEmail?.(ipAddress, user.email).catch(()=>{});
+        routeEvent('login_anomaly', {
+          type: 'bruteforce',
+          ip: ipAddress,
+          userAgent,
+          failCount: recentFails,
+        }, { userId: String(user._id) }).catch(() => {});
       }
 
       return res.status(401).json({ field: 'password', error: 'Incorrect email or password' });
@@ -290,21 +335,25 @@ authRouter.post('/login', loginLimiter, async (req, res) => {
     // Successful login
     await LoginEvent.create({ userId: user._id, success: true, ipAddress, userAgent, timestamp: new Date() });
 
-    const isNewIp = user.lastIp && user.lastIp !== ipAddress;
-    const isNewUa = user.lastUa && user.lastUa !== userAgent;
-    if ((isNewIp || isNewUa) && typeof pushAlert === "function") {
-      pushAlert(String(user._id), "suspiciousLogin", {
-        type: "anomalous_session",
-        ip: ipAddress,
-        userAgent,
-        at: new Date().toISOString(),
-        message: `Sign-in from a new ${isNewIp ? "IP" : ""}${isNewIp && isNewUa ? " & " : ""}${isNewUa ? "device" : ""}.`,
-      });
-      sendSuspiciousLoginEmail?.(ipAddress, user.email).catch(()=>{});
-    }
-
     user.lastIp = ipAddress;
     user.lastUa = userAgent;
+
+    // Async anomaly detection — runs after response is sent, doesn't block login
+    analyzeLoginAnomaly(user._id, ipAddress, userAgent).then(anomalies => {
+      const anomalyMessages = {
+        new_device:       a => `Sign-in from a new device: ${a.details.label}`,
+        impossible_travel: a => `Impossible travel: ${a.details.distanceKm}km from ${a.details.fromCountry} to ${a.details.toCity}, ${a.details.toCountry} in ${a.details.timeDiffMinutes} min`,
+        unusual_time:     a => `Login at unusual hour (${a.details.hour}:00 UTC)`,
+      };
+      for (const anomaly of anomalies) {
+        const message = (anomalyMessages[anomaly.type] || (() => 'Suspicious login detected'))(anomaly);
+        pushAlert(String(user._id), 'suspiciousLogin', { type: anomaly.type, severity: anomaly.severity, ip: ipAddress, userAgent, at: new Date().toISOString(), message });
+        routeEvent('login_anomaly', { type: anomaly.type, severity: anomaly.severity, ip: ipAddress, userAgent, details: anomaly.details }, { userId: String(user._id) }).catch(() => {});
+        if (anomaly.severity === 'critical') {
+          sendSuspiciousLoginEmail?.(ipAddress, user.email).catch(() => {});
+        }
+      }
+    }).catch(() => {});
     user.passwordStrength = getPasswordStrength?.(req.body.password);
     await user.save();
 
@@ -586,7 +635,7 @@ authRouter.post('/verify-otp', async (req, res) => {
 
 
 authRouter.post('/verify-pin', async (req, res) => {
-  const { email, pin } = req.body;
+  const { email, pin, source } = req.body;
 
   if (!email || !pin || typeof pin !== 'string' || pin.length !== 4) {
     return res.status(400).json({ error: 'Invalid PIN or email' });
@@ -653,10 +702,11 @@ if (
 
     // -----------------------------------------------
 
+    const tokenExpiry = source === 'extension' ? '7d' : '15m';
     const token = jwt.sign(
       { _id: user._id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: '15m' }
+      { expiresIn: tokenExpiry }
     );
 
     const successfulLoginCount = await LoginEvent.countDocuments({
@@ -767,7 +817,9 @@ authRouter.post("/signup", async (req, res) => {
     const newUser = new User({
       email,
       username,
-      password, // already hashed before saving
+      password,
+      userType: DEFAULT_USER_TYPE,
+      ownedFeatureFlags: DEFAULT_OWNED_FLAGS,
     });
     await newUser.save();
 
@@ -1088,26 +1140,28 @@ authRouter.post("/payment-success", authenticateToken, async (req, res) => {
       plan
     );
 
-    // ❗ Prevent repeating payment update
-   
-const updatedUser = await User.findByIdAndUpdate(
-      req.user._id, 
+    const nextUserType = resolveUserType(user.userType, featureGroup, plan);
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id,
       {
         hasPaid: true,
-        plan: plan, // 🎯 Ensure this is actually saving
+        plan,
         razorpay_payment_id,
         razorpay_order_id,
         razorpay_signature,
         paymentDate: new Date(),
         ownedFeatureFlags: nextOwnedFeatureFlags,
+        userType: nextUserType,
       },
-      { new: true } // Returns the updated document
+      { new: true }
     );
 
     return res.status(200).json({
       success: true,
       message: "Payment verified successfully",
-      plan: updatedUser.plan, // Return the plan from the DB, not the request
+      plan: updatedUser.plan,
+      userType: updatedUser.userType,
       ownedFeatureFlags: updatedUser.ownedFeatureFlags || [],
     });
 
@@ -1189,11 +1243,14 @@ authRouter.post("/activate-free-plan", authenticateToken, async (req, res) => {
       "free"
     );
 
+    const nextUserType = resolveUserType(user.userType, featureGroup, "free");
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       {
         plan: user.plan || "free",
         ownedFeatureFlags: nextOwnedFeatureFlags,
+        userType: nextUserType,
       },
       { new: true }
     );
@@ -1202,6 +1259,7 @@ authRouter.post("/activate-free-plan", authenticateToken, async (req, res) => {
       success: true,
       message: "Free plan activated successfully",
       plan: updatedUser.plan || "free",
+      userType: updatedUser.userType,
       ownedFeatureFlags: updatedUser.ownedFeatureFlags || [],
     });
   } catch (err) {

@@ -93,6 +93,8 @@ export function decrypt(encrypted) {
 
 
 
+const SITE_CATEGORIES = ['General', 'Social', 'Email', 'Finance', 'Shopping', 'Developer', 'Streaming', 'Work', 'Other'];
+
 // Define the schema
 const passwordSchema = new mongoose.Schema({
   website: { type: String, required: true, trim: true },
@@ -102,14 +104,27 @@ const passwordSchema = new mongoose.Schema({
   workspaceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Workspace', default: null },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
-  category: { type: String, default: 'General' },
+  category: { type: String, enum: SITE_CATEGORIES, default: 'General' },
+  isFinancial: { type: Boolean, default: false },
+  encryptionVersion: { type: String, default: 'AES-256-CBC-v1' },
   notes: { type: String, default: '' },
-  expiresAt: { type: Date },                       // actual expiry date
-expireAfterDays: { type: Number, default: 90 },  // default expiry period
-lastReminderSent: { type: Date },
-lastChanged: { type: Date, default: Date.now},
-isExpired: { type: Boolean, default: false }
+  expiresAt: { type: Date },
+  expireAfterDays: { type: Number, default: 90 },
+  lastReminderSent: { type: Date },
+  lastChanged: { type: Date, default: Date.now },
+  isExpired: { type: Boolean, default: false },
+  isBreached: { type: Boolean, default: false },
+  breachCount: { type: Number, default: 0 },
+  breachCheckedAt: { type: Date, default: null },
+  quarantined: { type: Boolean, default: false },
+  quarantineReason: { type: String, default: null },
+  quarantinedAt: { type: Date, default: null },
+  riskScore: { type: Number, default: null },
+  riskLevel: { type: String, enum: ['critical', 'high', 'medium', 'low', 'safe', null], default: null },
+  riskScoredAt: { type: Date, default: null },
 });
+
+export { SITE_CATEGORIES };
 
 // Encrypt password before saving
 passwordSchema.pre('save', function (next) {

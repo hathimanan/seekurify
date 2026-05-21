@@ -1,4 +1,4 @@
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import { LoginForm } from "./components/LoginForm";
 import { SignupForm } from "./components/SignupForm";
 import { HomePageBefore } from "./screens/HomePageBefore";
@@ -37,21 +37,39 @@ import Insights from "./components/Insights";
 import BotChat from "./components/ui/BotChat";
 import React from 'react';
 import { useAuth } from './context/AuthContext';
-import PhishingDetector from "./components/PhishingDetector";
 import FeatureFlagPage from "./components/admin/FeatureFlagPage";
 import SiteShieldAudit from "./components/SiteShieldAudit";
 import CSPBuilder      from "./components/CSPBuilder";
 import PromptInjectionScanner from "./components/PromptInjectionScanner";
 import WatchAgent from "./components/WatchAgent";
+import LogReport from "./components/LogReport";
 import DeepFakeDetector from "./components/DeepFakeDetector";
 import AIAgentScanner from "./components/AIAgentScanner";
 import RedTeamAgent from "./components/RedTeamAgent";
-import PricingPage from "./components/PricingPage";
 import FindingsBoard from "./components/FindingsBoard";
+import SOARCenter from "./components/SOARCenter";
+import Firewall from "./components/Firewall";
+import IdentityRiskDashboard from "./components/IdentityRiskDashboard";
+import BlastRadiusAnalyzer from "./components/BlastRadiusAnalyzer";
+import BreachControl from "./components/BreachControl";
 import WorkspaceDashboard from "./components/WorkspaceDashboard";
 import WorkspaceVault from "./components/WorkspaceVault";
 import WorkspaceSettings from "./components/WorkspaceSettings";
 import WorkspaceInviteAccept from "./components/WorkspaceInviteAccept";
+import UserGuide from "./components/UserGuide";
+import ApiDocs from "./components/ApiDocs";
+
+const ProtectedRoute: React.FC<{ element: React.ReactElement }> = ({ element }) => {
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400" />
+      </div>
+    );
+  }
+  return isAuthenticated ? element : <Navigate to="/login" replace />;
+};
 
 const AppRoutes = () => {
   const navigate = useNavigate();
@@ -71,7 +89,7 @@ const currentPath = window.location.pathname;
   const searchParams = window.location.search;
 const isPublicRoute = [
     "/HomePageBefore", "/login", "/signup", "/forgot-password",
-    "/reset-password", "/features", "/", "/insights", "/set-new-pin", "/contact", "/contact-public", "/change-password"
+    "/reset-password", "/features", "/", "/insights", "/set-new-pin", "/contact", "/contact-public", "/change-password", "/user-guide", "/api-docs"
   ].includes(currentPath) || currentPath.startsWith("/workspace-invite/");
 
  const hasSetNewPinToken = currentPath === "/set-new-pin" && 
@@ -120,69 +138,68 @@ const isPublicRoute = [
 
 
       {/* 🏠 Authenticated dashboard */}
-      <Route path="/homepageAfterLogin" element={<HomePageAfter />} />
+      <Route path="/homepageAfterLogin" element={<ProtectedRoute element={<HomePageAfter />} />} />
 
       {/* (Optional) fallback route for unmatched paths */}
       <Route path="/homepageBefore" element={<HomePageBefore />} />
 
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} />} />
 
+        <Route path="/malware-analysis" element={<ProtectedRoute element={<MalwareAnalyzer />} />} />
 
-        <Route path="/malware-analysis" element={<MalwareAnalyzer />} />
+        <Route path="/feature-flags" element={<ProtectedRoute element={<FeatureFlagPage />} />} />
 
-<Route path="/feature-flags" element={<FeatureFlagPage />} />
-
-        <Route path="/securityAwareness" element={<SecurityAwareness />} />
+        <Route path="/securityAwareness" element={<ProtectedRoute element={<SecurityAwareness />} />} />
 
         <Route path="/contact" element={<ContactForm />} />
         <Route path="/contact-public" element={<PublicContactPage />} />
 
-{/* <Route path="/devices" element={<SIEMDashboard />} /> */}
-        <Route path="/siem-dashboard" element={<SIEMDashboard />} />
+        <Route path="/siem-dashboard" element={<ProtectedRoute element={<SIEMDashboard />} />} />
 
         <Route path="/forgot-password" element={<ForgotPasswordForm/>} />
 
 <Route path="/share/:token" element={<SharedPasswordLanding />} />
 <Route path="share/:googleToken" element={<SharedPasswordLanding />} />
-{/* <Route  path="/share/:shareId/request-otp"
-  element={<VerifySharedPassword />}
-/> */}
-<Route  path="/share/:shareId/verify"
-  element={<VerifySharedPassword />}
-/>
+<Route path="/share/:shareId/verify" element={<VerifySharedPassword />} />
           <Route path="/reset-password" element={<ForgotPasswordForm/>} />
 
         <Route path="/warning" element={<WarningScreen />} />
 
-<Route path="/detect-attacker" element={<PhishingDetector />} />
-
         <Route path="/features" element={<FeaturesPage />} />
-        
-        <Route path="/profile" element={<Profile />} />
+
+        <Route path="/profile" element={<ProtectedRoute element={<Profile />} />} />
 
         <Route path="/change-password" element={<ChangePasswordForm />} />
 
         <Route path="/insights" element={<Insights />} />
 
-        <Route path="/ask" element={<BotChat />} />
+        <Route path="/ask" element={<ProtectedRoute element={<BotChat />} />} />
 
-        <Route path="/prompt-scanner" element={<PromptScanner />} />
+        <Route path="/prompt-scanner" element={<ProtectedRoute element={<PromptScanner />} />} />
 
-        <Route path="/site-shield" element={<SiteShieldAudit />} />
-        <Route path="/csp-builder" element={<CSPBuilder />} />
-        <Route path="/injection-scanner" element={<PromptInjectionScanner />} />
-        <Route path="/watch-agent" element={<WatchAgent />} />
-        <Route path="/deepfake-detector" element={<DeepFakeDetector />} />
-        <Route path="/ai-agent-scanner" element={<AIAgentScanner />} />
-        <Route path="/red-team" element={<RedTeamAgent />} />
-        <Route path="/findings" element={<FindingsBoard />} />
-        <Route path="/pricing" element={<PricingPage />} />
-        <Route path="/pii-detector" element={<PromptScanner />} />
-        <Route path="/workspaces" element={<WorkspaceDashboard />} />
-        <Route path="/workspaces/:workspaceId/vault" element={<WorkspaceVault />} />
-        <Route path="/workspaces/:workspaceId/settings" element={<WorkspaceSettings />} />
+        <Route path="/site-shield" element={<ProtectedRoute element={<SiteShieldAudit />} />} />
+        <Route path="/csp-builder" element={<ProtectedRoute element={<CSPBuilder />} />} />
+        <Route path="/injection-scanner" element={<ProtectedRoute element={<PromptInjectionScanner />} />} />
+        <Route path="/watch-agent" element={<ProtectedRoute element={<WatchAgent />} />} />
+        <Route path="/deepfake-detector" element={<ProtectedRoute element={<DeepFakeDetector />} />} />
+        <Route path="/ai-agent-scanner" element={<ProtectedRoute element={<AIAgentScanner />} />} />
+        <Route path="/red-team" element={<ProtectedRoute element={<RedTeamAgent />} />} />
+        <Route path="/findings" element={<ProtectedRoute element={<FindingsBoard />} />} />
+        <Route path="/soar" element={<ProtectedRoute element={<SOARCenter />} />} />
+        <Route path="/firewall" element={<ProtectedRoute element={<Firewall />} />} />
+        <Route path="/identity-risk" element={<ProtectedRoute element={<IdentityRiskDashboard />} />} />
+        <Route path="/blast-radius" element={<ProtectedRoute element={<BlastRadiusAnalyzer />} />} />
+        <Route path="/breach-control" element={<ProtectedRoute element={<BreachControl />} />} />
+        <Route path="/log-report" element={<ProtectedRoute element={<LogReport />} />} />
+        <Route path="/pii-detector" element={<ProtectedRoute element={<PromptScanner />} />} />
+        <Route path="/workspaces" element={<ProtectedRoute element={<WorkspaceDashboard />} />} />
+        <Route path="/workspaces/:workspaceId/vault" element={<ProtectedRoute element={<WorkspaceVault />} />} />
+        <Route path="/workspaces/:workspaceId/settings" element={<ProtectedRoute element={<WorkspaceSettings />} />} />
         <Route path="/workspace-invite/:token" element={<WorkspaceInviteAccept />} />
 
+
+        <Route path="/user-guide" element={<UserGuide />} />
+        <Route path="/api-docs" element={<ApiDocs />} />
 
 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 

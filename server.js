@@ -240,7 +240,7 @@ app.use((req, res, next) => {
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
+  message: { error: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -250,9 +250,12 @@ const AUTH_LIMITER_SKIP_PATHS = ['/security-context'];
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // Only 5 login attempts per 15 minutes
-  message: 'Too many login attempts, please try again later.',
+  message: { error: 'Too many login attempts, please try again later.' },
   skipSuccessfulRequests: true,
-  skip: (req) => AUTH_LIMITER_SKIP_PATHS.some(p => req.path.endsWith(p)),
+  // Skip rate limiting outside production so automated tests don't exhaust the limit
+  skip: (req) =>
+    process.env.NODE_ENV !== 'production' ||
+    AUTH_LIMITER_SKIP_PATHS.some(p => req.path.endsWith(p)),
 });
 
 // Apply rate limiting
@@ -296,6 +299,18 @@ import vulnerableMockRouter  from './src/api/vulnerableAiMock.js';
 import workspaceRouter       from './src/routes/workspaceRoutes.js';
 import findingRouter         from './src/routes/findingRoutes.js';
 import cronRouter            from './src/routes/cronRoutes.js';
+import hibpRouter            from './src/api/hibp.js';
+import riskScoreRouter       from './src/api/riskScore.js';
+import notificationsRouter   from './src/api/notifications.js';
+import playbookRouter        from './src/api/playbooks.js';
+import incidentRouter        from './src/api/incidents.js';
+import integrationRouter     from './src/api/integrations.js';
+import playbookRunRouter     from './src/api/playbookRuns.js';
+import scanJobRouter         from './src/api/scanJobs.js';
+import firewallRouter        from './src/api/firewall.js';
+import identityRiskRouter    from './src/api/identityRisk.js';
+import blastRadiusRouter     from './src/api/blastRadius.js';
+import { startScheduler }    from './src/services/scanScheduler.js';
 
 
 app.use('/api/homepage', homepageBeforeloginRoutes);
@@ -330,7 +345,21 @@ app.use('/api', vulnerableMockRouter);
 app.use('/api', workspaceRouter);
 app.use('/api', findingRouter);
 app.use('/api/cron', cronRouter);
-
+app.use('/api/hibp', hibpRouter);
+app.use('/api/risk-score', riskScoreRouter);
+app.use('/api/notifications', notificationsRouter);
+app.use('/api', playbookRouter);
+app.use('/api', incidentRouter);
+app.use('/api', integrationRouter);
+app.use('/api', playbookRunRouter);
+app.use('/api', scanJobRouter);
+app.use('/api/firewall', firewallRouter);
+app.use('/api', identityRiskRouter);
+app.use('/api', blastRadiusRouter);
+import logReportRouter from './src/api/logReport.js';
+app.use('/api', logReportRouter);
+import quizRouter from './src/api/quizQuestions.js';
+app.use('/api', quizRouter);
 
 // --- Serve static files from Vite build ---
 app.use(express.static(path.join(__dirname, 'dist')));
@@ -364,6 +393,7 @@ initSocket(server, socketIoOptions);
 if (process.env.VERCEL !== '1') {
   server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT} in ${NODE_ENV} mode`);
+    startScheduler(6);
   });
 }
 

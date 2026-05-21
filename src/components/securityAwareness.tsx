@@ -1,14 +1,15 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Header from "../components/ui/Header";
 import Footer from "../components/ui/Footer";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, BookOpen, CheckCircle2, XCircle, Clock, ChevronRight, RotateCcw } from "lucide-react";
 import AppSidebar from "./ui/AppSidebar";
 import { API_BASE_URL } from '../services/api';
 import SecurityChatbotIcon from "./ui/ChatbotIcon";
 import BotChat from "./ui/BotChat";
 import { tips } from '../config/securityTips';
+import type { QuizQuestion } from '../config/quizQuestions';
 
 interface Attack {
   title: string;
@@ -164,6 +165,15 @@ const [featureFlags, setFeatureFlags] = useState({
   // ... other flags
 });
 
+  const [quizPhase, setQuizPhase]           = useState<'intro' | 'quiz' | 'result'>('intro');
+  const [quizQuestions, setQuizQuestions]   = useState<QuizQuestion[]>([]);
+  const [currentQIndex, setCurrentQIndex]   = useState(0);
+  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [isAnswered, setIsAnswered]         = useState(false);
+  const [quizScore, setQuizScore]           = useState(0);
+  const [timeLeft, setTimeLeft]             = useState(30);
+  const [answers, setAnswers]               = useState<{ selected: number | null; correct: boolean }[]>([]);
+
   const openModal = (tip: Tip) => {
     setSelectedTip(tip);
     setIsModalOpen(true);
@@ -286,6 +296,65 @@ useEffect(() => {
     }
   };
 
+  const startQuiz = async () => {
+    setQuizPhase('quiz');
+    setCurrentQIndex(0);
+    setSelectedOption(null);
+    setIsAnswered(false);
+    setQuizScore(0);
+    setTimeLeft(30);
+    setAnswers([]);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE_URL}/quiz-questions`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data: QuizQuestion[] = await res.json();
+      setQuizQuestions(data);
+    } catch {
+      setQuizPhase('intro');
+    }
+  };
+
+  const handleAnswer = (optionIndex: number) => {
+    if (isAnswered) return;
+    const correct = optionIndex === quizQuestions[currentQIndex].correctIndex;
+    setSelectedOption(optionIndex);
+    setIsAnswered(true);
+    if (correct) setQuizScore(prev => prev + 1);
+    setAnswers(prev => [...prev, { selected: optionIndex, correct }]);
+  };
+
+  const handleNext = useCallback(() => {
+    if (currentQIndex + 1 >= quizQuestions.length) {
+      setQuizPhase('result');
+    } else {
+      setCurrentQIndex(prev => prev + 1);
+      setSelectedOption(null);
+      setIsAnswered(false);
+      setTimeLeft(30);
+    }
+  }, [currentQIndex, quizQuestions.length]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (quizPhase !== 'quiz' || isAnswered) return;
+    if (timeLeft === 0) {
+      setIsAnswered(true);
+      setAnswers(prev => [...prev, { selected: null, correct: false }]);
+      return;
+    }
+    const t = setTimeout(() => setTimeLeft(prev => prev - 1), 1000);
+    return () => clearTimeout(t);
+  }, [quizPhase, isAnswered, timeLeft]);
+
+  // Auto-advance 4 seconds after answering
+  useEffect(() => {
+    if (!isAnswered || quizPhase !== 'quiz') return;
+    const t = setTimeout(handleNext, 4000);
+    return () => clearTimeout(t);
+  }, [isAnswered, handleNext, quizPhase]);
+
   return (
 <div className="min-h-screen flex flex-col 
   bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900
@@ -326,8 +395,158 @@ useEffect(() => {
             </p>
           </header>
 
+          {/* Cyber Awareness Quiz */}
+          <section id="quiz-section" className="mb-14 border-2 border-amber-500 rounded-2xl p-6 bg-white/80 shadow-md">
+            {quizPhase === 'intro' && (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
+                <BookOpen className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold text-amber-600 mb-1">Cyber Awareness Quiz</h2>
+                <p className="text-gray-500 mb-6">Test your cybersecurity knowledge — India edition</p>
+                <div className="flex flex-wrap justify-center gap-2 mb-6">
+                  {['🎣 Phishing', '📱 Smishing', '📞 Vishing', '🎭 Social Eng.', '🚨 Digital Arrest', '💾 Ransomware'].map(b => (
+                    <span key={b} className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-medium">{b}</span>
+                  ))}
+                </div>
+                <p className="text-gray-500 text-sm mb-6">10 questions · 15 seconds each · 4 choices</p>
+                <button
+                  onClick={startQuiz}
+                  className="bg-gradient-to-r from-amber-500 to-amber-600 text-white px-8 py-3 rounded-xl font-semibold text-lg hover:from-amber-400 hover:to-amber-500 transition-all shadow-md"
+                >
+                  Start Quiz →
+                </button>
+              </motion.div>
+            )}
+
+            {quizPhase === 'quiz' && quizQuestions.length > 0 && (
+              <motion.div key={currentQIndex} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-sm text-gray-500 font-medium">Question {currentQIndex + 1} / {quizQuestions.length}</span>
+                  <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">{quizQuestions[currentQIndex].category}</span>
+                </div>
+
+                <div className="mb-4">
+                  <div className="flex justify-between items-center mb-1">
+                    <Clock className="w-4 h-4 text-gray-400" />
+                    <span className={`text-sm font-bold ${timeLeft > 20 ? 'text-green-600' : timeLeft > 10 ? 'text-amber-500' : 'text-red-500'}`}>{timeLeft}s</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full transition-all duration-1000 ${timeLeft > 20 ? 'bg-green-500' : timeLeft > 10 ? 'bg-amber-500' : 'bg-red-500'}`}
+                      style={{ width: `${(timeLeft / 30) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                <p className="text-xl font-semibold text-gray-800 mb-5">{quizQuestions[currentQIndex].question}</p>
+
+                <div className="space-y-3 mb-5">
+                  {quizQuestions[currentQIndex].options.map((option, idx) => {
+                    const isCorrect = idx === quizQuestions[currentQIndex].correctIndex;
+                    const isSelected = idx === selectedOption;
+                    let cls = "w-full text-left px-4 py-3 rounded-xl border-2 transition-all duration-200 font-medium ";
+                    if (!isAnswered) cls += "border-slate-300 bg-white text-gray-800 hover:border-amber-400 hover:bg-amber-50";
+                    else if (isCorrect) cls += "border-green-500 bg-green-500 text-white";
+                    else if (isSelected) cls += "border-red-500 bg-red-500 text-white";
+                    else cls += "border-slate-200 bg-gray-50 text-gray-400";
+                    return (
+                      <button key={idx} onClick={() => handleAnswer(idx)} disabled={isAnswered} className={cls}>
+                        <span className="mr-2 font-bold">{['A', 'B', 'C', 'D'][idx]}.</span>{option}
+                        {isAnswered && isCorrect && <CheckCircle2 className="inline ml-2 w-4 h-4" />}
+                        {isAnswered && isSelected && !isCorrect && <XCircle className="inline ml-2 w-4 h-4" />}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <AnimatePresence>
+                  {isAnswered && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+                      <p className="text-sm font-medium text-amber-900 mb-1">
+                        {selectedOption === quizQuestions[currentQIndex].correctIndex ? "Correct! 🎉" : timeLeft === 0 ? "Time's up! ⏰" : "Not quite! ❌"}
+                      </p>
+                      <p className="text-sm text-gray-700">{quizQuestions[currentQIndex].explanation}</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {isAnswered && (
+                  <button onClick={handleNext} className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white px-6 py-2 rounded-xl font-semibold hover:from-amber-400 hover:to-amber-500 transition-all">
+                    {currentQIndex + 1 >= quizQuestions.length ? 'See Results' : 'Next'} <ChevronRight className="w-4 h-4" />
+                  </button>
+                )}
+              </motion.div>
+            )}
+
+            {quizPhase === 'result' && (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
+                <p className="text-6xl font-extrabold text-amber-500 mb-2">{quizScore} <span className="text-3xl text-gray-400">/ 10</span></p>
+                {(() => {
+                  const g = quizScore >= 9 ? { label: "Cyber Security Expert 🏆", color: "text-amber-600" }
+                    : quizScore >= 7 ? { label: "Well Defended 🛡️", color: "text-green-600" }
+                    : quizScore >= 5 ? { label: "Getting There 📚", color: "text-blue-600" }
+                    : { label: "Keep Learning 🔰", color: "text-orange-500" };
+                  return <p className={`text-xl font-bold mb-2 ${g.color}`}>{g.label}</p>;
+                })()}
+                <p className="text-gray-500 mb-6">
+                  {quizScore >= 9 ? "Outstanding! You know how to stay safe online."
+                    : quizScore >= 7 ? "Great work! A little more practice and you'll be an expert."
+                    : quizScore >= 5 ? "Good effort — review the tips below to strengthen your knowledge."
+                    : "Don't worry — cybersecurity is a journey. The tips below will help."}
+                </p>
+                {/* Per-question breakdown */}
+                {answers.length > 0 && (
+                  <div className="mt-8 text-left space-y-3 max-h-[28rem] overflow-y-auto pr-1">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Question Breakdown</p>
+                    {quizQuestions.map((q, idx) => {
+                      const ans = answers[idx];
+                      const timedOut = !ans || ans.selected === null;
+                      const correct = ans?.correct;
+                      return (
+                        <div key={idx} className={`rounded-xl border p-3 ${correct ? 'border-green-200 bg-green-50' : timedOut ? 'border-amber-200 bg-amber-50' : 'border-red-200 bg-red-50'}`}>
+                          <div className="flex items-start gap-2">
+                            {correct
+                              ? <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                              : timedOut
+                                ? <Clock className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                                : <XCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-gray-400 mb-1">Q{idx + 1} · {q.category}</p>
+                              <p className="text-sm font-semibold text-gray-800 mb-2">{q.question}</p>
+                              {!correct && !timedOut && ans.selected !== null && (
+                                <p className="text-xs text-red-600 mb-1">Your answer: {q.options[ans.selected]}</p>
+                              )}
+                              {timedOut && (
+                                <p className="text-xs text-amber-600 mb-1">Time's up — no answer given</p>
+                              )}
+                              <p className="text-xs text-green-700 font-medium">
+                                {correct ? 'Correct: ' : 'Right answer: '}{q.options[q.correctIndex]}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1 italic">{q.explanation}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-3 justify-center mt-6">
+                  <button onClick={startQuiz} className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-amber-400 hover:to-amber-500 transition-all">
+                    <RotateCcw className="w-4 h-4" /> Play Again
+                  </button>
+                  <button
+                    onClick={() => document.getElementById('security-tips')?.scrollIntoView({ behavior: 'smooth' })}
+                    className="flex items-center gap-2 border-2 border-amber-500 text-amber-600 px-6 py-3 rounded-xl font-semibold hover:bg-amber-50 transition-all"
+                  >
+                    Review Tips Below ↓
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </section>
+
           {/* Security Tips */}
-          <section className="mb-14 border rounded-2xl p-6 bg-white/70 shadow-md">
+          <section id="security-tips" className="mb-14 border rounded-2xl p-6 bg-white/70 shadow-md">
             <h2 className="text-2xl font-semibold mb-6 text-amber-600">
               Steps to Stay Secure Online
             </h2>
